@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vitals</title>
+<link rel="stylesheet" href="app.css">
+<style>
+html,body{height:100%}
+body{display:flex;flex-direction:column;gap:12px;padding:16px 22px 10px;overflow:hidden;min-width:1040px}
+
+/* ---- the sentence ---- */
+.lead{display:flex;align-items:center;gap:28px;flex:none}
+.lead .say{flex:1;min-width:0}
+.lead h1{margin:0;font-size:28px;line-height:1.15;font-weight:650;letter-spacing:-.025em;display:flex;align-items:center;gap:12px}
+.lead p{margin:6px 0 0 22px;font-size:15.5px;line-height:1.4;color:var(--ink-2);letter-spacing:-.008em}
+.lead p b{color:var(--ink);font-weight:600}
+.fix{width:320px;flex:none;padding:11px 14px;border-radius:12px;border:1px solid var(--line);font-size:13px;line-height:1.4;color:var(--ink-2)}
+.fix .k{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:3px}
+.fix b{color:var(--ink);font-weight:600}
+.fix a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--ink-4);cursor:pointer}
+
+/* ---- cards ---- */
+.card{background:var(--panel);border-radius:12px;padding:12px 16px 13px;min-width:0;display:flex;flex-direction:column}
+.card.alert{background:var(--sev-bg);box-shadow:inset 0 0 0 1px var(--sev-line)}
+.lab{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:var(--ink-3)}
+.lab .tag{font-size:11px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.alert .lab .tag{color:var(--sev)}
+.verdict{margin:2px 0 0;font-size:15px;font-weight:600;letter-spacing:-.012em;line-height:1.3}
+.verdict span{color:var(--ink-3);font-weight:500}
+.alert .verdict em{font-style:normal;color:var(--sev)}
+.kv{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:3.5px;margin:9px 0 0;font-size:12px;line-height:1.35}
+.kv dt{color:var(--ink-3);white-space:nowrap}
+.kv dd{margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kv dd s{text-decoration:none;color:var(--ink-3)}
+.sub2{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.big{font-size:26px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.big small{font-size:13.5px;font-weight:500;color:var(--ink-3);margin-left:2px;letter-spacing:-.01em}
+.axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-4);margin-top:3px}
+.legend{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;margin-top:7px;font-size:11.5px;color:var(--ink-3)}
+.legend span{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.legend b{color:var(--ink);font-weight:500}
+
+/* ---- memory ---- */
+.mem{flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:22px;padding:13px 16px 14px}
+.mem .left{display:flex;flex-direction:column;min-width:0}
+.mnum{display:grid;grid-template-columns:repeat(3,1fr);margin-top:11px;gap:8px}
+.mnum .n{font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.mnum .n small{font-size:14px;font-weight:500;color:var(--ink-3);letter-spacing:-.01em;margin-left:2px}
+.mnum .c{font-size:11.5px;color:var(--ink-3);margin-top:5px}
+.sev-warn .mnum .w .n,.sev-crit .mnum .w .n,.sev-warn .mnum .w .c,.sev-crit .mnum .w .c{color:var(--sev)}
+.mem .stack{margin-top:13px}
+.hist{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+.hist .h{font-size:11.5px;color:var(--ink-3);display:flex;justify-content:space-between;gap:6px}
+.hist .h b{font-weight:500}
+.alert .hist .h b{color:var(--sev)}
+.hist svg{display:block;width:100%;height:36px;margin-top:5px;color:var(--bar-2);overflow:visible}
+.alert .hist svg{color:var(--sev-fill)}
+.wear{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.alert .wear{border-top-color:var(--sev-line)}
+.wear b{color:var(--ink);font-weight:600}
+
+/* RAM map */
+.map{display:flex;flex-direction:column;min-width:0}
+.mapbox{flex:1;display:flex;gap:8px;margin-top:8px;min-height:180px}
+.tree{flex:1;position:relative;min-width:0}
+.tile{position:absolute;padding:2px}
+.tile > div{width:100%;height:100%;border-radius:7px;background:var(--tile);color:var(--tile-ink);padding:8px 10px;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;box-shadow:inset 0 0 0 1px var(--line-2)}
+.tile > div:hover{box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.tile .tn{font-size:12.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .td{font-size:11px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.tile .tv{font-size:13px;font-weight:600;white-space:nowrap}
+.tile .tv small{font-size:11px;font-weight:500;opacity:.7;margin-left:1px}
+.tile.big > div{background:var(--tile-big);color:var(--tile-big-ink);padding:12px 14px}
+.tile.big .tn{font-size:14.5px}
+.tile.big .tv{font-size:34px;letter-spacing:-.035em;line-height:1}
+.tile.big .tv small{font-size:16px}
+.tile.big .share{font-size:12px;opacity:.75;margin-top:4px}
+.tile.small .tn{font-size:11px}
+.tile.small .tv{font-size:11px}
+.tile.small > div{padding:5px 7px}
+.tile .sl{display:flex;flex-direction:column;gap:1px;margin-top:5px;font-size:11px;min-height:0;overflow:hidden}
+.tile .sl span{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tile .sl s{text-decoration:none;margin-left:auto;opacity:.7}
+.swapcol{width:66px;flex:none;display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.swapcol .tank{flex:1;border-radius:7px;background:var(--track);position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px var(--line-2)}
+.swapcol .tank i{position:absolute;left:0;right:0;bottom:0;background:var(--bar-2);transition:height .4s}
+.sev-warn .swapcol .tank i,.sev-crit .swapcol .tank i{background:var(--sev-fill)}
+.swapcol .tank b{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:13px;font-weight:600}
+.swapcol .sc{font-size:11px;color:var(--ink-3);text-align:center;line-height:1.3}
+.swapcol .sc b{display:block;color:var(--ink);font-weight:600;font-size:11.5px}
+.sev-warn .swapcol .sc b,.sev-crit .swapcol .sc b{color:var(--sev)}
+.mapcap{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3);margin-top:6px}
+
+/* ---- peers ---- */
+.peers{flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.row{display:flex;align-items:flex-end;gap:12px;margin-top:10px}
+.row .grow{flex:1;min-width:0}
+.cores{display:flex;align-items:flex-end;gap:8px;margin-left:auto}
+.cores .grp{display:flex;flex-direction:column;gap:4px}
+.cores .bars{display:flex;gap:3px;align-items:flex-end;height:30px}
+.cores .bars i{width:12px;height:30px;border-radius:3px;background:var(--track);position:relative;overflow:hidden;display:block}
+.cores .bars i b{position:absolute;left:0;right:0;bottom:0;background:var(--bar-2);transition:height .4s}
+.cores .gl{font-size:10.5px;color:var(--ink-3)}
+.mini{display:block;width:100%;height:20px;color:var(--bar-2);overflow:visible}
+.gpu{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:9px;border-top:1px solid var(--line);font-size:12px}
+.gpu .g{color:var(--ink-3);flex:none}
+.gpu .v{flex:none;font-weight:600}
+.gpu .grow{flex:1;min-width:0}
+.card .push{margin-top:auto}
+
+/* ---- processes ---- */
+.procs{flex:1;min-height:0;display:flex;flex-direction:column}
+.ptools{display:flex;align-items:center;gap:12px;margin-bottom:6px;flex:none}
+.ptools h2{margin:0;font-size:15px;font-weight:600;letter-spacing:-.012em}
+.ptools .sub{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ptools .sp{flex:1}
+.qbtn{flex:none;border:0;border-radius:7px;height:28px;padding:0 11px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px;cursor:pointer;white-space:nowrap}
+.qbtn:hover{background:var(--panel-2)}
+.qbtn[disabled]{color:var(--ink-4);cursor:default}
+.search{display:flex;align-items:center;gap:6px;width:230px;height:28px;padding:0 9px;border-radius:7px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line-2);flex:none}
+.search svg{flex:none;color:var(--ink-3)}
+.search input{border:0;background:transparent;outline:0;flex:1;font:inherit;font-size:12.5px;color:var(--ink);min-width:0;-webkit-user-select:text;user-select:text}
+.search input::placeholder{color:var(--ink-3)}
+.scroll{flex:1;min-height:0;overflow:auto;border-top:1px solid var(--line)}
+table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px}
+.pt th{position:sticky;top:0;z-index:1;background:var(--page);font-size:11.5px;font-weight:500;color:var(--ink-3);text-align:right;padding:6px 8px 6px;white-space:nowrap;
+  box-shadow:inset 0 -1px 0 var(--line);cursor:pointer}
+.pt th:first-child{text-align:left;padding-left:6px}
+.pt th:last-child,.pt td:last-child{text-align:left;padding-left:18px}
+.pt th .ar{display:inline-block;width:9px;margin-left:3px;color:var(--ink-4);font-size:9px}
+.pt th.on{color:var(--ink);font-weight:600}
+.pt th.on .ar{color:var(--ink)}
+.pt td{height:23px;padding:0 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line-2);overflow:hidden;text-overflow:ellipsis}
+.pt td:first-child{text-align:left;padding-left:6px}
+.pt td.z{color:var(--ink-4)}
+.pt td.u{color:var(--ink-3)}
+.pt tr.kid td{background:var(--sel)}
+.pt tr.kid td:first-child{padding-left:30px}
+.pt tr.sel td{background:var(--sel-strong)}
+.pt tr.grp td{font-weight:500}
+.nm{display:flex;align-items:center;gap:8px;min-width:0}
+.nm .chev{width:12px;flex:none;color:var(--ink-3);font-size:9px;cursor:pointer;display:inline-flex;justify-content:center;transition:transform .15s}
+.nm .chev.open{transform:rotate(90deg)}
+.nm .ic{width:17px;height:17px;border-radius:5px;flex:none;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line);font-size:9.5px;font-weight:700;
+  color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center}
+.nm .t{flex:none;max-width:60%;overflow:hidden;text-overflow:ellipsis}
+.nm .d{color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.memc{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.memc .mb{width:36px;height:4px;border-radius:2px;background:var(--track);overflow:hidden;flex:none}
+.memc .mb i{display:block;height:100%;background:var(--bar)}
+.pfoot{flex:none;display:flex;justify-content:space-between;gap:16px;font-size:11.5px;color:var(--ink-3);padding:7px 6px 0}
+
+/* ---- confirm sheet ---- */
+.veil{position:fixed;inset:0;background:rgba(0,0,0,.25);display:flex;align-items:flex-start;justify-content:center;padding-top:120px;z-index:5}
+.sheet{width:340px;background:var(--menu);border-radius:12px;box-shadow:var(--shadow);padding:18px 18px 14px}
+.sheet h3{margin:0;font-size:15px;font-weight:650}
+.sheet p{margin:6px 0 16px;color:var(--ink-2);font-size:13px;line-height:1.4}
+.sheet .btns{display:flex;justify-content:flex-end;gap:8px}
+.sheet button{border:0;border-radius:7px;height:28px;padding:0 14px;background:var(--panel-2);cursor:pointer}
+.sheet button.go{background:var(--ink);color:var(--page);font-weight:600}
+
+@media (max-width:1180px){
+  .peers{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+<header class="lead" id="lead">
+  <div class="say">
+    <h1><span class="dot"></span><span id="head">Reading your Mac…</span></h1>
+    <p id="sub">&nbsp;</p>
+  </div>
+  <aside class="fix" id="fix" hidden>
+    <div class="k">Quickest fix</div>
+    <span id="fixText"></span> <a data-post="openHelp" data-section="tight">More ways</a>
+  </aside>
+</header>
+
+<section class="card mem" id="memCard">
+  <div class="left">
+    <div class="lab">Memory <span class="tag" id="memTag"></span></div>
+    <p class="verdict" id="memVerdict"></p>
+    <div class="mnum">
+      <div class="w"><div class="n" id="mPress"></div><div class="c" id="mPressC">pressure</div></div>
+      <div><div class="n" id="mUsed"></div><div class="c" id="mUsedC"></div></div>
+      <div class="w" id="mSwapBox"><div class="n" id="mSwap"></div><div class="c" id="mSwapC"></div></div>
+    </div>
+    <div class="stack" id="mStack" title="Your memory, split by kind"></div>
+    <div class="legend" id="mLegend"></div>
+    <div class="hist">
+      <div><div class="h">Pressure, last hour <b id="pTrend"></b></div><svg id="gPress" data-h="40"></svg></div>
+      <div><div class="h"><span>Swap, last hour</span> <b id="sTrend"></b></div><svg id="gSwap" data-h="40"></svg></div>
+    </div>
+  </div>
+  <div class="map">
+    <div class="lab">What's using it <span class="tag">RAM by app · click a block to find it below</span></div>
+    <div class="mapbox">
+      <div class="tree" id="tree"></div>
+      <div class="swapcol" title="Swap: memory that didn't fit, parked on the SSD">
+        <div class="tank"><i id="swapFill"></i><b id="swapPct"></b></div>
+        <div class="sc"><b id="swapUsed"></b>GB swap on the SSD</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="peers">
+  <div class="card" id="cpuCard">
+    <div class="lab">CPU <span class="tag" id="cpuTag"></span></div>
+    <p class="verdict" id="cpuVerdict"></p>
+    <div class="row">
+      <div class="big" id="cpuTot"></div>
+      <div class="cores" id="cores"></div>
+    </div>
+    <dl class="kv"><dt>User · system</dt><dd id="cpuSplit"></dd><dt>Load</dt><dd id="cpuLoad"></dd></dl>
+    <div class="gpu"><span class="g">GPU</span><span class="v" id="gpuPct"></span><div class="grow"><svg class="mini" id="gGpu" data-h="20"></svg></div><span class="g" id="gpuCores"></span></div>
+  </div>
+
+  <div class="card" id="enCard">
+    <div class="lab">Energy <span class="tag" id="enTag"></span></div>
+    <p class="verdict" id="enVerdict"></p>
+    <dl class="kv" id="enKv"></dl>
+  </div>
+
+  <div class="card" id="netCard">
+    <div class="lab">Network <span class="tag" id="netTag"></span></div>
+    <p class="verdict" id="netVerdict"></p>
+    <div class="row" style="margin-top:9px"><div class="big" id="netIn"></div></div>
+    <dl class="kv" id="netKv"></dl>
+  </div>
+
+  <div class="card" id="diskCard">
+    <div class="lab">Disk <span class="tag" id="diskTag"></span></div>
+    <p class="verdict" id="diskVerdict"></p>
+    <div class="meter s" style="margin-top:10px"><i id="diskFill"></i></div>
+    <div class="axis" style="color:var(--ink-3);font-size:11.5px;margin-top:5px"><span id="diskUsed"></span><span id="diskTotal"></span></div>
+    <dl class="kv" id="diskKv"></dl>
+  </div>
+</section>
+
+<section class="procs">
+  <div class="ptools">
+    <h2>Everything running</h2>
+    <span class="sub" id="psub">Helpers sit under their app; gray words say what each one is.</span>
+    <span class="sp"></span>
+    <button class="qbtn" id="quitBtn" hidden></button>
+    <label class="search"><svg width="13" height="13" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="q" placeholder="Search processes" spellcheck="false" autocomplete="off"></label>
+  </div>
+  <div class="scroll" id="scroll">
+    <table class="pt">
+      <colgroup><col><col style="width:128px"><col style="width:64px"><col style="width:84px"><col style="width:66px"><col style="width:62px"><col style="width:84px"><col style="width:84px"><col style="width:84px"><col style="width:84px"><col style="width:118px"></colgroup>
+      <thead><tr id="ph"></tr></thead>
+      <tbody id="pb"></tbody>
+    </table>
+  </div>
+  <div class="pfoot"><span id="footL"></span><span id="footR"></span></div>
+</section>
+
+<div class="veil" id="veil" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="qTitle">
+    <h3 id="qTitle"></h3>
+    <p id="qText"></p>
+    <div class="btns"><button id="qNo">Cancel</button><button class="go" id="qYes">Quit</button></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  "use strict";
+  var V = Vitals, F = V.F, $ = function (id) { return document.getElementById(id); };
+  var GiB = V.GiB;
+
+  /* ================= header + memory ================= */
+  function sevClass(el, sev) {
+    el.classList.toggle("sev-warn", sev === "warn");
+    el.classList.toggle("sev-crit", sev === "crit");
+  }
+  function renderTop(s) {
+    var sum = V.summary(s);
+    sevClass($("lead"), sum.sev);
+    $("head").textContent = sum.head;
+    $("sub").innerHTML = sum.sub;
+    var fx = V.fix(s);
+    $("fix").hidden = !fx;
+    if (fx) $("fixText").innerHTML = fx.html;
+  }
+
+  function renderMemory(s) {
+    var m = s.memory || {}, st = V.memState(s), card = $("memCard");
+    var sev = st === "ok" ? "" : st;
+    sevClass(card, sev);
+    card.classList.toggle("alert", st !== "ok");
+    $("memTag").textContent = st === "crit" ? "Act now" : st === "warn" ? "Needs attention" : F.gb(m.totalBytes, 0) + " GB";
+    var total = m.totalBytes || 1;
+    var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
+    $("memVerdict").innerHTML =
+      st === "crit" ? "<em>Out of memory.</em> Swap is full, so apps may freeze. Quit something big." :
+      st === "warn" ? "<em>Strained.</em> Apps want more than " + F.gbShort(total) + ", so macOS is squeezing and swapping." :
+      "Fine. <span>" + (swapFrac > 0.4 ? "Room to spare, though swap still holds some." : "Room to spare.") + "</span>";
+
+    $("mPress").innerHTML = F.pct(m.pressurePct) + "<small>%</small>";
+    $("mPressC").textContent = "pressure, " + (m.level === "critical" ? "critical" : m.level === "warn" ? "high" : st === "warn" ? "high" : "normal");
+    $("mUsed").innerHTML = F.gb(m.usedBytes) + "<small>GB</small>";
+    $("mUsedC").textContent = "used of " + F.gb(total) + " GB";
+    $("mSwap").innerHTML = F.gb(m.swapUsedBytes) + "<small>GB</small>";
+    $("mSwapC").textContent = "swap used of " + F.gb(m.swapTotalBytes);
+    $("mSwapBox").classList.toggle("w", swapFrac >= 0.75);
+
+    var parts = [
+      ["App", m.appBytes, "var(--bar)"], ["Wired", m.wiredBytes, "var(--bar-2)"],
+      ["Compressed", m.compressedBytes, null], ["Cached", m.cachedBytes, "var(--bar-3)"]
+    ];
+    $("mStack").innerHTML = parts.map(function (p) {
+      var w = Math.max(0, (p[1] || 0) / total * 100).toFixed(2);
+      return '<i class="' + (p[2] ? "" : "hatch") + '" style="width:' + w + '%;' + (p[2] ? "background:" + p[2] : "") + '"></i>';
+    }).join("");
+    $("mLegend").innerHTML = parts.map(function (p) {
+      return '<span><i class="sw ' + (p[2] ? "" : "hatch") + '" style="' + (p[2] ? "background:" + p[2] : "") + '"></i>' + p[0] + " <b>" + F.gb(p[1]) + "</b></span>";
+    }).join("");
+
+    var h = m.history || {};
+    V.spark($("gPress"), h.pressurePct, 0, 100, { ref: 70 });
+    var sw = (h.swapUsedBytes || []).map(function (b) { return b / GiB; });
+    V.spark($("gSwap"), sw, 0, Math.max(1, (m.swapTotalBytes || 0) / GiB), { ref: (m.swapTotalBytes || 0) / GiB });
+    var pt = V.trend(h.pressurePct);
+    $("pTrend").textContent = pt === "rising" ? "rising" : pt === "falling" ? "easing" : pt;
+    $("sTrend").textContent = m.swapTotalBytes ? Math.round(swapFrac * 100) + "% full" : "none in use";
+
+
+    // swap tank
+    $("swapFill").style.height = (swapFrac * 100).toFixed(1) + "%";
+    $("swapPct").textContent = m.swapTotalBytes ? Math.round(swapFrac * 100) + "%" : "0%";
+    $("swapUsed").textContent = F.gb(m.swapUsedBytes) + " / " + F.gb(m.swapTotalBytes);
+    renderTree(s);
+  }
+
+  /* RAM map */
+  var treeItems = [];
+  function mapItems(s) {
+    var out = V.items(s).map(function (it) { return Object.assign({ value: it.memBytes || 0 }, it); });
+    out.sort(function (a, b) { return b.value - a.value; });
+    var total = out.reduce(function (t, x) { return t + x.value; }, 0);
+    var keep = [], rest = { value: 0, n: 0 };
+    out.forEach(function (x, i) {
+      if (i < 9 && x.value >= total * 0.018) keep.push(x); else { rest.value += x.value; rest.n++; }
+    });
+    if (rest.n) keep.push({ value: rest.value, id: "rest", name: "Everything else", desc: rest.n + " more", rest: true });
+    return { items: keep, total: total };
+  }
+  function renderTree(s) {
+    var box = $("tree"), r = box.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var mi = mapItems(s), memTotal = (s.memory || {}).totalBytes || (s.host || {}).memBytes;
+    var tiles = V.treemap(mi.items, r.width, r.height);
+    treeItems = tiles;
+    box.innerHTML = tiles.map(function (t, i) {
+      var area = t.w * t.h, cls = i === 0 && t.value > mi.total * 0.3 ? "big" : area < 5200 ? "small" : "";
+      var val = F.gbShort(t.value).split(" ");
+      var inner = '<div><div><div class="tn">' + F.esc(t.name) + "</div>" +
+        (cls !== "small" && t.desc && t.h > 54 && t.w > 118 ? '<div class="td">' + F.esc(t.desc) + "</div>" : "");
+      if (t.sessions && t.h > 110 && t.w > 150) {
+        var rows = Math.max(1, Math.floor((t.h - 64) / 15));
+        inner += '<div class="sl">' + t.sessions.slice().sort(function (a, b) { return b.memBytes - a.memBytes; }).slice(0, rows).map(function (k) {
+          return '<span><i class="mdot m-' + F.esc(k.model || "") + '"></i>' + F.esc(k.name) + "<s>" + F.gbShort(k.memBytes).replace(" MB", "") + "</s></span>";
+        }).join("") + "</div>";
+      } else if (t.sessions && t.h > 40) {
+        inner += '<div class="dots" style="margin-top:4px">' + t.sessions.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</div>";
+      }
+      inner += "</div><div>" + (t.h > 30 || cls !== "small" ? '<div class="tv">' + val[0] + "<small>" + (val[1] || "") + "</small></div>" : "") +
+        (cls === "big" && memTotal ? '<div class="share">' + Math.round(t.value / memTotal * 100) + "% of your " + F.gbShort(memTotal) + "</div>" : "") + "</div></div>";
+      return '<div class="tile ' + cls + '" data-row="' + F.esc(t.rowId || "") + '" title="' + F.esc(t.name + " · " + F.mem(t.value)) +
+        '" style="left:' + t.x.toFixed(1) + "px;top:" + t.y.toFixed(1) + "px;width:" + t.w.toFixed(1) + "px;height:" + t.h.toFixed(1) + 'px">' + inner + "</div>";
+    }).join("");
+  }
+  $("tree").addEventListener("click", function (e) {
+    var t = e.target.closest(".tile[data-row]");
+    if (!t || !t.dataset.row) return;
+    query = ""; $("q").value = "";
+    selectRow(t.dataset.row, true);
+  });
+
+  /* ================= peers ================= */
+  function kv(el, rows) {
+    el.innerHTML = rows.filter(Boolean).map(function (r) { return "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>"; }).join("");
+  }
+  function topBy(s, key, n, fmt) {
+    var list = V.items(s).map(function (it) { return { name: it.short || (it.name === "Claude app" ? "Claude" : it.name), v: it[key] }; });
+    list = list.filter(function (x) { return V.isNum(x.v) && x.v > 0; }).sort(function (a, b) { return b.v - a.v; }).slice(0, n);
+    return list.length ? list.map(function (x) { return [F.esc(x.name), fmt(x.v)]; }) : [["Nothing much", ""]];
+  }
+  function most(rows) {
+    return rows.map(function (r, i) { return i ? "<s>" + r[0] + " " + r[1] + "</s>" : r[0] + " " + r[1]; }).join(" · ");
+  }
+  function renderPeers(s) {
+    var c = s.cpu || {}, h = s.host || {}, g = s.gpu || {};
+    var cs = V.cpuState(s);
+    $("cpuTag").textContent = (c.cores || []).length + " cores";
+    $("cpuVerdict").innerHTML = cs === "busy" ? "Busy. <span>Working hard right now.</span>" : cs === "working" ? "Working. <span>Some room left.</span>" : "Calm. <span>Plenty of room.</span>";
+    $("cpuTot").innerHTML = F.pct(c.totalPct) + "<small>%</small>";
+    $("cpuSplit").textContent = F.pct(c.userPct, 1) + "% · " + F.pct(c.systemPct, 1) + "%";
+    var P = (c.cores || []).filter(function (k) { return k.kind === "P"; }), E = (c.cores || []).filter(function (k) { return k.kind !== "P"; });
+    function grp(arr, l) {
+      if (!arr.length) return "";
+      return '<div class="grp"><div class="bars">' + arr.map(function (k) { return '<i title="' + Math.round(k.pct) + '%"><b style="height:' + Math.max(0, Math.min(100, k.pct)).toFixed(0) + '%"></b></i>'; }).join("") +
+        '</div><div class="gl">' + arr.length + " " + l + "</div></div>";
+    }
+    $("cores").innerHTML = grp(P, "performance") + grp(E, "efficiency");
+    $("cpuLoad").textContent = (c.load || []).map(function (x) { return F.pct(x, 1); }).join(" · ");
+    $("gpuPct").textContent = F.pct(g.pct) + "%";
+    $("gpuCores").textContent = h.gpuCores ? h.gpuCores + " cores" : "";
+    V.spark($("gGpu"), g.history, 0, 100);
+
+    // energy
+    var e = s.energy || {};
+    var thermal = { nominal: "Nominal", fair: "Warm", serious: "Hot", critical: "Very hot" }[e.thermal] || "–";
+    $("enTag").textContent = e.pluggedIn ? "On power" : V.isNum(e.batteryPct) ? "On battery" : "";
+    var ev;
+    if (e.thermal === "serious" || e.thermal === "critical") ev = "Hot. <span>macOS is slowing down to cool.</span>";
+    else if (!e.pluggedIn && e.batteryPct <= 15) ev = "Low battery. <span>" + F.pct(e.batteryPct) + "% left.</span>";
+    else if (e.pluggedIn) ev = "Fine. <span>" + (e.fullyCharged ? "Plugged in, full, cool." : e.charging ? "Charging." : "Plugged in.") + "</span>";
+    else if (V.isNum(e.batteryPct)) ev = "Fine. <span>On battery, " + F.hm(e.minutesLeft) + " left.</span>";
+    else ev = "Fine. <span>Plugged in.</span>";
+    $("enVerdict").innerHTML = ev;
+    kv($("enKv"), [
+      V.isNum(e.batteryPct) && ["Battery", F.pct(e.batteryPct) + "%" + (e.fullyCharged ? ", full" : e.charging ? ", charging" : "") + (e.pluggedIn && e.adapterWatts ? " · " + e.adapterWatts + " W adapter" : "")],
+      (V.isNum(e.healthPct) || V.isNum(e.cycles)) && ["Health", F.pct(e.healthPct) + "% · " + F.int(e.cycles) + " cycles"],
+      V.isNum(e.minutesLeft) && [e.pluggedIn ? "On battery" : "Time left", "about " + F.hm(e.minutesLeft)],
+      ["Heat", thermal + (V.isNum(e.fanRPM) ? (e.fanRPM > 0 ? " · fan " + F.int(e.fanRPM) + " rpm" : " · fan off") : "")],
+      ["Most energy", most(topBy(s, "energy", 2, function (v) { return F.pct(v, 1); }))]
+    ]);
+
+    // network
+    var n = s.network || {};
+    $("netTag").textContent = n.iface || "";
+    var busy = (n.inBps || 0) + (n.outBps || 0);
+    $("netVerdict").innerHTML = busy > 50e6 ? "Busy. <span>Heavy traffic.</span>" : busy > 0.2e6 ? "Fine. <span>Light traffic.</span>" : "Quiet. <span>Almost nothing moving.</span>";
+    $("netIn").innerHTML = F.rateZero(n.inBps).replace(/ (\S+)$/, "<small>$1 in</small>");
+    kv($("netKv"), [
+      ["Out", F.rateZero(n.outBps)],
+      ["Today", F.bytes(n.inTodayBytes) + " in · " + F.bytes(n.outTodayBytes) + " out"],
+      ["Packets", F.int(n.packetsInPs) + "/s in · " + F.int(n.packetsOutPs) + "/s out"],
+      ["Most", most(topBy(s, "netInBps", 2, F.rate))]
+    ]);
+
+    // disk
+    var d = s.disk || {}, ms = V.memState(s), m = s.memory || {};
+    var full = d.totalBytes ? d.usedBytes / d.totalBytes : 0;
+    var low = d.totalBytes && d.freeBytes / d.totalBytes < 0.07;
+    sevClass($("diskCard"), low ? "warn" : "");
+    $("diskTag").textContent = d.volume || "";
+    $("diskVerdict").innerHTML = low ? "Getting full. <span>" + F.dgb(d.freeBytes) + " free.</span>" : "Fine. <span>" + F.dgb(d.freeBytes) + " free.</span>";
+    $("diskFill").style.width = (full * 100).toFixed(1) + "%";
+    $("diskUsed").textContent = F.dgb(d.usedBytes) + " used";
+    $("diskTotal").textContent = "of " + F.dgb(d.totalBytes);
+    var swapBusy = m.swapTotalBytes && m.swapUsedBytes / m.swapTotalBytes > 0.5;
+    kv($("diskKv"), [
+      ["Now", F.rateZero(d.readBps) + " read · " + F.rateZero(d.writeBps) + " write"],
+      swapBusy && d.writeBps > 5e6 && ["", "<s>writes are mostly swap</s>"],
+      ["Today", F.bytes(d.readTodayBytes) + " read · " + F.bytes(d.writtenTodayBytes) + " written"],
+      ["Biggest", d.bigUsers == null ? "<s>measuring…</s>" : most(d.bigUsers.slice(0, 2).map(function (b) { return [F.esc(b.name), F.bytes(b.bytes)]; }))]
+    ]);
+
+  }
+
+  /* ================= process table ================= */
+  var cols = [
+    { k: "name", t: "Name" }, { k: "memBytes", t: "Memory" }, { k: "cpuPct", t: "CPU %" }, { k: "cpuTimeSec", t: "CPU time" },
+    { k: "threads", t: "Threads" }, { k: "energy", t: "Energy" }, { k: "diskReadBps", t: "Disk read" }, { k: "diskWriteBps", t: "Disk write" },
+    { k: "netInBps", t: "Net in" }, { k: "netOutBps", t: "Net out" }, { k: "user", t: "User" }
+  ];
+  var sortK = "memBytes", sortDir = -1, query = "", open = {}, selected = null, snap = null, visible = [];
+  function cmp(a, b) {
+    var x = a[sortK], y = b[sortK];
+    if (sortK === "name" || sortK === "user") return String(x || "").localeCompare(String(y || "")) * sortDir;
+    return ((x || 0) - (y || 0)) * sortDir;
+  }
+  function match(p) {
+    if (!query) return true;
+    return (p.name + " " + V.note(p) + " " + (p.pid == null ? "" : p.pid)).toLowerCase().indexOf(query) >= 0;
+  }
+  function icon(p) {
+    if (p.id === "group:claude-code") return "›_";
+    var n = (p.name || "?").replace(/^com\.apple\./, "");
+    return F.esc(n.charAt(0).toUpperCase());
+  }
+  function cell(p, k, memTotal) {
+    switch (k) {
+      case "memBytes": return '<div class="memc">' + F.mem(p.memBytes) + '<span class="mb"><i style="width:' + Math.min(100, (p.memBytes || 0) / memTotal * 160).toFixed(1) + '%"></i></span></div>';
+      case "cpuPct": return F.pct(p.cpuPct, 1);
+      case "cpuTimeSec": return F.dur(p.cpuTimeSec);
+      case "threads": return F.int(p.threads);
+      case "energy": return F.pct(p.energy, 1);
+      case "diskReadBps": case "diskWriteBps": case "netInBps": case "netOutBps": return F.rate(p[k]);
+      case "user": return F.esc(p.user || "");
+    }
+    return "";
+  }
+  function zero(p, k) { return /Bps$/.test(k) && !(p[k] > 0); }
+  function nameCell(p, kid) {
+    var lead = p.kind === "session" ? '<i class="mdot m-' + F.esc(p.model || "") + '" style="margin:0 5px"></i>' : '<span class="ic">' + icon(p) + "</span>";
+    var hasKids = p.children && p.children.length;
+    var chev = hasKids ? '<span class="chev' + (open[p.id] ? " open" : "") + '" data-id="' + F.esc(p.id) + '">▶</span>' : (kid ? "" : '<span class="chev"></span>');
+    var dots = p.id === "group:claude-code" && !open[p.id] ? '<span class="dots">' + p.children.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</span>" : "";
+    var d = V.note(p);
+    return '<div class="nm">' + chev + lead + '<span class="t">' + F.esc(p.name) + "</span>" + dots + (d ? '<span class="d">' + F.esc(d) + "</span>" : "") + "</div>";
+  }
+  function rowHtml(p, kid, memTotal) {
+    return '<tr data-id="' + F.esc(p.id) + '" class="' + (kid ? "kid" : "") + (p.children && p.children.length ? " grp" : "") + (p.id === selected ? " sel" : "") + '">' +
+      cols.map(function (c) {
+        return '<td class="' + (zero(p, c.k) ? "z" : "") + (c.k === "user" ? " u" : "") + '">' + (c.k === "name" ? nameCell(p, kid) : cell(p, c.k, memTotal)) + "</td>";
+      }).join("") + "</tr>";
+  }
+  function renderHead() {
+    $("ph").innerHTML = cols.map(function (c) {
+      var on = c.k === sortK;
+      return '<th data-k="' + c.k + '" class="' + (on ? "on" : "") + '">' + c.t + '<span class="ar">' + (on ? (sortDir < 0 ? "▼" : "▲") : "⇅") + "</span></th>";
+    }).join("");
+  }
+  function renderTable() {
+    if (!snap) return;
+    var memTotal = (snap.memory || {}).totalBytes || 18 * GiB, out = [];
+    visible = [];
+    (snap.processes || []).slice().sort(cmp).forEach(function (p) {
+      var kids = (p.children || []).filter(match);
+      if (!match(p) && !kids.length) return;
+      out.push(rowHtml(p, false, memTotal)); visible.push(p);
+      var isOpen = open[p.id] || (query && kids.length);
+      if (p.children && p.children.length && isOpen) {
+        (query && !match(p) ? kids : p.children).slice().sort(cmp).forEach(function (k) { out.push(rowHtml(k, true, memTotal)); visible.push(k); });
+      }
+    });
+    $("pb").innerHTML = out.join("");
+    var all = V.flat(snap.processes).filter(function (p) { return !(p.children && p.children.length); }).length;
+    $("q").placeholder = "Search " + F.int((snap.totals || {}).processes || all) + " processes";
+    $("psub").textContent = "Sorted by " + ({ memBytes: "memory", cpuPct: "CPU", cpuTimeSec: "CPU time", threads: "threads", energy: "energy", diskReadBps: "disk read", diskWriteBps: "disk write", netInBps: "network in", netOutBps: "network out", name: "name", user: "user" })[sortK] +
+      ". Helpers sit under their app; gray words say what each one is.";
+    renderQuit();
+  }
+  function findProc(id) {
+    var hit = null;
+    V.flat(snap && snap.processes).some(function (p) { if (p.id === id) { hit = p; return true; } return false; });
+    return hit;
+  }
+  function quittable(p) { return p && p.pid != null && p.pid > 1 && p.user !== "root" && p.name !== "Vitals" && p.id !== "group:claude-code"; }
+  function renderQuit() {
+    var p = selected && findProc(selected), b = $("quitBtn");
+    b.hidden = !p;
+    if (!p) return;
+    var name = p.name;
+    b.textContent = quittable(p) ? "Quit " + name + "…" : p.id === "group:claude-code" ? "Pick one session to quit" : "Part of macOS";
+    b.disabled = !quittable(p);
+  }
+  function selectRow(id, reveal) {
+    selected = id;
+    var p = findProc(id);
+    if (reveal && p) {
+      V.flat(snap.processes).forEach(function (g) { if (g.children && g.children.some(function (k) { return k.id === id; })) open[g.id] = true; });
+    }
+    renderTable();
+    var tr = document.querySelector('#pb tr[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+    if (tr && reveal) tr.scrollIntoView({ block: "center" });
+  }
+  $("ph").addEventListener("click", function (e) {
+    var th = e.target.closest("th"); if (!th) return;
+    var k = th.dataset.k;
+    if (k === sortK) sortDir = -sortDir; else { sortK = k; sortDir = (k === "name" || k === "user") ? 1 : -1; }
+    renderHead(); renderTable();
+  });
+  $("pb").addEventListener("click", function (e) {
+    var c = e.target.closest(".chev[data-id]");
+    if (c) { open[c.dataset.id] = !open[c.dataset.id]; renderTable(); return; }
+    var tr = e.target.closest("tr[data-id]");
+    if (tr) selectRow(tr.dataset.id === selected ? null : tr.dataset.id);
+  });
+  $("q").addEventListener("input", function (e) { query = e.target.value.trim().toLowerCase(); renderTable(); });
+
+  /* quit, with a sheet that asks first */
+  var pending = null;
+  function askQuit() {
+    var p = selected && findProc(selected);
+    if (!quittable(p)) return;
+    pending = p;
+    var name = p.name;
+    $("qTitle").textContent = "Quit " + name + "?";
+    $("qText").textContent = (p.memBytes ? "This frees about " + F.gbShort(p.memBytes) + ". " : "") + "Anything unsaved in it may be lost.";
+    $("veil").hidden = false;
+    $("qYes").focus();
+  }
+  function closeSheet() { $("veil").hidden = true; pending = null; }
+  $("quitBtn").addEventListener("click", askQuit);
+  $("qNo").addEventListener("click", closeSheet);
+  $("veil").addEventListener("click", function (e) { if (e.target === $("veil")) closeSheet(); });
+  $("qYes").addEventListener("click", function () {
+    if (pending) V.post("quitProcess", { pid: pending.pid, name: pending.name });
+    closeSheet();
+  });
+
+  /* keyboard */
+  document.addEventListener("keydown", function (e) {
+    if (!$("veil").hidden) { if (e.key === "Escape") closeSheet(); return; }
+    var cmd = e.metaKey;
+    if (cmd && e.key.toLowerCase() === "f") { e.preventDefault(); $("q").focus(); $("q").select(); return; }
+    if (cmd && (e.key === "1" || e.key === "2" || e.key === "3")) {
+      e.preventDefault(); sortK = { 1: "memBytes", 2: "cpuPct", 3: "energy" }[e.key]; sortDir = -1; renderHead(); renderTable(); return;
+    }
+    if (cmd && e.key === "Backspace") { e.preventDefault(); askQuit(); return; }
+    if (cmd && (e.key === "?" || e.key === "/")) { e.preventDefault(); V.post("openHelp"); return; }
+    if (e.key === "Escape" && document.activeElement === $("q")) { $("q").value = ""; query = ""; $("q").blur(); renderTable(); return; }
+    if (document.activeElement === $("q")) return;
+    var i = visible.findIndex(function (p) { return p.id === selected; });
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      var j = e.key === "ArrowDown" ? Math.min(visible.length - 1, i + 1) : Math.max(0, i - 1);
+      if (visible[j]) selectRow(visible[j].id);
+      var tr = document.querySelector("#pb tr.sel"); if (tr) tr.scrollIntoView({ block: "nearest" });
+    } else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && selected) {
+      var p = findProc(selected);
+      if (p && p.children && p.children.length) { open[p.id] = e.key === "ArrowRight"; renderTable(); }
+    }
+  });
+
+  /* ================= wiring ================= */
+  renderHead();
+  V.onUpdate(function (s) {
+    snap = s;
+    renderTop(s); renderMemory(s); renderPeers(s); renderTable();
+    var h = s.host || {};
+    var so = (s.memory || {}).swapOutBytesSinceBoot;
+    $("footL").textContent = F.int((s.totals || {}).processes) + " processes · " + F.int((s.totals || {}).threads) + " threads" +
+      (V.isNum(so) && so > 0 ? " · " + F.gbShort(so) + " swapped out since the last restart" : "");
+    $("footR").textContent = [h.model, (h.chip || "").replace(/^Apple /, ""), h.memBytes ? F.gbShort(h.memBytes) : null, h.uptimeSec ? "up " + F.uptime(h.uptimeSec) : null]
+      .filter(Boolean).join(" · ") + " · updates every 2 s";
+  });
+  var rt; addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { if (snap) renderTree(snap); }, 60); });
+})();
+</script>
+</body>
+</html>

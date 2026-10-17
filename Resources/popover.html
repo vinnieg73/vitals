@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vitals</title>
+<link rel="stylesheet" href="app.css">
+<style>
+body{background:var(--menu);width:356px;padding:6px;font-size:13px;overflow:hidden}
+.hd{padding:10px 10px 12px}
+.hd h3{margin:0;font-size:15px;font-weight:650;letter-spacing:-.015em;display:flex;align-items:center;gap:8px}
+.hd .dot{width:8px;height:8px}
+.sev-warn .dot,.sev-crit .dot{box-shadow:0 0 0 3px var(--sev-soft)}
+.hd p{margin:4px 0 0 16px;color:var(--ink-2);font-size:12.5px;line-height:1.4}
+hr{border:0;border-top:1px solid var(--line);margin:4px 10px}
+.sec{padding:8px 10px 6px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.sec span{font-weight:500}
+.vr{display:flex;justify-content:space-between;align-items:center;padding:3.5px 10px}
+.vr span:first-child{color:var(--ink-2)}
+.vr.w span:last-child{color:var(--sev);font-weight:600}
+.top{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;padding:4px 10px 5px;border-radius:6px}
+.top .tn{display:flex;align-items:center;gap:7px;min-width:0;white-space:nowrap;overflow:hidden}
+.top .tn s{text-decoration:none;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis}
+.top .tv{text-align:right}
+.top .tb{grid-column:1 / -1;height:3px;border-radius:2px;background:var(--track);margin-top:5px;overflow:hidden}
+.top .tb i{display:block;height:100%;background:var(--bar-2);transition:width .4s}
+.tip{margin:6px 10px 8px;font-size:12px;color:var(--ink-2);line-height:1.4}
+.tip b{color:var(--ink);font-weight:600}
+.mi{display:flex;justify-content:space-between;padding:5px 10px;border-radius:6px;cursor:default}
+.mi:hover{background:var(--sel-strong)}
+.mi kbd{font:inherit;color:var(--ink-3)}
+</style>
+</head>
+<body>
+<div class="hd" id="hd">
+  <h3><span class="dot"></span><span id="head">Reading your Mac…</span></h3>
+  <p id="sub"></p>
+</div>
+<hr>
+<div id="vitals"></div>
+<hr>
+<div class="sec">Using the most memory <span>· bars show share of <span id="memTot"></span></span></div>
+<div id="top5"></div>
+<div class="tip" id="tip" hidden></div>
+<hr>
+<div class="mi" data-post="openWindow"><span>Open Vitals</span><kbd>⌘O</kbd></div>
+<div class="mi" data-post="openHelp"><span>Help…</span><kbd>⌘?</kbd></div>
+<div class="mi" data-post="quitApp"><span>Quit Vitals</span><kbd>⌘Q</kbd></div>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  "use strict";
+  var V = Vitals, F = V.F, $ = function (id) { return document.getElementById(id); };
+  function top5(s) {
+    var out = V.items(s).map(function (it) {
+      var sub = it.short === "Claude VM" ? "VM" : it.name === "Claude app" ? "the app" : it.sessions ? it.desc : it.name === "kernel_task" ? "macOS" : "";
+      return { name: it.name === "Claude app" ? "Claude" : it.name, sub: sub, bytes: it.memBytes, sessions: it.sessions };
+    });
+    return out.sort(function (a, b) { return (b.bytes || 0) - (a.bytes || 0); }).slice(0, 5);
+  }
+  V.onUpdate(function (s) {
+    var sum = V.summary(s), m = s.memory || {}, c = s.cpu || {}, e = s.energy || {}, d = s.disk || {};
+    var ms = V.memState(s);
+    $("hd").className = "hd" + (sum.sev === "warn" ? " sev-warn" : sum.sev === "crit" ? " sev-crit" : "");
+    document.body.classList.toggle("sev-warn", ms === "warn");
+    document.body.classList.toggle("sev-crit", ms === "crit");
+    $("head").textContent = sum.head;
+    $("sub").textContent = sum.short;
+    var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
+    var rows = [
+      [ms !== "ok", "Memory pressure", F.pct(m.pressurePct) + "%, " + (ms === "crit" ? "critical" : ms === "warn" ? "strained" : "normal")],
+      [swapFrac >= 0.75, "Swap", F.gb(m.swapUsedBytes) + " of " + F.gb(m.swapTotalBytes) + " GB"],
+      [false, "CPU", F.pct(c.totalPct) + "%, " + V.cpuState(s)],
+      [false, "Battery", V.isNum(e.batteryPct) ? F.pct(e.batteryPct) + "%, " + (e.pluggedIn ? "plugged in" : F.hm(e.minutesLeft) + " left") : "–"],
+      [false, "SSD written today", F.bytes(d.writtenTodayBytes)]
+    ];
+    $("vitals").innerHTML = rows.map(function (r) { return '<div class="vr' + (r[0] ? " w" : "") + '"><span>' + r[1] + "</span><span>" + r[2] + "</span></div>"; }).join("");
+    var tot = m.totalBytes || (s.host || {}).memBytes || 1;
+    $("memTot").textContent = F.gbShort(tot);
+    $("top5").innerHTML = top5(s).map(function (t) {
+      var dots = t.sessions ? '<span class="dots">' + t.sessions.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</span>" : "";
+      return '<div class="top"><span class="tn">' + F.esc(t.name) + (t.sub ? " <s>" + F.esc(t.sub) + "</s>" : "") + dots + '</span><span class="tv">' + F.mem(t.bytes) +
+        '</span><span class="tb"><i style="width:' + Math.min(100, (t.bytes || 0) / tot * 100).toFixed(1) + '%"></i></span></div>';
+    }).join("");
+    var fx = V.fix(s);
+    $("tip").hidden = !fx;
+    if (fx) $("tip").innerHTML = "Quitting " + F.esc(fx.name) + " frees about <b>" + F.gbShort(fx.bytes) + "</b>.";
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!e.metaKey) return;
+    var k = e.key.toLowerCase();
+    if (k === "o") { e.preventDefault(); V.post("openWindow"); }
+    else if (k === "?" || k === "/") { e.preventDefault(); V.post("openHelp"); }
+    else if (k === "q") { e.preventDefault(); V.post("quitApp"); }
+  });
+})();
+</script>
+</body>
+</html>

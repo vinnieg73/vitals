@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vitals Help</title>
+<link rel="stylesheet" href="app.css">
+<style>
+html,body{height:100%}
+body{display:flex;overflow:hidden;-webkit-user-select:text;user-select:text}
+.side{width:212px;flex:none;background:var(--side);border-right:1px solid var(--line-2);padding:18px 10px}
+.side .s{font-size:11.5px;font-weight:600;color:var(--ink-3);padding:0 10px 8px}
+.side a{display:block;padding:6px 10px;border-radius:7px;font-size:13px;color:var(--ink-2);text-decoration:none;cursor:pointer}
+.side a.on{background:var(--panel-2);color:var(--ink);font-weight:500}
+main{flex:1;overflow:auto;padding:24px 36px 40px;min-width:0;scroll-behavior:smooth}
+h1{margin:0;font-size:28px;font-weight:650;letter-spacing:-.025em}
+.intro{margin:6px 0 0;color:var(--ink-2);font-size:15.5px;line-height:1.45;max-width:780px}
+h2{margin:30px 0 12px;font-size:15px;font-weight:600;letter-spacing:-.012em;scroll-margin-top:16px}
+.terms{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.term{background:var(--panel);border-radius:11px;padding:11px 14px 12px}
+.term.alert{background:var(--sev-bg);box-shadow:inset 0 0 0 1px var(--sev-line)}
+.tt{font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+.td{font-size:12.5px;color:var(--ink-2);line-height:1.42;margin-top:4px}
+.tn{font-size:12px;color:var(--ink-3);margin-top:7px}
+.tn b{color:var(--ink);font-weight:500}
+.term.alert .tn b{color:var(--sev);font-weight:600}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s;max-width:720px}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:24px 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--line-2);font-size:13px;line-height:1.42;color:var(--ink-2)}
+ol.steps li:first-child{border-top:0;padding-top:0}
+ol.steps li::before{content:counter(s);width:20px;height:20px;border-radius:50%;background:var(--panel-2);color:var(--ink);font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center}
+ol.steps b{color:var(--ink);font-weight:600}
+.dont{margin-top:8px;font-size:12.5px;color:var(--ink-3);line-height:1.42}
+.keys{display:grid;grid-template-columns:auto 1fr;column-gap:16px;font-size:13px;max-width:520px}
+.keys div{padding:4.5px 0;border-top:1px solid var(--line-2)}
+.keys div:nth-child(-n+2){border-top:0;padding-top:0}
+.keys .kk{display:flex;gap:3px}
+.keys .kd{color:var(--ink-2)}
+.st{display:grid;grid-template-columns:230px 1fr;gap:20px;align-items:center;padding:12px 0;border-top:1px solid var(--line-2);max-width:720px}
+.st:first-of-type{border-top:0}
+.strip{height:28px;border-radius:7px;background:var(--panel);display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 10px;box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px}
+.vi{display:flex;align-items:center;gap:5px;height:22px;padding:0 7px;border-radius:5px;font-weight:600}
+.vi .wd{width:6px;height:6px;border-radius:50%;background:var(--warn-fill)}
+.vi.crit{background:var(--crit-fill);color:#fff}
+.st .k{font-size:14px;font-weight:600}
+.st .x{font-size:13px;color:var(--ink-2);margin-top:2px;line-height:1.4}
+p.body{font-size:13px;line-height:1.5;color:var(--ink-2);max-width:720px;margin:0 0 8px}
+p.body b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<nav class="side" id="side">
+  <div class="s">Help</div>
+  <a data-to="numbers" class="on">What the numbers mean</a>
+  <a data-to="tight">When memory is tight</a>
+  <a data-to="keys">Keyboard shortcuts</a>
+  <div class="s" style="margin-top:18px">About</div>
+  <a data-to="icon">Menu bar icon</a>
+  <a data-to="about">What Vitals shows</a>
+</nav>
+<main id="main">
+  <h1>Help</h1>
+  <p class="intro">Everything Activity Monitor shows, on one screen, in plain words. Each number below says what it means and what yours is right now.</p>
+
+  <h2 id="numbers">What the numbers mean</h2>
+  <div class="terms" id="terms"></div>
+
+  <h2 id="tight">When memory is tight</h2>
+  <ol class="steps" id="steps"></ol>
+  <div class="dont">Leave kernel_task and WindowServer alone. They are macOS itself, and Vitals won't quit them.</div>
+
+  <h2 id="keys">Keyboard shortcuts</h2>
+  <div class="keys">
+    <div class="kk"><kbd class="k">⌥</kbd><kbd class="k">⌘</kbd><kbd class="k">V</kbd></div><div class="kd">Open or hide Vitals from anywhere</div>
+    <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">F</kbd></div><div class="kd">Search processes</div>
+    <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">1</kbd></div><div class="kd">Sort by memory</div>
+    <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">2</kbd></div><div class="kd">Sort by CPU</div>
+    <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">3</kbd></div><div class="kd">Sort by energy</div>
+    <div class="kk"><kbd class="k">↑</kbd><kbd class="k">↓</kbd></div><div class="kd">Move through the list</div>
+    <div class="kk"><kbd class="k">←</kbd><kbd class="k">→</kbd></div><div class="kd">Collapse or expand a group</div>
+    <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">⌫</kbd></div><div class="kd">Quit the selected app (asks first)</div>
+    <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">?</kbd></div><div class="kd">This help</div>
+  </div>
+
+  <h2 id="icon">Menu bar icon</h2>
+  <p class="body">Most days it is a quiet gauge. When memory gets tight it says so, and when it is critical it turns red. Click it for the short version and the top memory users.</p>
+  <div class="st"><div class="strip"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".25"></svg><span>6:17 PM</span></div>
+    <div><div class="k">Calm</div><div class="x">Just the gauge. Nothing needs you.</div></div></div>
+  <div class="st"><div class="strip"><span class="vi"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".78"></svg>RAM 78%<span class="wd"></span></span><span>6:17 PM</span></div>
+    <div><div class="k">Strained</div><div class="x">Memory or swap is getting tight. Shows the pressure and one amber dot.</div></div></div>
+  <div class="st"><div class="strip"><span class="vi crit"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".97"></svg>Out of RAM</span><span>6:17 PM</span></div>
+    <div><div class="k">Critical</div><div class="x">Swap is full and apps may freeze. Red, so you can't miss it.</div></div></div>
+
+  <h2 id="about">What Vitals shows</h2>
+  <p class="body">Vitals reads the same counters Activity Monitor does, every 2 seconds, and puts all five of its tabs on one screen: <b>CPU, Memory, Energy, Disk and Network</b>. The list at the bottom has every Activity Monitor column at once. Helper processes sit under the app they belong to, and your Claude Code sessions are grouped together with a dot in their model's color.</p>
+  <p class="body">Colors only show up when something needs you: amber when something is strained, red when it's critical. Everything healthy stays gray.</p>
+  <p class="body" id="aboutMac"></p>
+</main>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  "use strict";
+  var V = Vitals, F = V.F, $ = function (id) { return document.getElementById(id); };
+
+  document.querySelectorAll("svg.gauge").forEach(function (s) {
+    var lvl = parseFloat(s.dataset.lvl), a = Math.PI * (1 - lvl);
+    var x = 8 + 5.2 * Math.cos(a), y = 11 - 5.2 * Math.sin(a);
+    s.innerHTML = '<path d="M1.8 11a6.2 6.2 0 0 1 12.4 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11L' +
+      x.toFixed(2) + " " + y.toFixed(2) + '" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11" r="1.5" fill="currentColor"/>';
+  });
+
+  // sidebar
+  var main = $("main");
+  $("side").addEventListener("click", function (e) {
+    var a = e.target.closest("a[data-to]"); if (a) V.scrollTo(a.dataset.to);
+  });
+  main.addEventListener("scroll", function () {
+    var ids = ["numbers", "tight", "keys", "icon", "about"], cur = ids[0];
+    ids.forEach(function (id) { if ($(id).getBoundingClientRect().top < 140) cur = id; });
+    if (main.scrollTop + main.clientHeight >= main.scrollHeight - 4) cur = "about";
+    document.querySelectorAll(".side a").forEach(function (a) { a.classList.toggle("on", a.dataset.to === cur); });
+  });
+
+  function term(t, d, yours, alert) {
+    return '<div class="term' + (alert ? " alert sev-" + alert : "") + '"><div class="tt">' + t + '</div><div class="td">' + d + '</div><div class="tn">' + yours + "</div></div>";
+  }
+  V.onUpdate(function (s) {
+    var m = s.memory || {}, c = s.cpu || {}, d = s.disk || {}, h = s.host || {};
+    var ms = V.memState(s), sev = ms === "ok" ? "" : ms;
+    var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
+    var topEnergy = V.flat(s.processes).filter(function (p) { return p.kind !== "group" && !(p.children && p.children.length); })
+      .sort(function (a, b) { return (b.energy || 0) - (a.energy || 0); })[0];
+    var cores = (c.cores || []).length;
+    $("terms").innerHTML = [
+      term("Memory pressure", "How hard macOS is working to fit everything in memory. Low is good. High means your Mac is juggling.",
+        "Yours: <b>" + F.pct(m.pressurePct) + "%, " + (ms === "crit" ? "critical" : ms === "warn" ? "strained" : "normal") + "</b>", sev),
+      term("Swap", "Memory overflow parked on the SSD. Much slower than real memory, and it wears the SSD.",
+        "Yours: <b>" + F.gb(m.swapUsedBytes) + " of " + F.gb(m.swapTotalBytes) + " GB</b>", swapFrac >= 0.75 ? (sev || "warn") : ""),
+      term("Compressed", "Memory macOS has squashed to make room. Cheaper than swap, but it costs a little CPU.", "Yours: <b>" + F.gb(m.compressedBytes) + " GB</b>"),
+      term("Wired", "Memory macOS itself needs and can't move or free. You can't change it.", "Yours: <b>" + F.gb(m.wiredBytes) + " GB</b>"),
+      term("App memory", "What your apps are using right now. This is the part you can free by quitting things.", "Yours: <b>" + F.gb(m.appBytes) + " GB</b>"),
+      term("Cached files", "Recently used files kept in memory for speed. macOS gives it back the moment an app needs it.", "Yours: <b>" + F.gb(m.cachedBytes) + " GB</b>"),
+      term("Energy impact", "A rough score of how much power an app draws. Higher drains the battery faster. Over 20 is a lot.",
+        "Highest: <b>" + (topEnergy ? F.esc(V.friendly(topEnergy)) + ", " + F.pct(topEnergy.energy, 1) : "–") + "</b>"),
+      term("Load average", "How many jobs are waiting for the CPU, averaged over 1, 5 and 15 minutes. Under " + (cores || "your core count") + " (your core count) is fine.",
+        "Yours: <b>" + (c.load || []).map(function (x) { return F.pct(x, 1); }).join(" · ") + "</b>"),
+      term("SSD written today", "Data written to your drive since midnight. Lots of swap makes this climb, and SSDs have a lifetime limit.",
+        "Yours: <b>" + F.bytes(d.writtenTodayBytes) + "</b>")
+    ].join("");
+
+    // steps, built from what's actually running
+    var steps = [], app = null, cc = null, browser = null;
+    (s.processes || []).forEach(function (p) {
+      if (p.id === "group:claude") app = p;
+      else if (p.id === "group:claude-code") cc = p;
+      else if (/^(Safari|Google Chrome|Arc|Firefox)$/.test(p.name) && !browser) browser = p;
+    });
+    var sandbox = app && (app.children || []).filter(function (k) { return /sandbox|virtual/i.test(k.name); })[0];
+    if (app) steps.push("<b>Quit Claude when you're not using it.</b> " + (sandbox ? "Its sandbox holds about " + F.gbShort(sandbox.memBytes) + ". " : "") + "Quitting frees about " + F.gbShort(app.memBytes) + ".");
+    if (cc && cc.children && cc.children.length) {
+      var mem = cc.children.map(function (k) { return k.memBytes || 0; }).sort(function (a, b) { return a - b; });
+      steps.push("<b>Close Claude Code sessions you're done with.</b> You have " + cc.children.length + "; each holds " + F.gbShort(mem[0]) + (mem.length > 1 ? " to " + F.gbShort(mem[mem.length - 1]) : "") + ".");
+    }
+    if (browser) steps.push("<b>Close " + F.esc(browser.name) + " tabs you don't need.</b> " + F.esc(browser.name) + " is using " + F.gbShort(browser.memBytes) + ".");
+    var big = (s.processes || []).filter(function (p) { return (p.kind === "app" || /^group:/.test(p.id)) && p.pid != null && p !== app && p !== browser && p !== cc && p.name !== "Vitals"; })
+      .sort(function (a, b) { return (b.memBytes || 0) - (a.memBytes || 0); })[0];
+    if (big && big.memBytes > 0.5 * V.GiB) steps.push("<b>Quit " + F.esc(big.name) + " if you're not using it.</b> It holds " + F.gbShort(big.memBytes) + ".");
+    steps.push("<b>Restart now and then.</b> It empties swap." + (h.uptimeSec ? " Yours has been up " + F.uptime(h.uptimeSec) + "." : ""));
+    $("steps").innerHTML = steps.map(function (x) { return "<li><span>" + x + "</span></li>"; }).join("");
+
+    $("aboutMac").innerHTML = "This Mac: <b>" + [h.model, h.chip, h.memBytes ? F.gbShort(h.memBytes) + " memory" : null,
+      (h.pCores || h.eCores) ? (h.pCores + h.eCores) + "-core CPU" : null, h.gpuCores ? h.gpuCores + "-core GPU" : null, h.os].filter(Boolean).join(", ") + "</b>.";
+  });
+})();
+</script>
+</body>
+</html>
