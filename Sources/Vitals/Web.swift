@@ -54,6 +54,12 @@ final class PageBridge: NSObject, WKScriptMessageHandler {
 func makePageView(_ page: String, bridge: PageBridge, navigation: WKNavigationDelegate?) -> WKWebView {
     let config = WKWebViewConfiguration()
     config.userContentController.add(bridge, name: "vitals")
+    // Keeps page errors in window.__vitalsErrors so `--render` can print them.
+    config.userContentController.addUserScript(WKUserScript(source: """
+        window.__vitalsErrors = [];
+        addEventListener('error', e => __vitalsErrors.push(`${e.message} (${(e.filename || '').split('/').pop()}:${e.lineno})`));
+        addEventListener('unhandledrejection', e => __vitalsErrors.push(`unhandled rejection: ${e.reason}`));
+        """, injectionTime: .atDocumentStart, forMainFrameOnly: true))
     config.websiteDataStore = .nonPersistent()
     let web = WKWebView(frame: .zero, configuration: config)
     web.navigationDelegate = navigation

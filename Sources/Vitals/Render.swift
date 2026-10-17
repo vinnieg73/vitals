@@ -75,8 +75,20 @@ final class Renderer: NSObject, NSApplicationDelegate, PageActions, WKNavigation
     func pageReady(_ web: WKWebView) {
         guard !shot else { return }
         shot = true
-        if let json { push(json, to: web) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.fitAndShoot() }
+        if let json {
+            web.evaluateJavaScript("typeof Vitals !== 'undefined' && Vitals.update && Vitals.update(\(json)); 0") { _, error in
+                if let error { FileHandle.standardError.write(Data("page error in Vitals.update: \(error)\n".utf8)) }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.reportErrors(); self.fitAndShoot() }
+    }
+
+    private func reportErrors() {
+        web?.evaluateJavaScript("(window.__vitalsErrors || []).join('\\n')") { result, _ in
+            if let text = result as? String, !text.isEmpty {
+                FileHandle.standardError.write(Data("page errors:\n\(text)\n".utf8))
+            }
+        }
     }
 
     private func fitAndShoot() {

@@ -5,18 +5,33 @@ _Last updated 2026-10-17 (evening) by the Mac session._
 ## Status
 - The Swift side is built and green (`scripts/build.sh`). `--dump` matches vm_stat, sysctl,
   memory_pressure, top and system_profiler on this Mac. `--render` works off screen.
-- The pages in `Resources/` come from the cloud thread. Until they land, build.sh puts
-  `Support/placeholder.html` in for each missing page, so the app still builds and runs.
-- Git: local repo only (`git init`), **no commits yet**. Vinnie's rules say to ask before committing.
-  The private GitHub repo vinnieg73/vitals and the push wait for his OK.
-- Ready to go (checked 2026-10-17 evening): build green, `--dump` fine, `gh` logged in as vinnieg73,
-  vinnieg73/vitals doesn't exist yet, no secrets in the folder, `.gitignore` keeps renders/ and build output out.
-  Waiting on Vinnie's typed line, e.g. "Create the private vitals repo, push it, and install Vitals in Applications".
-- Not installed to /Applications yet; that also waits for his OK.
-- **App mode has been built but never run** (that would put an icon in Vinnie's menu bar). The status item
-  states, popover sizing, menus, ⌥⌘V, Help window, quitProcess, Open at Login and Dock show/hide have not
-  been run yet. Only `--dump` and `--render` have (render covers the page bridge: load → `ready` →
-  `Vitals.update`). The first real run is the install step.
+- The pages in `Resources/` came from the cloud thread (commit 4a88c23). Don't edit them here; send page fixes back.
+- Git: PRIVATE repo github.com/vinnieg73/vitals, main. Created and pushed 2026-10-17 on Vinnie's typed OK
+  ("create the private vitals repo, push it and install it").
+- **Installed** to /Applications/Vitals.app and launched 2026-10-17 (pid 80685 at the time). Process is running and
+  its main thread is idle in the event loop. The menu bar icon itself couldn't be checked from here: on this
+  macOS, menu bar items don't show up in CGWindowList at all (not even Claude Meter's), so Vinnie has to look.
+- Renders of all three pages in light and dark are in `renders/` (gitignored). `--render` now prints page JS errors;
+  none showed up.
+- Not yet tried by hand: popover sizing, right-click menu, ⌥⌘V, Help window, quitProcess, Open at Login,
+  Dock show/hide.
+
+## Measured on the installed app (2026-10-17)
+- Idle (menu bar only): ~2% CPU, 18 MB footprint (top MEM), 72 MB RSS. Under the 120 MB target.
+- The disk scan at launch ran ~50 s at 50–80% of one core (~43 s of CPU). It repeats every 30 min, which
+  averages ~2.4% CPU on its own and pushes Vitals over the 2% target. Fix options: scan every few hours, only
+  while the window is open, or skip folders whose modification date hasn't changed.
+
+## Page issues seen in the renders (for the cloud thread)
+- Treemap "big" tile flips on and off: `cls = i === 0 && t.value > mi.total * 0.3 ? "big"` (window.html ~line 360).
+  Safari sat right at 30%, so it was big in the light render and plain in the dark one (no "41% of your 18 GB").
+  It will flicker between ticks live. Use a fixed rule (always the first tile) or hysteresis.
+- Treemap text clips: "Claude Code" tile's value ("2.2 GB") is cut off at the bottom under the session dots, and
+  the narrow column tiles cut the unit ("569 MI" for 569 MB).
+- "Pressure, last hour" and "Swap, last hour" are blank right after launch (history has 1 point). They fill in
+  after 30 s; a "collecting…" hint would help.
+- Expected, not bugs: Disk "Biggest: measuring…" (no scan in a render); "Today" disk/network are since boot
+  (11 TB read) until Vitals has run past a midnight.
 
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
@@ -95,12 +110,10 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   Claude VM bundle, app caches, and every other folder in your home folder (Code, .cache, .npm…).
 
 ## Next (the plan agreed with the cloud thread)
-1. On Vinnie's typed OK: commit everything here, `gh repo create vinnieg73/vitals --private`, push main,
-   and message the cloud thread that it's pushed.
-2. The cloud thread pushes `Resources/*` to main. Then `git pull`, `scripts/build.sh` (no --install),
-   and render window, popover and help in light and dark into `renders/` with `--render` (off screen).
-3. Same typed OK covers `scripts/build.sh --install`; confirm Vitals is running in the menu bar, then
-   measure RSS/CPU against the 120 MB / 2% target.
+1. ~~Commit, create the private repo, push main, tell the cloud thread.~~ Done 2026-10-17.
+2. ~~Pull the pages, build, render light/dark.~~ Done 2026-10-17.
+3. ~~Install and launch.~~ Done 2026-10-17. Vinnie to confirm the gauge shows in the menu bar.
+4. Cloud thread: fix the treemap issues above. Mac side: bring the disk scan's CPU cost down.
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?
