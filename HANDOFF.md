@@ -26,9 +26,9 @@ _Last updated 2026-10-17 (evening) by the Mac session._
 
 ## Page issues (for the cloud thread)
 - Fixed in 3547b54: steady big tile, tile values never clipped, "collecting…" on the sparklines.
-- Still open, minor: Claude Code and the Claude app are both ~2.2 GB, so they swap places in the treemap between
-  ticks, and the narrow one is labelled just "Clau…" (can't tell which). A stable order for near-equal tiles
-  would stop the swapping.
+- Fixed in 477007f: near-equal apps keep their tile order (unless one changes by >8%); narrow Claude tiles say
+  "Code" / "App". Two renders a few seconds apart had the same order. Caveat: each `--render` is a fresh page with
+  one update, so the keep-the-order logic itself only runs in the live app, across ticks.
 
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
