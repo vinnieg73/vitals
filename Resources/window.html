@@ -343,10 +343,18 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   }
 
   /* RAM map */
-  var treeItems = [];
+  var treeItems = [], sticky = {};
   function mapItems(s) {
     var out = V.items(s).map(function (it) { return Object.assign({ value: it.memBytes || 0 }, it); });
-    out.sort(function (a, b) { return b.value - a.value; });
+    // order by a "sticky" size that only moves when the real size changes by more than 8%,
+    // so two near-equal apps don't swap tiles every update
+    out.forEach(function (x) {
+      var k = x.id || x.name, prev = sticky[k];
+      x.rank = prev && Math.abs(x.value - prev) <= prev * 0.08 ? prev : x.value;
+    });
+    sticky = {};
+    out.forEach(function (x) { sticky[x.id || x.name] = x.rank; });
+    out.sort(function (a, b) { return b.rank - a.rank || String(a.name).localeCompare(String(b.name)); });
     var total = out.reduce(function (t, x) { return t + x.value; }, 0);
     var keep = [], rest = { value: 0, n: 0 };
     out.forEach(function (x, i) {
@@ -365,7 +373,9 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
       var area = t.w * t.h, cls = i === 0 && t.w >= 170 && t.h >= 120 ? "big" : area < 5200 ? "small" : "";
       var val = F.gbShort(t.value).split(" ");
       if (t.w < 66 && val[1]) val = [val[0], val[1].charAt(0)];
-      var inner = '<div><div><div class="tn">' + F.esc(t.name) + "</div>" +
+      // narrow tiles: "Claude Code" / "Claude app" would both clip to "Clau…", so drop the shared prefix
+      var label = t.w < 90 && /^Claude ./.test(t.name) ? t.name.slice(7).replace(/^./, function (c) { return c.toUpperCase(); }) : t.name;
+      var inner = '<div><div><div class="tn">' + F.esc(label) + "</div>" +
         (cls !== "small" && t.desc && t.h > 54 && t.w > 118 ? '<div class="td">' + F.esc(t.desc) + "</div>" : "");
       if (t.sessions && t.h > 110 && t.w > 150) {
         var rows = Math.max(1, Math.floor((t.h - 64) / 15));
