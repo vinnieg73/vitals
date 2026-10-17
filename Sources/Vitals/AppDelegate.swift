@@ -2,7 +2,7 @@ import AppKit
 import ServiceManagement
 import WebKit
 
-/// The menu bar app: status item, popover, main window, Help window, menus and the ⌥⌘V hotkey.
+/// The menu bar app: status item, popover, main window, Help window, menus and the ⌃⌥⌘V hotkey.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSWindowDelegate,
     NSPopoverDelegate, WKNavigationDelegate, PageActions {
@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var hotkey: Hotkey?
     private var lastJSON: String?
     private var lastState: StatusIcon.State?
+    private var lastWindowOpen = false
     /// Read on the sampler queue: only build the (large) JSON while a page is showing.
     private let live = LockedFlag()
 
@@ -85,7 +86,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let was = live.value
         live.value = any
         sampler.setWantProcesses(any)
-        sampler.setWantNetwork(window?.isVisible == true)
+        let windowOpen = window?.isVisible == true
+        if windowOpen != lastWindowOpen { sampler.setWindowOpen(windowOpen); lastWindowOpen = windowOpen }
         if !any { lastJSON = nil }
         if any && !was { sampler.kick() }   // fresh rows now rather than in up to 2 s
     }
@@ -325,7 +327,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     /// Right-click on the menu bar item.
     private func statusMenu() -> NSMenu {
         let m = NSMenu()
-        m.addItem(withTitle: "Open Vitals", action: #selector(openWindow), keyEquivalent: "o").target = self
+        // Shows the global hotkey; ⌘O only works while Vitals is active.
+        let open = m.addItem(withTitle: "Open Vitals", action: #selector(openWindow), keyEquivalent: "v")
+        open.keyEquivalentModifierMask = [.control, .option, .command]
+        open.target = self
         m.addItem(withTitle: "Vitals Help", action: #selector(showHelp), keyEquivalent: "?").target = self
         m.addItem(.separator())
         m.addItem(withTitle: "Open at Login", action: #selector(toggleLogin), keyEquivalent: "").target = self

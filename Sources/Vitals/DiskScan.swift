@@ -1,6 +1,7 @@
 import Foundation
 
-/// "Biggest space users": a background size scan every 30 minutes.
+/// "Biggest space users": a background size scan once at launch, then every 30 minutes only while
+/// the main window is open (a scan costs ~40 s of CPU, too much to repeat while nobody is looking).
 ///
 /// It only walks folders macOS doesn't guard with a privacy prompt. Desktop, Documents, Downloads,
 /// Pictures/Photos, Movies, Music, Mail, Messages, other apps' containers and the Trash would each
@@ -10,18 +11,33 @@ final class DiskScan {
     private let lock = NSLock()
     private var result: [[String: Any]]?
     private var timer: DispatchSourceTimer?
+    private var lastScan: Date?     // queue only
+    private static let interval: TimeInterval = 30 * 60
 
     var bigUsers: [[String: Any]]? {
         lock.lock(); defer { lock.unlock() }
         return result
     }
 
+    /// One scan, 3 s after launch.
     func start() {
-        let t = DispatchSource.makeTimerSource(queue: queue)
-        t.schedule(deadline: .now() + 3, repeating: 30 * 60, leeway: .seconds(30))
-        t.setEventHandler { [weak self] in self?.scan() }
-        t.resume()
-        timer = t
+        queue.asyncAfter(deadline: .now() + 3) { [weak self] in self?.scan() }
+    }
+
+    /// While the main window is open, rescan every 30 min (right away if the last scan is that old).
+    func setRepeating(_ on: Bool) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.timer?.cancel()
+            self.timer = nil
+            guard on else { return }
+            let age = self.lastScan.map { Date().timeIntervalSince($0) } ?? 0
+            let t = DispatchSource.makeTimerSource(queue: self.queue)
+            t.schedule(deadline: .now() + max(0, Self.interval - age), repeating: Self.interval, leeway: .seconds(30))
+            t.setEventHandler { [weak self] in self?.scan() }
+            t.resume()
+            self.timer = t
+        }
     }
 
     private static let protected: Set<String> = [
@@ -55,6 +71,7 @@ final class DiskScan {
         }
         let top = out.sorted { $0.1 > $1.1 }.prefix(6).map { ["name": $0.0, "bytes": $0.1] as [String: Any] }
         lock.lock(); result = Array(top); lock.unlock()
+        lastScan = Date()
     }
 
     /// Allocated size on disk (sparse VM images count what they really use).

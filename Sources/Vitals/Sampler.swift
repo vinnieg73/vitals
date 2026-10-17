@@ -57,6 +57,10 @@ final class Sampler: @unchecked Sendable {
     }
 
     func setWantNetwork(_ on: Bool) { queue.async { self.processes.wantNetwork = on } }
+    func setWindowOpen(_ on: Bool) {
+        setWantNetwork(on)
+        diskScan.setRepeating(on)
+    }
     func setWantProcesses(_ on: Bool) { queue.async { self.wantProcesses = on } }
     /// One extra sample right away, delivered like a timer tick.
     func kick() {

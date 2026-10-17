@@ -13,25 +13,22 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   macOS, menu bar items don't show up in CGWindowList at all (not even Claude Meter's), so Vinnie has to look.
 - Renders of all three pages in light and dark are in `renders/` (gitignored). `--render` now prints page JS errors;
   none showed up.
-- Not yet tried by hand: popover sizing, right-click menu, ⌥⌘V, Help window, quitProcess, Open at Login,
+- Not yet tried by hand: popover sizing, right-click menu, ⌃⌥⌘V, Help window, quitProcess, Open at Login,
   Dock show/hide.
 
 ## Measured on the installed app (2026-10-17)
-- Idle (menu bar only): ~2% CPU, 18 MB footprint (top MEM), 72 MB RSS. Under the 120 MB target.
-- The disk scan at launch ran ~50 s at 50–80% of one core (~43 s of CPU). It repeats every 30 min, which
-  averages ~2.4% CPU on its own and pushes Vitals over the 2% target. Fix options: scan every few hours, only
-  while the window is open, or skip folders whose modification date hasn't changed.
+- Idle (menu bar only, after the launch scan): 1.7–1.9% CPU over 2.5 min of `top`, 21 MB footprint (top MEM),
+  73 MB RSS. Under both targets (2% CPU, 120 MB). The launch scan itself took ~45 s.
+- The disk scan at launch runs ~50 s at 50–80% of one core (~43 s of CPU, QoS .background so E cores and
+  throttled I/O). Since 2026-10-17 it runs **once at launch**, then every 30 min **only while the main window is
+  open** (right away on open if the last scan is over 30 min old). Before, it repeated every 30 min regardless,
+  which averaged ~2.4% CPU on its own.
 
-## Page issues seen in the renders (for the cloud thread)
-- Treemap "big" tile flips on and off: `cls = i === 0 && t.value > mi.total * 0.3 ? "big"` (window.html ~line 360).
-  Safari sat right at 30%, so it was big in the light render and plain in the dark one (no "41% of your 18 GB").
-  It will flicker between ticks live. Use a fixed rule (always the first tile) or hysteresis.
-- Treemap text clips: "Claude Code" tile's value ("2.2 GB") is cut off at the bottom under the session dots, and
-  the narrow column tiles cut the unit ("569 MI" for 569 MB).
-- "Pressure, last hour" and "Swap, last hour" are blank right after launch (history has 1 point). They fill in
-  after 30 s; a "collecting…" hint would help.
-- Expected, not bugs: Disk "Biggest: measuring…" (no scan in a render); "Today" disk/network are since boot
-  (11 TB read) until Vitals has run past a midnight.
+## Page issues (for the cloud thread)
+- Fixed in 3547b54: steady big tile, tile values never clipped, "collecting…" on the sparklines.
+- Still open, minor: Claude Code and the Claude app are both ~2.2 GB, so they swap places in the treemap between
+  ticks, and the narrow one is labelled just "Clau…" (can't tell which). A stable order for near-equal tiles
+  would stop the swapping.
 
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
@@ -68,7 +65,8 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   The Dock icon shows only while a window is open. The page is dropped when the window closes.
 - Help window (from the menu, ⌘?, the popover, or any link to help.html#section).
 - App menu: About, Open Vitals ⌘O, Vitals Help ⌘?, Open at Login (SMAppService), Hide, Quit ⌘Q;
-  Edit menu so copy/paste works in the search field. Global hotkey ⌥⌘V (Carbon) toggles the window.
+  Edit menu so copy/paste works in the search field. Global hotkey ⌃⌥⌘V (Carbon) toggles the window; the
+  right-click menu shows it on Open Vitals. (Was ⌥⌘V, which took Finder's "Move Item Here".)
 - quitProcess: refuses pid ≤ 1, Vitals itself, root's and other users' processes; apps get
   NSRunningApplication.terminate(), everything else SIGTERM. SIGKILL is never used.
 - `--dump [--scan] [--bench]`, `--render <page> <out.png> [light|dark] [--scan]`.
@@ -113,7 +111,7 @@ _Last updated 2026-10-17 (evening) by the Mac session._
 1. ~~Commit, create the private repo, push main, tell the cloud thread.~~ Done 2026-10-17.
 2. ~~Pull the pages, build, render light/dark.~~ Done 2026-10-17.
 3. ~~Install and launch.~~ Done 2026-10-17. Vinnie to confirm the gauge shows in the menu bar.
-4. Cloud thread: fix the treemap issues above. Mac side: bring the disk scan's CPU cost down.
+4. ~~Treemap fixes, disk scan CPU, hotkey to ⌃⌥⌘V.~~ Done 2026-10-17.
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?
@@ -127,7 +125,6 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   home folders, so it shouldn't happen.
 - Root and other users' processes have null memory, so they sort last. kernel_task and WindowServer never
   show in "using the most memory".
-- ⌥⌘V system-wide takes that shortcut from Finder's "Move Item Here" (the brief asked for ⌥⌘V).
 - Never test by opening windows or the menu bar item on Vinnie's screen; use `--dump` and `--render`.
 - Don't run `memory_pressure -l/-p`. They create real memory pressure.
 - `nettop` must have `-n` (see CLAUDE.md lessons).

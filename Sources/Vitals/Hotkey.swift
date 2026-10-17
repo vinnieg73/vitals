@@ -8,8 +8,8 @@ final class Hotkey {
     private var handler: EventHandlerRef?
     private let action: () -> Void
 
-    /// ⌥⌘V by default.
-    init(keyCode: UInt32 = UInt32(kVK_ANSI_V), modifiers: UInt32 = UInt32(cmdKey | optionKey), action: @escaping () -> Void) {
+    /// ⌃⌥⌘V by default (⌥⌘V is Finder's "Move Item Here").
+    init(keyCode: UInt32 = UInt32(kVK_ANSI_V), modifiers: UInt32 = UInt32(cmdKey | optionKey | controlKey), action: @escaping () -> Void) {
         self.action = action
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let me = Unmanaged.passUnretained(self).toOpaque()

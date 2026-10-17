@@ -4,7 +4,7 @@ A menu bar app that shows what Activity Monitor shows, with every stat up front 
 
 - **Menu bar**: a small gauge whose needle is at memory pressure. When memory gets tight it says
   "RAM 78%" with an amber dot. When it's critical it turns red and says "Out of RAM".
-- **Click it** to open a popover with the short version. **⌥⌘V** (or Open Vitals, ⌘O) opens the full window.
+- **Click it** to open a popover with the short version. **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window.
 - **Help** (⌘?) explains every number in plain English.
 
 ## Build
