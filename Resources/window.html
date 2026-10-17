@@ -68,6 +68,8 @@ body{display:flex;flex-direction:column;gap:12px;padding:16px 22px 10px;overflow
 .tile > div{width:100%;height:100%;border-radius:7px;background:var(--tile);color:var(--tile-ink);padding:8px 10px;overflow:hidden;
   display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;box-shadow:inset 0 0 0 1px var(--line-2)}
 .tile > div:hover{box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.tile > div > div:first-child{min-height:0;overflow:hidden}
+.tile > div > div:last-child{flex:none}
 .tile .tn{font-size:12.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .td{font-size:11px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .tile .tv{font-size:13px;font-weight:600;white-space:nowrap}
@@ -80,6 +82,8 @@ body{display:flex;flex-direction:column;gap:12px;padding:16px 22px 10px;overflow
 .tile.small .tn{font-size:11px}
 .tile.small .tv{font-size:11px}
 .tile.small > div{padding:5px 7px}
+.tile.tiny > div{padding:5px 4px}
+.tile.tiny .tn,.tile.tiny .tv{font-size:10px;letter-spacing:-.02em}
 .tile .sl{display:flex;flex-direction:column;gap:1px;margin-top:5px;font-size:11px;min-height:0;overflow:hidden}
 .tile .sl span{display:flex;align-items:center;gap:6px;white-space:nowrap}
 .tile .sl s{text-decoration:none;margin-left:auto;opacity:.7}
@@ -326,8 +330,9 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var sw = (h.swapUsedBytes || []).map(function (b) { return b / GiB; });
     V.spark($("gSwap"), sw, 0, Math.max(1, (m.swapTotalBytes || 0) / GiB), { ref: (m.swapTotalBytes || 0) / GiB });
     var pt = V.trend(h.pressurePct);
-    $("pTrend").textContent = pt === "rising" ? "rising" : pt === "falling" ? "easing" : pt;
-    $("sTrend").textContent = m.swapTotalBytes ? Math.round(swapFrac * 100) + "% full" : "none in use";
+    var early = (h.pressurePct || []).filter(V.isNum).length < 2;
+    $("pTrend").textContent = early ? "collecting…" : pt === "rising" ? "rising" : pt === "falling" ? "easing" : pt;
+    $("sTrend").textContent = early ? "collecting…" : m.swapTotalBytes ? Math.round(swapFrac * 100) + "% full" : "none in use";
 
 
     // swap tank
@@ -357,8 +362,9 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var tiles = V.treemap(mi.items, r.width, r.height);
     treeItems = tiles;
     box.innerHTML = tiles.map(function (t, i) {
-      var area = t.w * t.h, cls = i === 0 && t.value > mi.total * 0.3 ? "big" : area < 5200 ? "small" : "";
+      var area = t.w * t.h, cls = i === 0 && t.w >= 170 && t.h >= 120 ? "big" : area < 5200 ? "small" : "";
       var val = F.gbShort(t.value).split(" ");
+      if (t.w < 66 && val[1]) val = [val[0], val[1].charAt(0)];
       var inner = '<div><div><div class="tn">' + F.esc(t.name) + "</div>" +
         (cls !== "small" && t.desc && t.h > 54 && t.w > 118 ? '<div class="td">' + F.esc(t.desc) + "</div>" : "");
       if (t.sessions && t.h > 110 && t.w > 150) {
@@ -366,11 +372,12 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
         inner += '<div class="sl">' + t.sessions.slice().sort(function (a, b) { return b.memBytes - a.memBytes; }).slice(0, rows).map(function (k) {
           return '<span><i class="mdot m-' + F.esc(k.model || "") + '"></i>' + F.esc(k.name) + "<s>" + F.gbShort(k.memBytes).replace(" MB", "") + "</s></span>";
         }).join("") + "</div>";
-      } else if (t.sessions && t.h > 40) {
+      } else if (t.sessions && t.h > 64) {
         inner += '<div class="dots" style="margin-top:4px">' + t.sessions.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</div>";
       }
       inner += "</div><div>" + (t.h > 30 || cls !== "small" ? '<div class="tv">' + val[0] + "<small>" + (val[1] || "") + "</small></div>" : "") +
         (cls === "big" && memTotal ? '<div class="share">' + Math.round(t.value / memTotal * 100) + "% of your " + F.gbShort(memTotal) + "</div>" : "") + "</div></div>";
+      if (t.w < 46) cls += " tiny";
       return '<div class="tile ' + cls + '" data-row="' + F.esc(t.rowId || "") + '" title="' + F.esc(t.name + " · " + F.mem(t.value)) +
         '" style="left:' + t.x.toFixed(1) + "px;top:" + t.y.toFixed(1) + "px;width:" + t.w.toFixed(1) + "px;height:" + t.h.toFixed(1) + 'px">' + inner + "</div>";
     }).join("");

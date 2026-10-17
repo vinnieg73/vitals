@@ -227,7 +227,11 @@
     svg.setAttribute("viewBox", "0 0 " + W + " " + H);
     svg.setAttribute("preserveAspectRatio", "none");
     vals = (vals || []).filter(isNum);
-    if (vals.length < 2) { svg.innerHTML = ""; return; }
+    if (vals.length < 2) {
+      // not enough history yet (first ~30 s after launch): a faint dashed line instead of a blank box
+      svg.innerHTML = '<line x1="0" x2="' + W + '" y1="' + (H - 1) + '" y2="' + (H - 1) + '" stroke="currentColor" stroke-opacity=".3" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>';
+      return;
+    }
     var n = vals.length;
     var pts = vals.map(function (v, i) {
       var y = H - (Math.max(min, Math.min(max, v)) - min) / (max - min) * (H - 2) - 1;
