@@ -1,0 +1,5 @@
+.build/
+build/
+renders/
+*.iconset/
+.DS_Store

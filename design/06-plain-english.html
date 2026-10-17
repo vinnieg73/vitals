@@ -1,0 +1,745 @@
+<!--
+Direction 06: Plain English.
+Point of view: Plain English leads with a sentence, not a number. The top of the window says what is going on the way a
+calm friend would: "Your Mac is short on memory. Claude's sandbox is using 10 GB of your 18 GB." Every area then gets a
+one-line verdict (Strained, Calm, Quiet, Fine) followed by its numbers in aligned rows, and the full process table sits
+underneath with a few gray words beside the cryptic names (kernel_task is "macOS itself", WindowServer "draws everything
+on screen"). Everything is grayscale; amber appears only on memory pressure and swap, the two things that need him right
+now. The menu bar icon only speaks up when something is tight ("RAM 78%"), its dropdown repeats the same sentence plus
+the vital few, and Help is a glossary of one-line definitions that each show his own current number.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plain English</title>
+<style>
+:root{
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", Inter, system-ui, "Helvetica Neue", sans-serif;
+  --page:#efeeea; --chrome:#f7f6f4; --chrome-line:rgba(0,0,0,.08);
+  --desk-a:#dcdad5; --desk-b:#cfccc6;
+  --win:#ffffff; --title:#fbfbfa; --panel:#f5f5f4; --panel-2:#efefed;
+  --line:rgba(0,0,0,.085); --line-2:rgba(0,0,0,.05);
+  --ink:#1c1c1e; --ink-2:#55555b; --ink-3:#8a8a90; --ink-4:#b8b8bd;
+  --bar:#3a3a3d; --bar-2:#8d8d93; --bar-3:#c9c9cd; --track:#e8e8e6;
+  --warn:#a2610a; --warn-fill:#e09a1d; --warn-soft:rgba(224,154,29,.16); --warn-bg:#fcf6ea; --warn-line:rgba(205,140,30,.30);
+  --crit:#d0342c;
+  --sel:rgba(0,0,0,.035);
+  --shadow:0 0 0 .5px rgba(0,0,0,.18), 0 24px 60px -12px rgba(40,30,10,.28), 0 8px 18px -6px rgba(0,0,0,.10);
+  --menu:#f3f2f0; --menubar:#ecebe8; --menubar-ink:#1c1c1e;
+  --opus:#8b5cf6; --sonnet:#e8743b; --haiku:#14b8a6; --fable:#ec4899;
+  color-scheme: light;
+}
+:root[data-theme="dark"]{
+  --page:#121213; --chrome:#1b1b1d; --chrome-line:rgba(255,255,255,.08);
+  --desk-a:#2c2c30; --desk-b:#1f1f22;
+  --win:#1d1d1f; --title:#232325; --panel:#262628; --panel-2:#2c2c2f;
+  --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.055);
+  --ink:#f3f3f5; --ink-2:#b0b0b6; --ink-3:#7f7f86; --ink-4:#55555b;
+  --bar:#e6e6ea; --bar-2:#9a9aa0; --bar-3:#5a5a5f; --track:#333336;
+  --warn:#f2b445; --warn-fill:#eea929; --warn-soft:rgba(238,169,41,.18); --warn-bg:#2b261d; --warn-line:rgba(238,169,41,.28);
+  --crit:#ff5a4f;
+  --sel:rgba(255,255,255,.04);
+  --shadow:0 0 0 .5px rgba(255,255,255,.14), 0 24px 60px -12px rgba(0,0,0,.7), 0 8px 18px -6px rgba(0,0,0,.5);
+  --menu:#29292c; --menubar:#202022; --menubar-ink:#f3f3f5;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden;
+  font-feature-settings:"tnum" 1, "cv11" 1; font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit}
+
+/* ---------- file tab bar ---------- */
+.filebar{position:sticky;top:0;z-index:10;height:52px;display:flex;align-items:center;gap:14px;padding:0 18px;
+  background:var(--chrome);border-bottom:1px solid var(--chrome-line)}
+.brand{font-size:13px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.brand span{color:var(--ink-3);font-weight:500;margin-right:6px}
+.seg{display:flex;background:var(--panel-2);border-radius:9px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--win);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12),0 0 0 .5px var(--line)}
+.filebar .grow{flex:1}
+@media (max-width:620px){
+  .filebar{gap:8px;padding:0 8px}
+  .brand{display:none}
+  .seg button{padding:5px 8px;font-size:12px}
+}
+
+/* ---------- stage + scaling ---------- */
+.viewport{padding:14px 0 24px;overflow:hidden}
+.fit{margin:0 auto;position:relative}
+.stage{position:absolute;top:0;left:0;width:1360px;transform-origin:0 0;display:none}
+.stage.on{display:block}
+.desk{position:absolute;inset:0;border-radius:18px;background:linear-gradient(160deg,var(--desk-a),var(--desk-b));overflow:hidden}
+
+/* ---------- macOS window ---------- */
+.win{position:absolute;background:var(--win);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+.titlebar{height:46px;flex:none;display:flex;align-items:center;padding:0 16px;background:var(--title);border-bottom:1px solid var(--line-2);position:relative}
+.lights{display:flex;gap:8px}
+.lights i{width:12px;height:12px;border-radius:50%;display:block;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.15)}
+.lights i:nth-child(1){background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.wtitle{position:absolute;left:50%;transform:translateX(-50%);font-size:13px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.wmeta{margin-left:auto;font-size:12px;color:var(--ink-3)}
+
+/* ---------- window body ---------- */
+.wbody{flex:1;padding:18px 28px 12px;display:flex;flex-direction:column;gap:14px;min-height:0}
+.lead{display:flex;align-items:flex-end;gap:32px}
+.lead .say{flex:1}
+.lead h1{margin:0;font-size:30px;line-height:1.15;font-weight:650;letter-spacing:-.025em;display:flex;align-items:center;gap:12px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--warn-fill);flex:none;box-shadow:0 0 0 4px var(--warn-soft)}
+.lead p{margin:7px 0 0 22px;font-size:16.5px;line-height:1.4;color:var(--ink-2);letter-spacing:-.008em}
+.lead p b{color:var(--ink);font-weight:600}
+.fix{width:330px;flex:none;padding:12px 14px;border-radius:12px;border:1px solid var(--line);font-size:13px;line-height:1.4;color:var(--ink-2)}
+.fix .k{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:3px}
+.fix b{color:var(--ink);font-weight:600}
+.fix a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--ink-4);cursor:pointer}
+
+.areas{display:grid;grid-template-columns:404px 1fr 1fr 1fr;gap:12px;flex:none}
+.sub2{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--panel);border-radius:12px;padding:13px 16px 14px;min-width:0}
+.card.alert{background:var(--warn-bg);box-shadow:inset 0 0 0 1px var(--warn-line);display:flex;flex-direction:column}
+.card.alert .hist{flex:1}
+.card.alert .wear{margin-top:auto}
+.lab{display:flex;align-items:baseline;justify-content:space-between;font-size:12px;font-weight:600;color:var(--ink-3);letter-spacing:.005em}
+.lab .tag{font-size:11px;font-weight:600;color:var(--ink-3)}
+.alert .lab .tag{color:var(--warn)}
+.verdict{margin:2px 0 0;font-size:15px;font-weight:600;letter-spacing:-.012em;color:var(--ink);line-height:1.3}
+.verdict span{color:var(--ink-3);font-weight:500}
+.alert .verdict em{font-style:normal;color:var(--warn)}
+
+/* key/value rows */
+.kv{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:3.5px;margin-top:10px;font-size:12px;line-height:1.35}
+.kv dt{color:var(--ink-3)}
+.kv dd{margin:0;text-align:right;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kv dd s{text-decoration:none;color:var(--ink-3)}
+
+/* memory */
+.mnum{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:12px;gap:8px}
+.mnum .n{font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.mnum .n small{font-size:14px;font-weight:500;color:var(--ink-3);letter-spacing:-.01em;margin-left:2px}
+.mnum .n.w{color:var(--warn)}
+.mnum .c{font-size:11.5px;color:var(--ink-3);margin-top:5px}
+.mnum .w + .c{color:var(--warn)}
+.stack{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--track);margin-top:14px;gap:2px}
+.stack i{display:block;height:100%}
+.legend{display:grid;grid-template-columns:repeat(4,auto);justify-content:space-between;margin-top:8px;font-size:11.5px;color:var(--ink-3)}
+.legend span{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.legend b{color:var(--ink);font-weight:500}
+.sw{width:8px;height:8px;border-radius:2px;display:inline-block}
+.meter{height:6px;border-radius:3px;background:var(--track);overflow:hidden;margin-top:6px}
+.meter i{display:block;height:100%;border-radius:3px;background:var(--bar)}
+.meter.w i{background:var(--warn-fill)}
+.hist{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.hist .h{font-size:11.5px;color:var(--ink-3);display:flex;justify-content:space-between}
+.hist .h b{font-weight:500;color:var(--warn)}
+.hist svg{display:block;width:100%;height:56px;margin-top:5px;color:var(--warn-fill);overflow:visible}
+.axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-4);margin-top:3px}
+.wear{margin-top:12px;padding-top:11px;border-top:1px solid var(--warn-line);font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.wear b{color:var(--ink);font-weight:600}
+
+/* cpu */
+.cpuTop{display:flex;align-items:flex-end;gap:14px;margin-top:11px}
+.big{font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.big small{font-size:14px;font-weight:500;color:var(--ink-3);margin-left:1px}
+.cpuTop .grow{flex:1;min-width:0}
+.cores{display:flex;align-items:flex-end;gap:4px;margin-top:12px}
+.cores .grp{display:flex;flex-direction:column;gap:5px}
+.cores .bars{display:flex;gap:4px;align-items:flex-end;height:34px}
+.cores .bars i{width:13px;height:34px;border-radius:3px;background:var(--track);position:relative;overflow:hidden;display:block}
+.cores .bars i b{position:absolute;left:0;right:0;bottom:0;background:var(--bar-2);border-radius:0}
+.cores .gl{font-size:10.5px;color:var(--ink-3)}
+.cores .sep{width:10px}
+.mini{display:block;width:100%;height:30px;color:var(--bar-2);overflow:visible}
+.row2{display:flex;align-items:center;gap:14px}
+.row2 .grow{flex:1;min-width:0}
+
+/* ---------- process table ---------- */
+.procs{flex:1;min-height:0;display:flex;flex-direction:column;padding-top:2px}
+.ptools{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.ptools h2{margin:0;font-size:15px;font-weight:600;letter-spacing:-.012em}
+.ptools .sub{font-size:12.5px;color:var(--ink-3)}
+.search{margin-left:auto;display:flex;align-items:center;gap:6px;width:240px;height:28px;padding:0 9px;border-radius:7px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line-2)}
+.search svg{flex:none;color:var(--ink-3)}
+.search input{border:0;background:transparent;outline:0;flex:1;font:inherit;font-size:12.5px;color:var(--ink);min-width:0}
+.search input::placeholder{color:var(--ink-3)}
+table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px}
+.pt th{font-size:11.5px;font-weight:500;color:var(--ink-3);text-align:right;padding:0 8px 7px;white-space:nowrap;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.pt th:first-child{text-align:left;padding-left:6px}
+.pt th:last-child,.pt td:last-child{text-align:left;padding-left:18px}
+.pt th .ar{display:inline-block;width:9px;margin-left:3px;color:var(--ink-4);font-size:9px}
+.pt th.on{color:var(--ink);font-weight:600}
+.pt th.on .ar{color:var(--ink)}
+.pt td{height:22px;padding:0 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line-2);color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+.pt td:first-child{text-align:left;padding-left:6px}
+.pt td.z{color:var(--ink-4)}
+.pt td.u{color:var(--ink-3)}
+.pt tr.kid td{background:var(--sel)}
+.pt tr.kid td:first-child{padding-left:30px}
+.nm{display:flex;align-items:center;gap:8px;min-width:0}
+.nm .chev{width:12px;flex:none;color:var(--ink-3);font-size:9px;cursor:pointer;display:inline-flex;justify-content:center;transition:transform .15s}
+.nm .chev.open{transform:rotate(90deg)}
+.nm .ic{width:17px;height:17px;border-radius:5px;flex:none;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line);font-size:9.5px;font-weight:700;color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center}
+.nm .t{font-weight:500;flex:none}
+.nm .d{color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mdot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block}
+.dots{display:inline-flex;gap:3px;margin-left:2px;flex:none}
+.memc{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.memc .mb{width:36px;height:4px;border-radius:2px;background:var(--track);overflow:hidden;flex:none}
+.memc .mb i{display:block;height:100%;background:var(--bar)}
+.pt tr.grp td{font-weight:500}
+.pfoot{font-size:12px;color:var(--ink-3);padding:8px 6px 0}
+
+/* ---------- menu bar screen ---------- */
+.mbar{position:absolute;left:0;right:0;top:0;height:30px;border-radius:18px 18px 0 0;background:var(--menubar);display:flex;align-items:center;padding:0 14px;font-size:13px;color:var(--menubar-ink);box-shadow:0 1px 0 var(--line)}
+.mbar .l{display:flex;align-items:center;gap:19px}
+.mbar .l b{font-weight:700}
+.mbar .r{margin-left:auto;display:flex;align-items:center;gap:16px}
+.mbar svg{display:block}
+.vi{display:flex;align-items:center;gap:5px;height:22px;padding:0 7px;border-radius:5px;font-size:12.5px;font-weight:600;letter-spacing:-.005em}
+.vi.open{background:rgba(127,127,127,.22)}
+.vi .wd{width:6px;height:6px;border-radius:50%;background:var(--warn-fill)}
+.vi.crit{background:var(--crit);color:#fff}
+.drop{position:absolute;width:356px;background:var(--menu);border-radius:12px;box-shadow:var(--shadow);padding:6px;font-size:13px}
+.drop .hd{padding:10px 10px 12px}
+.drop .hd h3{margin:0;font-size:15px;font-weight:650;letter-spacing:-.015em;display:flex;align-items:center;gap:8px}
+.drop .hd p{margin:4px 0 0 16px;color:var(--ink-2);font-size:12.5px;line-height:1.4}
+.drop .hd .dot{width:8px;height:8px;box-shadow:0 0 0 3px var(--warn-soft)}
+.drop hr{border:0;border-top:1px solid var(--line);margin:4px 10px}
+.drop .sec{padding:8px 10px 6px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.drop .vr{display:flex;justify-content:space-between;align-items:center;padding:3.5px 10px;font-size:13px}
+.drop .vr span:first-child{color:var(--ink-2)}
+.drop .vr.w span:last-child{color:var(--warn);font-weight:600}
+.drop .top{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;padding:4px 10px 5px}
+.drop .top .tn{display:flex;align-items:center;gap:7px;min-width:0;white-space:nowrap}
+.drop .top .tn s{text-decoration:none;color:var(--ink-3)}
+.drop .top .tv{text-align:right}
+.drop .top .tb{grid-column:1 / -1;height:3px;border-radius:2px;background:var(--track);margin-top:5px;overflow:hidden}
+.drop .top .tb i{display:block;height:100%;background:var(--bar-2)}
+.drop .tip{margin:6px 10px 8px;font-size:12px;color:var(--ink-2);line-height:1.4}
+.drop .tip b{color:var(--ink);font-weight:600}
+.drop .mi{display:flex;justify-content:space-between;padding:5px 10px;border-radius:6px}
+.drop .mi.hi{background:rgba(127,127,127,.16)}
+.drop .mi kbd{font:inherit;color:var(--ink-3)}
+.states{position:absolute;left:84px;top:130px;width:600px}
+.states h2{margin:0;font-size:26px;font-weight:650;letter-spacing:-.025em}
+.states > p{margin:8px 0 26px;color:var(--ink-2);font-size:15px;line-height:1.45}
+.st{display:grid;grid-template-columns:250px 1fr;gap:22px;align-items:center;padding:16px 0;border-top:1px solid var(--line)}
+.st .strip{height:30px;border-radius:8px;background:var(--menubar);display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 12px;box-shadow:0 0 0 1px var(--line);color:var(--menubar-ink);font-size:12.5px}
+.st .k{font-size:14px;font-weight:600}
+.st .x{font-size:13px;color:var(--ink-2);margin-top:2px;line-height:1.4}
+
+/* ---------- help screen ---------- */
+.help{display:flex;flex:1;min-height:0}
+.side{width:212px;flex:none;background:var(--title);border-right:1px solid var(--line-2);padding:18px 10px}
+.side .s{font-size:11.5px;font-weight:600;color:var(--ink-3);padding:0 10px 8px}
+.side a{display:block;padding:6px 10px;border-radius:7px;font-size:13px;color:var(--ink-2);text-decoration:none}
+.side a.on{background:var(--panel-2);color:var(--ink);font-weight:500}
+.hmain{flex:1;padding:24px 36px 20px;min-width:0}
+.hmain h1{margin:0;font-size:28px;font-weight:650;letter-spacing:-.025em}
+.hmain .intro{margin:6px 0 0;color:var(--ink-2);font-size:15.5px;line-height:1.45;max-width:900px}
+.hmain h2{margin:22px 0 11px;font-size:15px;font-weight:600;letter-spacing:-.012em}
+.terms{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.term{background:var(--panel);border-radius:11px;padding:11px 14px 12px}
+.term.alert{background:var(--warn-bg);box-shadow:inset 0 0 0 1px var(--warn-line)}
+.term .tt{font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+.term .td{font-size:12.5px;color:var(--ink-2);line-height:1.42;margin-top:4px}
+.term .tn{font-size:12px;color:var(--ink-3);margin-top:7px}
+.term .tn b{color:var(--ink);font-weight:500}
+.term.alert .tn b{color:var(--warn);font-weight:600}
+.hsplit{display:grid;grid-template-columns:1.25fr 1fr;gap:36px}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:24px 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--line-2);font-size:13px;line-height:1.42;color:var(--ink-2)}
+ol.steps li:first-child{border-top:0;padding-top:0}
+ol.steps li::before{content:counter(s);width:20px;height:20px;border-radius:50%;background:var(--panel-2);color:var(--ink);font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center}
+ol.steps b{color:var(--ink);font-weight:600}
+.dont{margin-top:8px;font-size:12.5px;color:var(--ink-3);line-height:1.42}
+.keys{display:grid;grid-template-columns:auto 1fr;column-gap:16px;row-gap:0;font-size:13px}
+.keys div{padding:4.5px 0;border-top:1px solid var(--line-2)}
+.keys div:nth-child(-n+2){border-top:0;padding-top:0}
+.keys .kk{display:flex;gap:3px}
+kbd.k{font:inherit;font-size:12px;font-weight:500;min-width:22px;height:21px;padding:0 6px;border-radius:5px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line),0 1px 0 var(--line);display:inline-flex;align-items:center;justify-content:center;color:var(--ink)}
+.keys .kd{color:var(--ink-2)}
+
+@media (prefers-reduced-motion: reduce){ .nm .chev{transition:none} }
+</style>
+</head>
+<body>
+<div class="filebar">
+  <div class="brand"><span>06</span>Plain English</div>
+  <div class="seg" id="tabs" role="tablist">
+    <button data-s="window" aria-pressed="true">Window</button>
+    <button data-s="menubar" aria-pressed="false">Menu bar</button>
+    <button data-s="help" aria-pressed="false">Help</button>
+  </div>
+  <div class="grow"></div>
+  <div class="seg" id="themes">
+    <button data-t="light" aria-pressed="true">Light</button>
+    <button data-t="dark" aria-pressed="false">Dark</button>
+  </div>
+</div>
+
+<div class="viewport"><div class="fit" id="fit">
+
+<!-- =============== WINDOW =============== -->
+<div class="stage on" id="s-window" data-h="960">
+ <div class="desk"></div>
+ <div class="win" style="left:40px;top:40px;width:1280px;height:880px">
+  <div class="titlebar">
+   <div class="lights"><i></i><i></i><i></i></div>
+   <div class="wtitle">Vitals</div>
+   <div class="wmeta">MacBook Pro · M3 Pro · 18 GB &nbsp;·&nbsp; up 8 days 4 hours &nbsp;·&nbsp; Sat 17 Oct, 6:17 PM</div>
+  </div>
+  <div class="wbody">
+   <header class="lead">
+    <div class="say">
+     <h1><span class="dot"></span>Your Mac is short on memory.</h1>
+     <p>Claude's sandbox is using <b>10 GB of your 18 GB</b>, and swap is nearly full. Everything else is calm.</p>
+    </div>
+    <aside class="fix">
+     <div class="k">Quickest fix</div>
+     Quit Claude while you're not using it. That frees about <b>11.5 GB</b>. <a data-go="help">More ways</a>
+    </aside>
+   </header>
+
+   <section class="areas">
+    <!-- memory -->
+    <div class="card alert">
+     <div class="lab">Memory <span class="tag">Needs attention</span></div>
+     <p class="verdict"><em>Strained.</em> Apps want more than 18 GB, so macOS is squeezing and swapping.</p>
+     <div class="mnum">
+      <div><div class="n w">78<small>%</small></div><div class="c">pressure, high</div></div>
+      <div><div class="n">16.62<small>GB</small></div><div class="c">used of 18.00 GB</div></div>
+      <div><div class="n w">6.02<small>GB</small></div><div class="c">swap used of 7.00</div></div>
+     </div>
+     <div class="stack" title="18 GB of memory">
+      <i style="width:60.2%;background:var(--bar)"></i>
+      <i style="width:15.06%;background:var(--bar-2)"></i>
+      <i style="width:17.06%;background:repeating-linear-gradient(135deg,var(--bar-2) 0 2px,var(--bar-3) 2px 4px)"></i>
+      <i style="width:6.72%;background:var(--bar-3)"></i>
+     </div>
+     <div class="legend">
+      <span><i class="sw" style="background:var(--bar)"></i>App <b>10.84</b></span>
+      <span><i class="sw" style="background:var(--bar-2)"></i>Wired <b>2.71</b></span>
+      <span><i class="sw" style="background:repeating-linear-gradient(135deg,var(--bar-2) 0 2px,var(--bar-3) 2px 4px)"></i>Compressed <b>3.07</b></span>
+      <span><i class="sw" style="background:var(--bar-3)"></i>Cached <b>1.21</b></span>
+     </div>
+     <div class="hist">
+      <div><div class="h">Pressure, last hour <b>rising</b></div><svg id="g-press" viewBox="0 0 200 40" preserveAspectRatio="none"></svg><div class="axis"><span>1 h ago</span><span>now</span></div></div>
+      <div><div class="h">Swap, last hour <b>86% full</b></div><svg id="g-swap" viewBox="0 0 200 40" preserveAspectRatio="none"></svg><div class="axis"><span>1 h ago</span><span>now</span></div></div>
+     </div>
+     <div class="wear">Swap wears the SSD: <b>97.4 GB written today</b>, mostly swap. About <b>230 GB</b> swapped out in 8 days.</div>
+    </div>
+
+    <!-- cpu / gpu -->
+    <div class="col">
+     <div class="card" style="flex:1">
+      <div class="lab">CPU <span class="tag">11 cores</span></div>
+      <p class="verdict">Calm. <span>Plenty of room.</span></p>
+      <div class="cpuTop">
+       <div class="big" id="cpuTot">34<small>%</small></div>
+       <div class="grow" style="padding-bottom:3px">
+        <div class="stack" style="margin-top:0;height:8px"><i style="width:22.4%;background:var(--bar)"></i><i style="width:11.1%;background:var(--bar-2)"></i></div>
+       </div>
+      </div>
+      <div class="legend" style="grid-template-columns:repeat(3,auto);margin-top:8px">
+       <span><i class="sw" style="background:var(--bar)"></i>User <b>22.4</b></span>
+       <span><i class="sw" style="background:var(--bar-2)"></i>System <b>11.1</b></span>
+       <span><i class="sw" style="background:var(--track);box-shadow:inset 0 0 0 1px var(--line)"></i>Idle <b>66.5</b></span>
+      </div>
+      <div class="cores" id="cores"></div>
+      <div class="row2" style="margin-top:10px;gap:10px"><span class="axis" style="margin:0;flex:none">last hour</span><div class="grow"><svg class="mini" id="g-cpu" viewBox="0 0 200 30" preserveAspectRatio="none" style="height:22px"></svg></div></div>
+      <dl class="kv" style="margin-top:8px">
+       <dt>Load</dt><dd>5.2 · 4.8 · 4.6</dd>
+       <dt>Processes</dt><dd>712 · 4,812 threads</dd>
+      </dl>
+     </div>
+     <div class="card" style="padding-top:11px;padding-bottom:11px">
+      <div class="lab">GPU <span class="tag">14 cores</span></div>
+      <div class="row2" style="margin-top:3px">
+       <p class="verdict" style="margin:0;flex:none">Quiet. <span>9%</span></p>
+       <div class="grow"><svg class="mini" id="g-gpu" viewBox="0 0 200 30" preserveAspectRatio="none" style="height:20px"></svg></div>
+      </div>
+     </div>
+    </div>
+
+    <!-- energy / network -->
+    <div class="col">
+     <div class="card" style="flex:1">
+      <div class="lab">Energy <span class="tag">On power</span></div>
+      <p class="verdict">Fine. <span>Plugged in, full, cool.</span></p>
+      <dl class="kv">
+       <dt>Battery</dt><dd>100%, fully charged</dd>
+       <dt>Power</dt><dd>96 W adapter</dd>
+       <dt>Health</dt><dd>100% · 47 cycles</dd>
+       <dt>On battery</dt><dd>about 6 h 20 m</dd>
+       <dt>Heat</dt><dd>Nominal · fan off</dd>
+       <dt>Top users</dt><dd>Claude VM 38.2 · <s>Safari 14</s></dd>
+      </dl>
+     </div>
+     <div class="card">
+      <div class="lab">Network <span class="tag">Wi-Fi</span></div>
+      <p class="verdict">Fine. <span>Light traffic.</span></p>
+      <dl class="kv">
+       <dt>Now</dt><dd><span id="netIn">2.4 MB/s</span> in · 310 KB/s out</dd>
+       <dt>Today</dt><dd>18.7 GB in · 3.2 GB out</dd>
+       <dt>Packets</dt><dd>1,840/s in · 920/s out</dd>
+      </dl>
+     </div>
+    </div>
+
+    <!-- disk -->
+    <div class="card" style="display:flex;flex-direction:column">
+     <div class="lab">Disk <span class="tag">Macintosh HD</span></div>
+     <p class="verdict">Fine. <span>94.3 GB free.</span></p>
+     <div class="meter" style="margin-top:11px"><i style="width:80.9%;background:var(--bar-2)"></i></div>
+     <div class="axis" style="color:var(--ink-3);font-size:11.5px;margin-top:5px"><span>400.1 GB used</span><span>of 494.4 GB</span></div>
+     <dl class="kv" style="margin-top:10px">
+      <dt>Reading</dt><dd>14.2 MB/s</dd>
+      <dt>Writing</dt><dd>38.6 MB/s <s>· mostly swap</s></dd>
+      <dt>Today</dt><dd>61.2 GB read</dd>
+      <dt></dt><dd>97.4 GB written</dd>
+     </dl>
+     <div class="sub2" style="margin-top:auto">Biggest space users</div>
+     <dl class="kv" style="margin-top:6px">
+      <dt>Xcode simulators</dt><dd>58 GB</dd>
+      <dt>Photos library</dt><dd>41 GB</dd>
+      <dt>Downloads</dt><dd>22 GB</dd>
+      <dt>Claude VM bundle</dt><dd>18 GB</dd>
+      <dt>NHL GM database</dt><dd>1.5 GB</dd>
+     </dl>
+    </div>
+   </section>
+
+   <section class="procs">
+    <div class="ptools">
+     <h2>Everything running</h2>
+     <span class="sub">Sorted by memory. Helpers sit under their app; gray words say what each one is.</span>
+     <label class="search"><svg width="13" height="13" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="q" placeholder="Search 712 processes"></label>
+    </div>
+    <table class="pt" id="pt">
+     <colgroup><col><col style="width:126px"><col style="width:66px"><col style="width:82px"><col style="width:62px"><col style="width:62px"><col style="width:80px"><col style="width:80px"><col style="width:80px"><col style="width:80px"><col style="width:122px"></colgroup>
+     <thead><tr id="ph"></tr></thead>
+     <tbody id="pb"></tbody>
+    </table>
+   </section>
+  </div>
+ </div>
+</div>
+
+<!-- =============== MENU BAR =============== -->
+<div class="stage" id="s-menubar" data-h="680">
+ <div class="desk"></div>
+ <div class="mbar">
+  <div class="l">
+   <svg width="14" height="16" viewBox="0 0 14 16"><path fill="currentColor" d="M11.3 8.5c0-1.9 1.6-2.8 1.6-2.9-.9-1.3-2.3-1.5-2.8-1.5-1.2-.1-2.3.7-2.9.7-.6 0-1.5-.7-2.5-.7C3.4 4.1 2.2 4.900 1.5 6.100c-1.400 2.400-.4 6 1 8 .7 1 1.400 2 2.400 2 1 0 1.300-.6 2.500-.6s1.500.6 2.500.6c1 0 1.700-1 2.300-2 .7-1.100 1-2.100 1-2.200 0 0-2-.8-2-3.400zM9.400 2.600c.5-.6.900-1.500.8-2.400-.8 0-1.700.5-2.300 1.100-.5.600-.9 1.500-.8 2.300.9.100 1.800-.4 2.300-1z"/></svg>
+   <b>Finder</b><span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span><span>Help</span>
+  </div>
+  <div class="r">
+   <div class="vi open"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge"></svg>RAM 78%<span class="wd"></span></div>
+   <svg width="17" height="13" viewBox="0 0 17 13"><path d="M1.2 4.6a10.6 10.6 0 0 1 14.6 0M3.6 7.1a7.1 7.1 0 0 1 9.8 0M6 9.6a3.6 3.6 0 0 1 5 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8.5" cy="11.6" r="1.1" fill="currentColor"/></svg>
+   <svg width="26" height="13" viewBox="0 0 26 13"><rect x=".7" y=".7" width="21.6" height="11.6" rx="3.4" fill="none" stroke="currentColor" stroke-opacity=".5"/><rect x="2.4" y="2.4" width="18.2" height="8.2" rx="2" fill="currentColor"/><path d="M24 4.5v4" stroke="currentColor" stroke-opacity=".5" stroke-width="1.4" stroke-linecap="round"/></svg>
+   <svg width="16" height="14" viewBox="0 0 16 14"><rect x=".8" y=".8" width="14.4" height="5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="12.7" cy="3.3" r="1.5" fill="currentColor"/><rect x=".8" y="8.2" width="14.4" height="5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="3.3" cy="10.7" r="1.5" fill="currentColor"/></svg>
+   <span>Sat 17 Oct&nbsp; 6:17 PM</span>
+  </div>
+ </div>
+ <div class="drop" id="drop" style="top:36px;left:906px">
+  <div class="hd">
+   <h3><span class="dot"></span>Your Mac is short on memory.</h3>
+   <p>Claude's sandbox is using 10 GB of your 18 GB.</p>
+  </div>
+  <hr>
+  <div class="vr w"><span>Memory pressure</span><span>78%, strained</span></div>
+  <div class="vr w"><span>Swap</span><span>6.02 of 7.00 GB</span></div>
+  <div class="vr"><span>CPU</span><span>34%, calm</span></div>
+  <div class="vr"><span>Battery</span><span>100%, plugged in</span></div>
+  <div class="vr"><span>SSD written today</span><span>97.4 GB</span></div>
+  <hr>
+  <div class="sec">Using the most memory <span style="font-weight:500">· bars show share of 18 GB</span></div>
+  <div id="top5"></div>
+  <div class="tip">Quitting Claude frees about <b>11.5 GB</b>.</div>
+  <hr>
+  <div class="mi hi"><span>Open Vitals</span><kbd>⌘O</kbd></div>
+  <div class="mi"><span>Help…</span><kbd>⌘?</kbd></div>
+  <div class="mi"><span>Quit Vitals</span><kbd>⌘Q</kbd></div>
+ </div>
+
+ <div class="states">
+  <h2>The icon only talks when it has to.</h2>
+  <p>Most days it is a quiet gauge. When memory gets tight it says so in two words, and when it is critical it turns red.</p>
+  <div class="st">
+   <div class="strip"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".25"></svg><span style="opacity:.55">Wi-Fi</span><span>6:17 PM</span></div>
+   <div><div class="k">Calm</div><div class="x">Just the gauge. Nothing needs you.</div></div>
+  </div>
+  <div class="st">
+   <div class="strip"><span class="vi" style="padding:0"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".78"></svg>RAM 78%<span class="wd"></span></span><span style="opacity:.55">Wi-Fi</span><span>6:17 PM</span></div>
+   <div><div class="k">Strained <span style="color:var(--ink-3);font-weight:500">· today</span></div><div class="x">Names what is tight and how tight, with one amber dot.</div></div>
+  </div>
+  <div class="st">
+   <div class="strip"><span class="vi crit"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".97" style="color:#fff"></svg>Out of RAM</span><span style="opacity:.55">Wi-Fi</span><span>6:17 PM</span></div>
+   <div><div class="k">Critical</div><div class="x">Swap is full and apps may freeze. Red, so you can't miss it.</div></div>
+  </div>
+ </div>
+</div>
+
+<!-- =============== HELP =============== -->
+<div class="stage" id="s-help" data-h="960">
+ <div class="desk"></div>
+ <div class="win" style="left:40px;top:40px;width:1280px;height:880px">
+  <div class="titlebar">
+   <div class="lights"><i></i><i></i><i></i></div>
+   <div class="wtitle">Vitals Help</div>
+  </div>
+  <div class="help">
+   <nav class="side">
+    <div class="s">Help</div>
+    <a class="on">What the numbers mean</a>
+    <a>When memory is tight</a>
+    <a>Keyboard shortcuts</a>
+    <div class="s" style="margin-top:18px">About</div>
+    <a>What Vitals shows</a>
+    <a>Menu bar icon</a>
+   </nav>
+   <div class="hmain">
+    <h1>Help</h1>
+    <p class="intro">Everything Activity Monitor shows, on one screen, in plain words. Each number below says what it means and what yours is now.</p>
+
+    <h2>What the numbers mean</h2>
+    <div class="terms">
+     <div class="term alert"><div class="tt">Memory pressure</div><div class="td">How hard macOS is working to fit everything in memory. Low is good. High means your Mac is juggling.</div><div class="tn">Yours: <b>78%, strained</b></div></div>
+     <div class="term alert"><div class="tt">Swap</div><div class="td">Memory overflow parked on the SSD. Much slower than real memory, and it wears the SSD.</div><div class="tn">Yours: <b>6.02 of 7.00 GB</b></div></div>
+     <div class="term"><div class="tt">Compressed</div><div class="td">Memory macOS has squashed to make room. Cheaper than swap, but it costs a little CPU.</div><div class="tn">Yours: <b>3.07 GB</b></div></div>
+     <div class="term"><div class="tt">Wired</div><div class="td">Memory macOS itself needs and can't move or free. You can't change it.</div><div class="tn">Yours: <b>2.71 GB</b></div></div>
+     <div class="term"><div class="tt">App memory</div><div class="td">What your apps are using right now. This is the part you can free by quitting things.</div><div class="tn">Yours: <b>10.84 GB</b></div></div>
+     <div class="term"><div class="tt">Cached files</div><div class="td">Recently used files kept in memory for speed. macOS gives it back the moment an app needs it.</div><div class="tn">Yours: <b>1.21 GB</b></div></div>
+     <div class="term"><div class="tt">Energy impact</div><div class="td">A rough score of how much power an app draws. Higher drains the battery faster. Over 20 is a lot.</div><div class="tn">Highest: <b>Claude VM, 38.2</b></div></div>
+     <div class="term"><div class="tt">Load average</div><div class="td">How many jobs are waiting for the CPU, over 1, 5 and 15 minutes. Under 11 (your core count) is fine.</div><div class="tn">Yours: <b>5.2 · 4.8 · 4.6</b></div></div>
+     <div class="term"><div class="tt">SSD written today</div><div class="td">Data written to your drive since midnight. Lots of swap makes this climb, and SSDs have a lifetime limit.</div><div class="tn">Yours: <b>97.4 GB</b></div></div>
+    </div>
+
+    <div class="hsplit">
+     <div>
+      <h2>When memory is tight</h2>
+      <ol class="steps">
+       <li><span><b>Quit Claude when you're not using it.</b> Its sandbox holds about 10 GB. Quitting frees about 11.5 GB.</span></li>
+       <li><span><b>Close Claude Code sessions you're done with.</b> Each one holds 180 to 340 MB.</span></li>
+       <li><span><b>Close Safari tabs you don't need.</b> Safari is using 1.62 GB.</span></li>
+       <li><span><b>Restart now and then.</b> It empties swap. Yours has been up 8 days.</span></li>
+      </ol>
+      <div class="dont">Leave kernel_task and WindowServer alone. They are macOS itself.</div>
+     </div>
+     <div>
+      <h2>Keyboard shortcuts</h2>
+      <div class="keys">
+       <div class="kk"><kbd class="k">⌥</kbd><kbd class="k">⌘</kbd><kbd class="k">V</kbd></div><div class="kd">Open Vitals from anywhere</div>
+       <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">F</kbd></div><div class="kd">Search processes</div>
+       <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">1</kbd></div><div class="kd">Sort by memory</div>
+       <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">2</kbd></div><div class="kd">Sort by CPU</div>
+       <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">3</kbd></div><div class="kd">Sort by energy</div>
+       <div class="kk"><kbd class="k">←</kbd><kbd class="k">→</kbd></div><div class="kd">Collapse or expand a group</div>
+       <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">⌫</kbd></div><div class="kd">Quit the selected app (asks first)</div>
+       <div class="kk"><kbd class="k">⌘</kbd><kbd class="k">?</kbd></div><div class="kd">This help</div>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+
+</div></div>
+
+<script>
+(function(){
+  "use strict";
+  var GB = 1024;
+  var MODEL = {Opus:"var(--opus)",Sonnet:"var(--sonnet)",Haiku:"var(--haiku)",Fable:"var(--fable)"};
+  var still = /still/.test(location.hash);
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- data ---------- */
+  function sess(f,m,mem,cpu,time,en){return {name:f,model:m,desc:m,mem:mem,cpu:cpu,time:time,en:en,dr:0,dw:0.1,ni:28,no:8,thr:17,user:"vinnie"}}
+  var rows = [
+    {id:"claude",name:"Claude",ic:"C",desc:"desktop app and its sandbox",open:true,cpu:43.1,time:"61:11:19",mem:11.5*GB,en:40.1,dr:3.1,dw:6.2,ni:1120,no:120,thr:182,user:"vinnie",kids:[
+      {name:"Sandbox virtual machine",ic:"▣",desc:"runs Claude's tools safely",cpu:41.0,time:"58:40:12",mem:10.1*GB,en:38.2,dr:2.8,dw:5.9,ni:1100,no:96,thr:38,user:"vinnie"},
+      {name:"Claude",ic:"C",desc:"the app itself",cpu:2.1,time:"2:31:07",mem:1.4*GB,en:1.9,dr:0.3,dw:0.3,ni:20,no:24,thr:144,user:"vinnie"}]},
+    {id:"cc",name:"Claude Code",ic:"›_",desc:"8 sessions",open:false,cpu:18.5,time:"14:02:51",mem:2.06*GB,en:11.8,dr:0.4,dw:0.9,ni:220,no:64,thr:136,user:"vinnie",dots:true,kids:[
+      sess("claude-meter","Sonnet",340,2.1,"1:48:20",1.4),
+      sess("nhl-gm-tool","Opus",310,9.0,"5:12:44",6.3),
+      sess("claude-dashboard","Fable",290,4.4,"2:39:05",2.9),
+      sess("travel-log","Sonnet",260,1.2,"1:10:31",0.8),
+      sess("swarm-watch","Sonnet",240,0.6,"0:58:12",0.4),
+      sess("Utilities","Sonnet",230,0.9,"0:51:47",0.6),
+      sess("shift-hours","Sonnet",210,0.2,"0:44:09",0.2),
+      sess("parlay-builder","Sonnet",180,0.1,"0:38:03",0.1)]},
+    {name:"kernel_task",ic:"K",desc:"macOS itself, also writes swap",cpu:8.0,time:"41:18:22",mem:1.9*GB,en:5.2,dr:6.1,dw:24.8,ni:0,no:0,thr:612,user:"root"},
+    {name:"Safari",ic:"S",desc:"web browser",cpu:12.0,time:"9:44:10",mem:1.62*GB,en:14.0,dr:1.2,dw:0.8,ni:900,no:60,thr:96,user:"vinnie"},
+    {name:"WindowServer",ic:"W",desc:"draws everything on screen",cpu:18.0,time:"22:05:33",mem:612,en:9.1,dr:0.1,dw:0.2,ni:0,no:0,thr:24,user:"_windowserver"},
+    {name:"mds_stores",ic:"M",desc:"Spotlight search index",cpu:6.0,time:"3:12:45",mem:240,en:3.4,dr:2.4,dw:1.9,ni:0,no:0,thr:9,user:"root"},
+    {name:"Messages",ic:"M",desc:"",cpu:0.3,time:"0:41:02",mem:210,en:0.2,dr:0,dw:0,ni:4,no:2,thr:18,user:"vinnie"},
+    {name:"Finder",ic:"F",desc:"",cpu:0.2,time:"0:58:13",mem:180,en:0.1,dr:0.1,dw:0,ni:0,no:0,thr:11,user:"vinnie"},
+    {name:"Swarm Watch",ic:"S",desc:"one of your tools",cpu:0.8,time:"1:20:44",mem:148,en:0.6,dr:0,dw:0,ni:12,no:3,thr:14,user:"vinnie"},
+    {name:"Claude Meter",ic:"C",desc:"one of your tools",cpu:0.4,time:"0:52:10",mem:62,en:0.3,dr:0,dw:0,ni:6,no:1,thr:9,user:"vinnie"},
+    {name:"Wakey",ic:"W",desc:"keeps your Mac awake",cpu:0.0,time:"0:03:12",mem:18,en:0.0,dr:0,dw:0,ni:0,no:0,thr:4,user:"vinnie"}
+  ];
+  var cols = [
+    {k:"name",t:"Name"},{k:"mem",t:"Memory"},{k:"cpu",t:"CPU %"},{k:"tsec",t:"CPU time"},{k:"thr",t:"Threads"},
+    {k:"en",t:"Energy"},{k:"dr",t:"Disk read"},{k:"dw",t:"Disk write"},{k:"ni",t:"Net in"},{k:"no",t:"Net out"},{k:"user",t:"User"}
+  ];
+  function tsec(t){var p=t.split(":").map(Number);return p[0]*3600+p[1]*60+p[2]}
+  rows.concat.apply([],rows.map(function(r){return [r].concat(r.kids||[])})).forEach(function(r){r.tsec=tsec(r.time)});
+  var sortK="mem", sortDir=-1, query="";
+
+  function fmem(mb){return mb>=1000? (mb/GB).toFixed(2)+" GB" : Math.round(mb)+" MB"}
+  function fdisk(v){return v? v.toFixed(1)+" MB/s" : "–"}
+  function fnet(kb){return kb? (kb>=1000? (kb/1000).toFixed(1)+" MB/s" : Math.round(kb)+" KB/s") : "–"}
+  function cell(r,k){
+    switch(k){
+      case "mem": return '<div class="memc">'+fmem(r.mem)+'<span class="mb"><i style="width:'+Math.min(100,r.mem/(18*GB)*100*1.6).toFixed(1)+'%"></i></span></div>';
+      case "cpu": return r.cpu.toFixed(1);
+      case "tsec": return r.time;
+      case "thr": return r.thr.toLocaleString("en-US");
+      case "en": return r.en.toFixed(1);
+      case "dr": return fdisk(r.dr);
+      case "dw": return fdisk(r.dw);
+      case "ni": return fnet(r.ni);
+      case "no": return fnet(r.no);
+      case "user": return r.user;
+    }
+  }
+  function zero(r,k){return (k==="dr"||k==="dw"||k==="ni"||k==="no") && !r[k]}
+  function nameCell(r,kid,parent){
+    var lead;
+    if(kid && r.model) lead='<span class="mdot" style="background:'+MODEL[r.model]+';margin:0 5px"></span>';
+    else lead='<span class="ic">'+r.ic+'</span>';
+    var chev = r.kids? '<span class="chev'+(r.open?" open":"")+'" data-id="'+r.id+'">▶</span>' : (kid?'':'<span class="chev"></span>');
+    var dots = r.dots && !r.open ? '<span class="dots">'+r.kids.map(function(k){return '<i class="mdot" style="width:6px;height:6px;background:'+MODEL[k.model]+'"></i>'}).join("")+'</span>' : "";
+    return '<div class="nm">'+chev+lead+'<span class="t">'+r.name+'</span>'+dots+(r.desc?'<span class="d">'+r.desc+'</span>':'')+'</div>';
+  }
+  function cmp(a,b){
+    var x=a[sortK], y=b[sortK];
+    if(typeof x==="string") return x.localeCompare(y)*(sortDir>0?1:-1);
+    return (x-y)*sortDir;
+  }
+  function match(r){if(!query)return true;var s=(r.name+" "+(r.desc||"")).toLowerCase();return s.indexOf(query)>=0}
+  function render(){
+    var h=cols.map(function(c){var on=c.k===sortK;var ar=on?(sortDir<0?"▼":"▲"):"⇅";return '<th data-k="'+c.k+'" class="'+(on?"on":"")+'">'+c.t+'<span class="ar">'+ar+'</span></th>'}).join("");
+    document.getElementById("ph").innerHTML=h;
+    var out=[];
+    rows.slice().sort(cmp).forEach(function(r){
+      var kids=(r.kids||[]).filter(match);
+      if(!match(r) && !kids.length) return;
+      var open = r.open || (query && kids.length);
+      out.push('<tr class="'+(r.kids?"grp":"")+'">'+cols.map(function(c){return '<td class="'+(zero(r,c.k)?"z":"")+(c.k==="user"?" u":"")+'">'+(c.k==="name"?nameCell(r):cell(r,c.k))+'</td>'}).join("")+'</tr>');
+      if(r.kids && open){
+        (query?kids:r.kids).slice().sort(cmp).forEach(function(k){
+          out.push('<tr class="kid">'+cols.map(function(c){return '<td class="'+(zero(k,c.k)?"z":"")+(c.k==="user"?" u":"")+'">'+(c.k==="name"?nameCell(k,true,r):cell(k,c.k))+'</td>'}).join("")+'</tr>');
+        });
+      }
+    });
+    document.getElementById("pb").innerHTML=out.join("");
+  }
+  document.getElementById("ph").addEventListener("click",function(e){
+    var th=e.target.closest("th"); if(!th)return; var k=th.dataset.k;
+    if(k===sortK) sortDir=-sortDir; else {sortK=k; sortDir=(k==="name"||k==="user")?1:-1;}
+    render();
+  });
+  document.getElementById("pb").addEventListener("click",function(e){
+    var c=e.target.closest(".chev[data-id]"); if(!c)return;
+    rows.forEach(function(r){ if(r.id===c.dataset.id) r.open=!r.open; });
+    render();
+  });
+  document.getElementById("q").addEventListener("input",function(e){query=e.target.value.trim().toLowerCase();render()});
+  render();
+
+  /* ---------- top 5 in dropdown ---------- */
+  var top5=[["Claude's sandbox VM","",10.1*GB],["Claude Code","8 sessions",2.06*GB,true],["kernel_task","macOS",1.9*GB],["Safari","",1.62*GB],["Claude","the app",1.4*GB]];
+  var cc=rows[1].kids;
+  document.getElementById("top5").innerHTML=top5.map(function(t){
+    var d = t[3]? '<span class="dots">'+cc.map(function(k){return '<i class="mdot" style="width:6px;height:6px;background:'+MODEL[k.model]+'"></i>'}).join("")+'</span>':"";
+    return '<div class="top"><span class="tn">'+t[0]+(t[1]?' <s>'+t[1]+'</s>':'')+d+'</span><span class="tv">'+fmem(t[2])+'</span><span class="tb"><i style="width:'+(t[2]/(18*GB)*100).toFixed(1)+'%"></i></span></div>';
+  }).join("");
+
+  /* ---------- gauges ---------- */
+  document.querySelectorAll("svg.gauge").forEach(function(s){
+    var lvl=parseFloat(s.dataset.lvl||".78"); var a=Math.PI*(1-lvl);
+    var x=8+5.2*Math.cos(a), y=11-5.2*Math.sin(a);
+    s.innerHTML='<path d="M1.8 11a6.2 6.2 0 0 1 12.4 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11L'+x.toFixed(2)+' '+y.toFixed(2)+'" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11" r="1.5" fill="currentColor"/>';
+  });
+
+  /* ---------- cores ---------- */
+  var P=[58,41,37,22,19], E=[64,55,49,48,40,33];
+  function grp(arr,l){return '<div class="grp"><div class="bars">'+arr.map(function(v){return '<i title="'+v+'%"><b style="height:'+v+'%"></b></i>'}).join("")+'</div><div class="gl">'+l+'</div></div>'}
+  document.getElementById("cores").innerHTML=grp(P,"5 performance")+'<div class="sep"></div>'+grp(E,"6 efficiency");
+
+  /* ---------- sparklines ---------- */
+  function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  function series(n,seed,f){var r=rng(seed),a=[];for(var i=0;i<n;i++)a.push(f(i/(n-1),r));return a}
+  var S={
+    press: series(60,7,function(t,r){return 63+15*Math.pow(t,1.3)+(r()-.5)*3.2}),
+    swap:  series(60,11,function(t,r){return 5.05+0.97*Math.min(1,Math.round(t*7)/6.2)+(r()-.5)*.04}),
+    cpu:   series(60,3,function(t,r){return 31+Math.sin(t*9)*5+(r()-.5)*12}),
+    gpu:   series(60,5,function(t,r){return 8+(r()-.5)*6+(t>.7&&t<.75?7:0)})
+  };
+  S.press[59]=78; S.swap[59]=6.02; S.cpu[59]=34; S.gpu[59]=9;
+  function draw(id,vals,min,max,w,h,dash){
+    var el=document.getElementById(id); if(!el)return;
+    var n=vals.length, pts=vals.map(function(v,i){return [(i/(n-1)*w).toFixed(1),(h-(v-min)/(max-min)*h).toFixed(1)]});
+    var line=pts.map(function(p,i){return (i?"L":"M")+p[0]+" "+p[1]}).join(" ");
+    var last=pts[n-1];
+    el.innerHTML=(dash!==undefined?'<line x1="0" x2="'+w+'" y1="'+dash+'" y2="'+dash+'" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>':'')+
+      '<path d="'+line+' L'+w+' '+h+' L0 '+h+' Z" fill="currentColor" fill-opacity=".14"/>'+
+      '<path d="'+line+'" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+  }
+  function drawAll(){
+    draw("g-press",S.press,40,100,200,40, 40-(80-40)/60*40);
+    draw("g-swap",S.swap,4,7,200,40, 0);
+    draw("g-cpu",S.cpu,0,100,200,30);
+    draw("g-gpu",S.gpu,0,100,200,30);
+  }
+  drawAll();
+
+  /* ---------- small live touch ---------- */
+  if(!still && !reduce){
+    var r=rng(42);
+    setInterval(function(){
+      var c=Math.round(34+(r()-.5)*6);
+      S.cpu.shift(); S.cpu.push(c); S.gpu.shift(); S.gpu.push(9+(r()-.5)*3);
+      document.getElementById("cpuTot").innerHTML=c+"<small>%</small>";
+      document.getElementById("netIn").textContent=(2.4+(r()-.5)*.6).toFixed(1)+" MB/s";
+      drawAll();
+    },2000);
+  }
+
+  /* ---------- tabs, theme, fit ---------- */
+  var cur="window";
+  function fit(){
+    var st=document.getElementById("s-"+cur), W=1360, H=+st.dataset.h;
+    var vw=document.documentElement.clientWidth, vh=innerHeight-52-38;
+    var s = vw<820 ? (vw-16)/W : Math.min((vw-40)/W, vh/H, 1.15);
+    st.style.transform="scale("+s+")"; st.style.height=H+"px";
+    var f=document.getElementById("fit"); f.style.width=(W*s)+"px"; f.style.height=(H*s)+"px";
+  }
+  function show(s){
+    cur=s;
+    document.querySelectorAll(".stage").forEach(function(e){e.classList.toggle("on",e.id==="s-"+s)});
+    document.querySelectorAll("#tabs button").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.s===s)});
+    fit();
+  }
+  function theme(t){
+    document.documentElement.setAttribute("data-theme",t);
+    document.querySelectorAll("#themes button").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.t===t)});
+  }
+  document.getElementById("tabs").addEventListener("click",function(e){var b=e.target.closest("button");if(b)show(b.dataset.s)});
+  document.getElementById("themes").addEventListener("click",function(e){var b=e.target.closest("button");if(b)theme(b.dataset.t)});
+  document.querySelectorAll("[data-go]").forEach(function(a){a.addEventListener("click",function(){show(a.dataset.go)})});
+  var hash=location.hash.slice(1).split("&");
+  var dark = hash.indexOf("dark")>=0 || (hash.indexOf("light")<0 && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+  theme(dark?"dark":"light");
+  show(["window","menubar","help"].indexOf(hash[0])>=0?hash[0]:"window");
+  addEventListener("resize",fit);
+})();
+</script>
+</body>
+</html>
