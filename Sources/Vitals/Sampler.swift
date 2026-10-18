@@ -24,6 +24,10 @@ final class Sampler: @unchecked Sendable {
     private var bucket: [String: [Double]] = [:]
     private var bucketStart = Date()
 
+    // The strip charts: every sample, the last 5 minutes (DATA.md `live`).
+    private static let liveLength = 150
+    private var live: [String: [Any]] = [:]
+
     private var iface: (bsd: String, name: String)?
     private var ifaceCheckedAt = Date.distantPast
 
@@ -82,7 +86,11 @@ final class Sampler: @unchecked Sendable {
         let cpu = cpuSection()
         let gpuPct = GPU.utilization()
         let procs: ProcessSampler.Result
-        if wantProcesses || lastProcs == nil { procs = processes.sample(); lastProcs = procs } else { procs = lastProcs! }
+        let freshProcs = wantProcesses || lastProcs == nil
+        if freshProcs { procs = processes.sample(); lastProcs = procs } else { procs = lastProcs! }
+        // Energy impact needs the process rows, which are only sampled while a page shows; null otherwise
+        // (and on the first sample, which has no rates yet).
+        let impact: Any = freshProcs && dt > 0 ? num(procs.rows.reduce(0) { $0 + ($1.energy ?? 0) }, 1) : NSNull()
 
         record("pressurePct", memory["pressurePct"] as? Double)
         record("swapUsedBytes", (memory["swapUsedBytes"] as? UInt64).map(Double.init), average: false)
@@ -147,7 +155,17 @@ final class Sampler: @unchecked Sendable {
             "adapterWatts": p.adapterWatts ?? NSNull(), "cycles": p.cycles ?? NSNull(),
             "healthPct": p.healthPct ?? NSNull(), "minutesLeft": p.minutesLeft ?? NSNull(),
             "thermal": Power.thermal(), "fanRPM": Fan.rpm().map { Int($0.rounded()) } ?? NSNull(),
+            "impact": impact,
         ]
+
+        addLive([
+            "pressurePct": memory["pressurePct"] ?? NSNull(), "swapUsedBytes": memory["swapUsedBytes"] ?? NSNull(),
+            "cpuUserPct": cpu["userPct"] ?? NSNull(), "cpuSystemPct": cpu["systemPct"] ?? NSNull(),
+            "gpuPct": num(gpuPct, 0), "diskReadBps": readBps, "diskWriteBps": writeBps,
+            "netInBps": net["inBps"] ?? NSNull(), "netOutBps": net["outBps"] ?? NSNull(), "energyImpact": impact,
+        ])
+        var liveOut: [String: Any] = live
+        liveOut["stepSec"] = 2
 
         let uptime = Sysctl.bootTime().map { Int(now.timeIntervalSince($0)) }
         let hostOut: [String: Any] = [
@@ -165,6 +183,7 @@ final class Sampler: @unchecked Sendable {
             "energy": energy,
             "disk": disk,
             "network": net,
+            "live": liveOut,
             "totals": ["processes": procs.processes, "threads": procs.threads],
             "processes": procs.rows.map { $0.json() },
         ]
@@ -259,6 +278,15 @@ final class Sampler: @unchecked Sendable {
     }
 
     // MARK: history
+
+    private func addLive(_ point: [String: Any]) {
+        for (k, v) in point {
+            var a = live[k] ?? []
+            a.append(v)
+            if a.count > Self.liveLength { a.removeFirst(a.count - Self.liveLength) }
+            live[k] = a
+        }
+    }
 
     private func record(_ key: String, _ value: Double?, average: Bool = true) {
         guard let value else { return }

@@ -48,13 +48,20 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   still creeping ~1 MB/min at the end (97 MB at 3.5 min, 100.6 MB at 6 min). Off-screen pages may skip painting, so
   recheck in the real window: `ps`/`footprint` on the window's WebContent after an hour open.
 
-## Activity Monitor-style redesign (pending, 2026-10-18)
-- Vinnie wants the stats conveyed more like Activity Monitor. The cloud thread is making mockups; nothing to build
-  until he picks one. Likely Swift additions: 2 s history arrays (~150 points: pressure, CPU user/system, disk
-  read/write, network in/out), per-process compressed memory and idle wakeups.
-- Checked feasibility: idle wakeups = `ri_pkg_idle_wkups` (rusage V4, already read). Compressed per process =
-  `task_name_for_pid` + `task_info(TASK_VM_INFO).compressed`, which works unprivileged for Vinnie's own processes
-  (Safari: 208 of 295 MB compressed); root's and other users' stay null like the other per-process fields.
+## Strip charts redesign (2026-10-18)
+- Vinnie picked mockup "02 Strip Charts". The cloud thread is rebuilding window.html and popover.html; install
+  only after they land.
+- Swift side done: snapshot `live` (DATA.md) = the last 150 samples at 2 s of pressurePct, swapUsedBytes,
+  cpuUserPct, cpuSystemPct, gpuPct, diskReadBps, diskWriteBps, netInBps, netOutBps, energyImpact; `energy.impact`
+  = sum of top-level Proc.energy. GPU was already read every 2 s (only the 1-hour history is 30 s).
+- energyImpact / energy.impact are null while no page is showing (process rows aren't sampled then, to keep idle
+  CPU low) and on the first sample. So the energy strip has a gap for the time the window was closed.
+- Per Proc: `compressedBytes` (task_name_for_pid + TASK_VM_INFO, own processes only) and `idleWakeupsPs`.
+  Claude's sandbox VM reports more compressed than its footprint (6.4 GB vs 3.7 GB): guest memory, raw kernel number.
+- Cost (`--dump --bench`): 24.9 ms per tick with process rows (1.25% of a core), 10.6 ms without (0.53%), same as
+  before the change.
+- Noticed, not fixed: `user` is null for the ~260 processes owned by root and other users (PROC_PIDTBSDINFO fails
+  for them); PROC_PIDT_SHORTBSDINFO would give their uid.
 
 ## RAM bar shading (2026-10-18)
 - b5daf0d (cloud thread): the memory bar shades what's really in use (App, Wired, Compressed) strong and Cached
