@@ -5,7 +5,7 @@
   --page:#ffffff; --side:#fbfbfa; --panel:#f5f5f4; --panel-2:#ececea;
   --line:rgba(0,0,0,.085); --line-2:rgba(0,0,0,.05);
   --ink:#1c1c1e; --ink-2:#55555b; --ink-3:#86868c; --ink-4:#b8b8bd;
-  --bar:#3a3a3d; --bar-2:#8d8d93; --bar-3:#c9c9cd; --track:#e8e8e6;
+  --bar:#3a3a3d; --bar-1b:#4b4b4f; --bar-2:#8d8d93; --bar-3:#c9c9cd; --track:#e8e8e6;
   --tile:#ececea; --tile-ink:#1c1c1e; --tile-big:#2c2c2e; --tile-big-ink:#ffffff;
   --warn:#a2610a; --warn-fill:#e09a1d; --warn-soft:rgba(224,154,29,.16); --warn-bg:#fcf6ea; --warn-line:rgba(205,140,30,.30);
   --crit:#c62f28; --crit-fill:#d0342c; --crit-soft:rgba(208,52,44,.14); --crit-bg:#fdf0ef; --crit-line:rgba(208,52,44,.30);
@@ -18,7 +18,7 @@
   --page:#1d1d1f; --side:#232325; --panel:#262628; --panel-2:#2f2f32;
   --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.055);
   --ink:#f3f3f5; --ink-2:#b0b0b6; --ink-3:#86868d; --ink-4:#55555b;
-  --bar:#e6e6ea; --bar-2:#9a9aa0; --bar-3:#5a5a5f; --track:#333336;
+  --bar:#e6e6ea; --bar-1b:#cfcfd4; --bar-2:#9a9aa0; --bar-3:#5a5a5f; --track:#333336;
   --tile:#2f2f32; --tile-ink:#f3f3f5; --tile-big:#e9e9ec; --tile-big-ink:#1c1c1e;
   --warn:#f2b445; --warn-fill:#eea929; --warn-soft:rgba(238,169,41,.18); --warn-bg:#2b261d; --warn-line:rgba(238,169,41,.28);
   --crit:#ff6a5f; --crit-fill:#ff5a4f; --crit-soft:rgba(255,90,79,.18); --crit-bg:#2e1f1e; --crit-line:rgba(255,90,79,.32);
@@ -29,7 +29,7 @@
   --page:#1d1d1f; --side:#232325; --panel:#262628; --panel-2:#2f2f32;
   --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.055);
   --ink:#f3f3f5; --ink-2:#b0b0b6; --ink-3:#86868d; --ink-4:#55555b;
-  --bar:#e6e6ea; --bar-2:#9a9aa0; --bar-3:#5a5a5f; --track:#333336;
+  --bar:#e6e6ea; --bar-1b:#cfcfd4; --bar-2:#9a9aa0; --bar-3:#5a5a5f; --track:#333336;
   --tile:#2f2f32; --tile-ink:#f3f3f5; --tile-big:#e9e9ec; --tile-big-ink:#1c1c1e;
   --warn:#f2b445; --warn-fill:#eea929; --warn-soft:rgba(238,169,41,.18); --warn-bg:#2b261d; --warn-line:rgba(238,169,41,.28);
   --crit:#ff6a5f; --crit-fill:#ff5a4f; --crit-soft:rgba(255,90,79,.18); --crit-bg:#2e1f1e; --crit-line:rgba(255,90,79,.32);
@@ -57,6 +57,7 @@ button{font:inherit;color:inherit}
 .dots .mdot{width:6px;height:6px}
 .sw{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
 .hatch{background:repeating-linear-gradient(135deg,var(--bar-2) 0 2px,var(--bar-3) 2px 4px)}
+.hatch-dark{background:repeating-linear-gradient(135deg,var(--bar) 0 2px,var(--bar-1b) 2px 4px)}
 .stack{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--track);gap:2px}
 .stack i{display:block;height:100%;transition:width .4s}
 .meter{height:6px;border-radius:3px;background:var(--track);overflow:hidden}

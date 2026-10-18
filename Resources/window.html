@@ -268,15 +268,16 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     $("mSwapBox").classList.toggle("w", swapFrac >= 0.75);
 
     var parts = [
-      ["App", m.appBytes, "var(--bar)"], ["Wired", m.wiredBytes, "var(--bar-2)"],
+      // in use (dark): App, Wired, Compressed; can be dropped any time (light): Cached
+      ["App", m.appBytes, "var(--bar)"], ["Wired", m.wiredBytes, "var(--bar-1b)"],
       ["Compressed", m.compressedBytes, null], ["Cached", m.cachedBytes, "var(--bar-3)"]
     ];
     $("mStack").innerHTML = parts.map(function (p) {
       var w = Math.max(0, (p[1] || 0) / total * 100).toFixed(2);
-      return '<i class="' + (p[2] ? "" : "hatch") + '" style="width:' + w + '%;' + (p[2] ? "background:" + p[2] : "") + '"></i>';
+      return '<i class="' + (p[2] ? "" : "hatch-dark") + '" style="width:' + w + '%;' + (p[2] ? "background:" + p[2] : "") + (p[0] === "Cached" ? ";margin-left:3px" : "") + '"></i>';
     }).join("");
     $("mLegend").innerHTML = parts.map(function (p) {
-      return '<span><i class="sw ' + (p[2] ? "" : "hatch") + '" style="' + (p[2] ? "background:" + p[2] : "") + '"></i>' + p[0] + " <b>" + F.gb(p[1]) + "</b></span>";
+      return '<span><i class="sw ' + (p[2] ? "" : "hatch-dark") + '" style="' + (p[2] ? "background:" + p[2] : "") + '"></i>' + p[0] + " <b>" + F.gb(p[1]) + "</b></span>";
     }).join("");
 
     var h = m.history || {};
