@@ -22,6 +22,7 @@ doesn't index a second copy of the app.
 ```bash
 Vitals.app/Contents/MacOS/Vitals --dump [--scan]                                # one snapshot as JSON
 Vitals.app/Contents/MacOS/Vitals --render window renders/window-dark.png dark   # page to PNG, off screen
+Vitals.app/Contents/MacOS/Vitals --render window out.png light --warm 40        # ...after 40 s of live samples
 Vitals.app/Contents/MacOS/Vitals --soak 6 window                                # live page off screen, memory every 30 s
 ```
 

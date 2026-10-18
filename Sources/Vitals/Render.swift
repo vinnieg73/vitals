@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 
-/// `Vitals --render <page> <out.png> [light|dark] [--scan]`
+/// `Vitals --render <page> <out.png> [light|dark] [--scan] [--warm <seconds>]`
 ///
 /// Loads one page in a borderless window parked far off screen (nothing appears on the display,
 /// no Dock icon, no menu bar item), feeds it a live snapshot, waits 1.5 s, saves a 2x PNG and exits.
@@ -11,6 +11,7 @@ final class Renderer: NSObject, NSApplicationDelegate, PageActions, WKNavigation
     private let out: URL
     private let dark: Bool
     private let scan: Bool
+    private let warm: Double
     private let sampler = Sampler()
     private lazy var bridge = PageBridge(target: self)
     private var window: NSWindow?
@@ -18,7 +19,9 @@ final class Renderer: NSObject, NSApplicationDelegate, PageActions, WKNavigation
     private var json: String?
     private var shot = false
 
-    init(page: String, out: String, dark: Bool, scan: Bool) {
+    /// `warm`: keep sampling every 2 s for this long first, so the live charts have real history.
+    init(page: String, out: String, dark: Bool, scan: Bool, warm: Double = 0) {
+        self.warm = warm
         self.page = page.replacingOccurrences(of: ".html", with: "")
         self.out = URL(fileURLWithPath: out)
         self.dark = dark
@@ -36,13 +39,20 @@ final class Renderer: NSObject, NSApplicationDelegate, PageActions, WKNavigation
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.setActivationPolicy(.prohibited)
         // Give up after 30 s (60 s with --scan) whatever happens.
-        DispatchQueue.main.asyncAfter(deadline: .now() + (scan ? 330 : 30)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + (scan ? 330 : 30) + warm) {
             FileHandle.standardError.write(Data("render timed out\n".utf8)); exit(1)
         }
-        let sampler = self.sampler, scan = self.scan
+        let sampler = self.sampler, scan = self.scan, warm = self.warm
         DispatchQueue.global(qos: .userInitiated).async {
             _ = sampler.sampleNow()
             sampler.processes.primeNetwork(interval: 2)
+            // The last warm-up sample is the one sent, 2 s after the previous one, so its rates are real.
+            let start = Date()
+            while Date().timeIntervalSince(start) + 2 < warm {
+                Thread.sleep(forTimeInterval: 2)
+                _ = sampler.sampleNow()
+            }
+            if warm > 0 { Thread.sleep(forTimeInterval: 2) }
             if scan {
                 sampler.diskScan.start()
                 while sampler.diskScan.bigUsers == nil { Thread.sleep(forTimeInterval: 0.5) }

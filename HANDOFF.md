@@ -49,8 +49,8 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   recheck in the real window: `ps`/`footprint` on the window's WebContent after an hour open.
 
 ## Strip charts redesign (2026-10-18)
-- Vinnie picked mockup "02 Strip Charts". The cloud thread is rebuilding window.html and popover.html; install
-  only after they land.
+- Vinnie picked mockup "02 Strip Charts". Pages landed in 4ff2a11 and are installed. Shots in docs/shots/
+  (strip-window.png, strip-popover.png, plus -dark), rendered with `--render … --warm 40`; no page JS errors.
 - Swift side done: snapshot `live` (DATA.md) = the last 150 samples at 2 s of pressurePct, swapUsedBytes,
   cpuUserPct, cpuSystemPct, gpuPct, diskReadBps, diskWriteBps, netInBps, netOutBps, energyImpact; `energy.impact`
   = sum of top-level Proc.energy. GPU was already read every 2 s (only the 1-hour history is 30 s).
@@ -62,6 +62,10 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   before the change.
 - Noticed, not fixed: `user` is null for the ~260 processes owned by root and other users (PROC_PIDTBSDINFO fails
   for them); PROC_PIDT_SHORTBSDINFO would give their uid.
+- Measured on the installed app (2026-10-18): idle with the window closed 2.0–2.6% CPU, 22 MB (a bit above the 2%
+  target; this morning it was 1.7–1.9%). Window open (`--soak 10 window`, off screen): app 3.0–3.7% CPU and flat at
+  23 MB; page 1.5–2.3% CPU (likely low, off screen pages may skip painting), memory 62 MB at 30 s, 93 MB at 4 min
+  (live buffers filling), then 96–99 MB through 10 min.
 
 ## RAM bar shading (2026-10-18)
 - b5daf0d (cloud thread): the memory bar shades what's really in use (App, Wired, Compressed) strong and Cached
@@ -114,7 +118,8 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   right-click menu shows it on Open Vitals. (Was ⌥⌘V, which took Finder's "Move Item Here".)
 - quitProcess: refuses pid ≤ 1, Vitals itself, root's and other users' processes; apps get
   NSRunningApplication.terminate(), everything else SIGTERM. SIGKILL is never used.
-- `--dump [--scan] [--bench]`, `--render <page> <out.png> [light|dark] [--scan]`, `--soak <minutes> [page]`
+- `--dump [--scan] [--bench]`, `--render <page> <out.png> [light|dark] [--scan] [--warm <s>]` (--warm samples live
+  every 2 s first so the strip charts have history), `--soak <minutes> [page]`
   (leak check: live page off screen, prints app and page memory every 30 s).
 - Pages get updates through one fixed `callAsyncJavaScript` script with the JSON as an argument (Web.swift `push`).
   Windows that are closed, minimized, covered or on another Space get no updates; when one comes back into view
