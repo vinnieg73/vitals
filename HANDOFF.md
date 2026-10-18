@@ -48,6 +48,14 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   still creeping ~1 MB/min at the end (97 MB at 3.5 min, 100.6 MB at 6 min). Off-screen pages may skip painting, so
   recheck in the real window: `ps`/`footprint` on the window's WebContent after an hour open.
 
+## Apple Music privacy prompt (2026-10-18)
+- Trigger (from tccd's log): Vitals asked for kTCCServiceMediaLibrary ~3 s after launch at 17:31, 17:32 and 17:51,
+  i.e. right as the launch disk scan started. The scan walked all of ~/Library/Caches, which holds Apple Music's
+  caches (com.apple.Music, com.apple.AMPLibraryAgent, com.apple.iTunes…).
+- Fix: App caches skips com.apple.* (except com.apple.dt.* = Xcode), Apple caches named without the prefix, and
+  media-named folders. Biggest space users is unchanged in practice (Xcode simulators 35 GB, Code 30 GB…).
+- Checked: two launches after the fix, both scans ran, no Vitals entries at all in tccd's log.
+
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
   com.vinnie.vitals).
@@ -140,11 +148,14 @@ _Last updated 2026-10-17 (evening) by the Mac session._
 - Should Biggest space users include Downloads/Documents? It would ask for permission once.
 
 ## Gotchas
-- The "no privacy prompt" claim for the disk scan was tested only as a child of the Claude session, so macOS
-  checked Claude's privacy grants, not Vitals'. The scan starts ~3 s after launch, so if a
-  "Vitals would like to access…" prompt ever appears, it'll be right then. The scan only touches
-  ~/Library/Developer, ~/Library/Caches, ~/Library/Application Support/Claude/vm_bundles and non-protected
-  home folders, so it shouldn't happen.
+- Privacy prompts: walking all of ~/Library/Caches made macOS ask "Allow Vitals to access … Apple Music?"
+  (kTCCServiceMediaLibrary, plus a silent Full Disk Access check) ~0.3 s into every launch scan. Fixed 2026-10-18:
+  App caches now sums only non-Apple cache folders (`DiskScan.skipCache`). Testing the scan as a child of the
+  Claude session checks Claude's grants, not Vitals', so check the installed app with
+  `/usr/bin/log show --last 10m --predicate 'process == "tccd"' | grep -i vitals` after a launch.
+- Ad hoc signing gives every build a new identity, so macOS forgets any privacy answer after a rebuild ("Failed to
+  match existing code requirement"). An "Apple Development" identity exists in the keychain, but signing with it
+  may pop a keychain password dialog, so build.sh stays ad hoc (like Vinnie's other tools) until he OKs that.
 - Root and other users' processes have null memory, so they sort last. kernel_task and WindowServer never
   show in "using the most memory".
 - Never test by opening windows or the menu bar item on Vinnie's screen; use `--dump` and `--render`.

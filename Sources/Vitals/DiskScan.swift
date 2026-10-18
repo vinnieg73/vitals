@@ -44,29 +44,50 @@ final class DiskScan {
         "Desktop", "Documents", "Downloads", "Library", "Movies", "Music", "Pictures", "Public", ".Trash",
     ]
 
-    private func targets() -> [(String, URL)] {
+    /// Apple's own caches in ~/Library/Caches can be privacy-guarded: opening com.apple.Music,
+    /// com.apple.AMPLibraryAgent, com.apple.iTunes… asks "Allow Vitals to access … Apple Music?".
+    /// Skip all com.apple.* caches except Xcode's, Apple's caches named without the prefix, and anything
+    /// media-named from other vendors.
+    static func skipCache(_ name: String) -> Bool {
+        if name.hasPrefix("com.apple."), !name.hasPrefix("com.apple.dt.") { return true }
+        if appleCaches.contains(name) { return true }
+        return name.range(of: "music|itunes|amp|media|tv|podcast|books|photo|news|siri|icloud",
+                          options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private static let appleCaches: Set<String> = [
+        "AMSDataMigratorTool", "ARFileCache", "Animoji", "CloudKit", "EnergyKit", "FamilyCircle", "GameKit",
+        "GeoServices", "JetPackCache", "LSMImageCache", "PFSceneTaxonomyData.index", "PHTPhenotype", "PassKit",
+        "SharedImageCache", "TrickPlay", "askpermissiond", "familycircled", "features_config", "mbuseragent",
+        "menkaure.enabled", "sportsd", "ssu",
+    ]
+
+    private func targets() -> [(String, [URL])] {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
         let lib = home.appendingPathComponent("Library")
-        var list: [(String, URL)] = [
-            ("Xcode simulators", lib.appendingPathComponent("Developer/CoreSimulator")),
-            ("Xcode build files", lib.appendingPathComponent("Developer/Xcode")),
-            ("Claude VM bundle", lib.appendingPathComponent("Application Support/Claude/vm_bundles")),
-            ("App caches", lib.appendingPathComponent("Caches")),
+        let caches = lib.appendingPathComponent("Caches")
+        let cacheItems = ((try? fm.contentsOfDirectory(at: caches, includingPropertiesForKeys: nil)) ?? [])
+            .filter { !Self.skipCache($0.lastPathComponent) }
+        var list: [(String, [URL])] = [
+            ("Xcode simulators", [lib.appendingPathComponent("Developer/CoreSimulator")]),
+            ("Xcode build files", [lib.appendingPathComponent("Developer/Xcode")]),
+            ("Claude VM bundle", [lib.appendingPathComponent("Application Support/Claude/vm_bundles")]),
+            ("App caches", cacheItems),
         ]
         let items = (try? fm.contentsOfDirectory(at: home, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey])) ?? []
         for url in items where !Self.protected.contains(url.lastPathComponent) {
             let v = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
             guard v?.isDirectory == true, v?.isSymbolicLink != true else { continue }
-            list.append((url.lastPathComponent, url))
+            list.append((url.lastPathComponent, [url]))
         }
         return list
     }
 
     private func scan() {
         var out: [(String, UInt64)] = []
-        for (name, url) in targets() {
-            let bytes = Self.size(of: url)
+        for (name, urls) in targets() {
+            let bytes = urls.reduce(0) { $0 + Self.size(of: $1) }
             if bytes > 0 { out.append((name, bytes)) }
         }
         let top = out.sorted { $0.1 > $1.1 }.prefix(6).map { ["name": $0.0, "bytes": $0.1] as [String: Any] }
