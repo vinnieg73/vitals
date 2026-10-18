@@ -316,6 +316,15 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     if (!r.width || !r.height) return;
     var mi = mapItems(s), memTotal = (s.memory || {}).totalBytes || (s.host || {}).memBytes;
     var tiles = V.treemap(mi.items, r.width, r.height);
+    // a sliver too thin to show its number folds into "Everything else"
+    while (tiles.some(function (t) { return t.w < 40 || t.h < 34; }) && mi.items.length > 2) {
+      var its = mi.items, last = its[its.length - 1], rest = last.rest ? last : null;
+      var drop = its[its.length - (rest ? 2 : 1)];
+      its.splice(its.indexOf(drop), 1);
+      if (rest) { rest.value += drop.value; rest.n = (rest.n || 0) + 1; }
+      else its.push({ value: drop.value, id: "rest", name: "Everything else", rest: true, n: 1 });
+      tiles = V.treemap(its, r.width, r.height);
+    }
     treeItems = tiles;
     box.innerHTML = tiles.map(function (t, i) {
       var area = t.w * t.h, cls = i === 0 && t.w >= 170 && t.h >= 120 ? "big" : area < 5200 ? "small" : "";
