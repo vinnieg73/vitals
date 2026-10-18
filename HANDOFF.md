@@ -30,6 +30,14 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   "Code" / "App". Two renders a few seconds apart had the same order. Caveat: each `--render` is a fresh page with
   one update, so the keep-the-order logic itself only runs in the live app, across ticks.
 
+## Stats-only cleanup (2026-10-18)
+- Vinnie asked for "just the stats, no extra fluff". The cloud thread did the pages (02afab5): no headline,
+  quickest-fix box, verdict lines, tags or gray descriptions. Help window and its menu items stay (every tool
+  gets a Help page). Installed and relaunched; renders checked; the popover fits its shorter content.
+- Still open (page): when the RAM map has a very thin column (~25 px, seen in the dark render), its values are
+  cut ("553", "497" with no unit). Thin columns should drop the value or fold into "Everything else".
+- Right after launch, Vitals itself tops "Most energy" for ~45 s (the launch disk scan). Expected, but visible.
+
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
   com.vinnie.vitals).
