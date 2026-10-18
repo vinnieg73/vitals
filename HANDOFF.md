@@ -48,6 +48,10 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   still creeping ~1 MB/min at the end (97 MB at 3.5 min, 100.6 MB at 6 min). Off-screen pages may skip painting, so
   recheck in the real window: `ps`/`footprint` on the window's WebContent after an hour open.
 
+## RAM bar shading (2026-10-18)
+- b5daf0d (cloud thread): the memory bar shades what's really in use (App, Wired, Compressed) strong and Cached
+  faint, no new colors. Installed; light and dark renders checked (in dark mode "strong" is the light shade).
+
 ## Apple Music privacy prompt (2026-10-18)
 - Trigger (from tccd's log): Vitals asked for kTCCServiceMediaLibrary ~3 s after launch at 17:31, 17:32 and 17:51,
   i.e. right as the launch disk scan started. The scan walked all of ~/Library/Caches, which holds Apple Music's
