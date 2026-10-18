@@ -9,16 +9,6 @@
 html,body{height:100%}
 body{display:flex;flex-direction:column;gap:12px;padding:16px 22px 10px;overflow:hidden;min-width:1040px}
 
-/* ---- the sentence ---- */
-.lead{display:flex;align-items:center;gap:28px;flex:none}
-.lead .say{flex:1;min-width:0}
-.lead h1{margin:0;font-size:28px;line-height:1.15;font-weight:650;letter-spacing:-.025em;display:flex;align-items:center;gap:12px}
-.lead p{margin:6px 0 0 22px;font-size:15.5px;line-height:1.4;color:var(--ink-2);letter-spacing:-.008em}
-.lead p b{color:var(--ink);font-weight:600}
-.fix{width:320px;flex:none;padding:11px 14px;border-radius:12px;border:1px solid var(--line);font-size:13px;line-height:1.4;color:var(--ink-2)}
-.fix .k{font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:3px}
-.fix b{color:var(--ink);font-weight:600}
-.fix a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--ink-4);cursor:pointer}
 
 /* ---- cards ---- */
 .card{background:var(--panel);border-radius:12px;padding:12px 16px 13px;min-width:0;display:flex;flex-direction:column}
@@ -26,9 +16,6 @@ body{display:flex;flex-direction:column;gap:12px;padding:16px 22px 10px;overflow
 .lab{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:var(--ink-3)}
 .lab .tag{font-size:11px;font-weight:600;color:var(--ink-3);white-space:nowrap}
 .alert .lab .tag{color:var(--sev)}
-.verdict{margin:2px 0 0;font-size:15px;font-weight:600;letter-spacing:-.012em;line-height:1.3}
-.verdict span{color:var(--ink-3);font-weight:500}
-.alert .verdict em{font-style:normal;color:var(--sev)}
 .kv{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:3.5px;margin:9px 0 0;font-size:12px;line-height:1.35}
 .kv dt{color:var(--ink-3);white-space:nowrap}
 .kv dd{margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -56,9 +43,6 @@ body{display:flex;flex-direction:column;gap:12px;padding:16px 22px 10px;overflow
 .alert .hist .h b{color:var(--sev)}
 .hist svg{display:block;width:100%;height:36px;margin-top:5px;color:var(--bar-2);overflow:visible}
 .alert .hist svg{color:var(--sev-fill)}
-.wear{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2);line-height:1.4}
-.alert .wear{border-top-color:var(--sev-line)}
-.wear b{color:var(--ink);font-weight:600}
 
 /* RAM map */
 .map{display:flex;flex-direction:column;min-width:0}
@@ -147,10 +131,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 .nm{display:flex;align-items:center;gap:8px;min-width:0}
 .nm .chev{width:12px;flex:none;color:var(--ink-3);font-size:9px;cursor:pointer;display:inline-flex;justify-content:center;transition:transform .15s}
 .nm .chev.open{transform:rotate(90deg)}
-.nm .ic{width:17px;height:17px;border-radius:5px;flex:none;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line);font-size:9.5px;font-weight:700;
-  color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center}
 .nm .t{flex:none;max-width:60%;overflow:hidden;text-overflow:ellipsis}
-.nm .d{color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;min-width:0}
 .memc{display:flex;align-items:center;justify-content:flex-end;gap:8px}
 .memc .mb{width:36px;height:4px;border-radius:2px;background:var(--track);overflow:hidden;flex:none}
 .memc .mb i{display:block;height:100%;background:var(--bar)}
@@ -171,40 +152,28 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 </style>
 </head>
 <body>
-<header class="lead" id="lead">
-  <div class="say">
-    <h1><span class="dot"></span><span id="head">Reading your Mac…</span></h1>
-    <p id="sub">&nbsp;</p>
-  </div>
-  <aside class="fix" id="fix" hidden>
-    <div class="k">Quickest fix</div>
-    <span id="fixText"></span> <a data-post="openHelp" data-section="tight">More ways</a>
-  </aside>
-</header>
-
 <section class="card mem" id="memCard">
   <div class="left">
-    <div class="lab">Memory <span class="tag" id="memTag"></span></div>
-    <p class="verdict" id="memVerdict"></p>
+    <div class="lab">Memory</div>
     <div class="mnum">
       <div class="w"><div class="n" id="mPress"></div><div class="c" id="mPressC">pressure</div></div>
       <div><div class="n" id="mUsed"></div><div class="c" id="mUsedC"></div></div>
       <div class="w" id="mSwapBox"><div class="n" id="mSwap"></div><div class="c" id="mSwapC"></div></div>
     </div>
-    <div class="stack" id="mStack" title="Your memory, split by kind"></div>
+    <div class="stack" id="mStack"></div>
     <div class="legend" id="mLegend"></div>
     <div class="hist">
-      <div><div class="h">Pressure, last hour <b id="pTrend"></b></div><svg id="gPress" data-h="40"></svg></div>
-      <div><div class="h"><span>Swap, last hour</span> <b id="sTrend"></b></div><svg id="gSwap" data-h="40"></svg></div>
+      <div><div class="h">Pressure · 1 h</div><svg id="gPress" data-h="40"></svg></div>
+      <div><div class="h">Swap · 1 h</div><svg id="gSwap" data-h="40"></svg></div>
     </div>
   </div>
   <div class="map">
-    <div class="lab">What's using it <span class="tag">RAM by app · click a block to find it below</span></div>
+    <div class="lab">By app</div>
     <div class="mapbox">
       <div class="tree" id="tree"></div>
-      <div class="swapcol" title="Swap: memory that didn't fit, parked on the SSD">
+      <div class="swapcol">
         <div class="tank"><i id="swapFill"></i><b id="swapPct"></b></div>
-        <div class="sc"><b id="swapUsed"></b>GB swap on the SSD</div>
+        <div class="sc"><b id="swapUsed"></b>GB swap</div>
       </div>
     </div>
   </div>
@@ -213,7 +182,6 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 <section class="peers">
   <div class="card" id="cpuCard">
     <div class="lab">CPU <span class="tag" id="cpuTag"></span></div>
-    <p class="verdict" id="cpuVerdict"></p>
     <div class="row">
       <div class="big" id="cpuTot"></div>
       <div class="cores" id="cores"></div>
@@ -224,20 +192,19 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 
   <div class="card" id="enCard">
     <div class="lab">Energy <span class="tag" id="enTag"></span></div>
-    <p class="verdict" id="enVerdict"></p>
+    <div class="row"><div class="big" id="enBig"></div></div>
     <dl class="kv" id="enKv"></dl>
   </div>
 
   <div class="card" id="netCard">
     <div class="lab">Network <span class="tag" id="netTag"></span></div>
-    <p class="verdict" id="netVerdict"></p>
-    <div class="row" style="margin-top:9px"><div class="big" id="netIn"></div></div>
+    <div class="row"><div class="big" id="netIn"></div></div>
     <dl class="kv" id="netKv"></dl>
   </div>
 
   <div class="card" id="diskCard">
     <div class="lab">Disk <span class="tag" id="diskTag"></span></div>
-    <p class="verdict" id="diskVerdict"></p>
+    <div class="row"><div class="big" id="diskBig"></div></div>
     <div class="meter s" style="margin-top:10px"><i id="diskFill"></i></div>
     <div class="axis" style="color:var(--ink-3);font-size:11.5px;margin-top:5px"><span id="diskUsed"></span><span id="diskTotal"></span></div>
     <dl class="kv" id="diskKv"></dl>
@@ -246,8 +213,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 
 <section class="procs">
   <div class="ptools">
-    <h2>Everything running</h2>
-    <span class="sub" id="psub">Helpers sit under their app; gray words say what each one is.</span>
+    <h2>Processes</h2>
     <span class="sp"></span>
     <button class="qbtn" id="quitBtn" hidden></button>
     <label class="search"><svg width="13" height="13" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="q" placeholder="Search processes" spellcheck="false" autocomplete="off"></label>
@@ -282,35 +248,21 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     el.classList.toggle("sev-warn", sev === "warn");
     el.classList.toggle("sev-crit", sev === "crit");
   }
-  function renderTop(s) {
-    var sum = V.summary(s);
-    sevClass($("lead"), sum.sev);
-    $("head").textContent = sum.head;
-    $("sub").innerHTML = sum.sub;
-    var fx = V.fix(s);
-    $("fix").hidden = !fx;
-    if (fx) $("fixText").innerHTML = fx.html;
-  }
 
   function renderMemory(s) {
     var m = s.memory || {}, st = V.memState(s), card = $("memCard");
     var sev = st === "ok" ? "" : st;
     sevClass(card, sev);
     card.classList.toggle("alert", st !== "ok");
-    $("memTag").textContent = st === "crit" ? "Act now" : st === "warn" ? "Needs attention" : F.gb(m.totalBytes, 0) + " GB";
     var total = m.totalBytes || 1;
     var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
-    $("memVerdict").innerHTML =
-      st === "crit" ? "<em>Out of memory.</em> Swap is full, so apps may freeze. Quit something big." :
-      st === "warn" ? "<em>Strained.</em> Apps want more than " + F.gbShort(total) + ", so macOS is squeezing and swapping." :
-      "Fine. <span>" + (swapFrac > 0.4 ? "Room to spare, though swap still holds some." : "Room to spare.") + "</span>";
 
     $("mPress").innerHTML = F.pct(m.pressurePct) + "<small>%</small>";
-    $("mPressC").textContent = "pressure, " + (m.level === "critical" ? "critical" : m.level === "warn" ? "high" : st === "warn" ? "high" : "normal");
+    $("mPressC").textContent = "pressure";
     $("mUsed").innerHTML = F.gb(m.usedBytes) + "<small>GB</small>";
-    $("mUsedC").textContent = "used of " + F.gb(total) + " GB";
+    $("mUsedC").textContent = "used of " + F.gb(total);
     $("mSwap").innerHTML = F.gb(m.swapUsedBytes) + "<small>GB</small>";
-    $("mSwapC").textContent = "swap used of " + F.gb(m.swapTotalBytes);
+    $("mSwapC").textContent = "swap of " + F.gb(m.swapTotalBytes);
     $("mSwapBox").classList.toggle("w", swapFrac >= 0.75);
 
     var parts = [
@@ -329,10 +281,6 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     V.spark($("gPress"), h.pressurePct, 0, 100, { ref: 70 });
     var sw = (h.swapUsedBytes || []).map(function (b) { return b / GiB; });
     V.spark($("gSwap"), sw, 0, Math.max(1, (m.swapTotalBytes || 0) / GiB), { ref: (m.swapTotalBytes || 0) / GiB });
-    var pt = V.trend(h.pressurePct);
-    var early = (h.pressurePct || []).filter(V.isNum).length < 2;
-    $("pTrend").textContent = early ? "collecting…" : pt === "rising" ? "rising" : pt === "falling" ? "easing" : pt;
-    $("sTrend").textContent = early ? "collecting…" : m.swapTotalBytes ? Math.round(swapFrac * 100) + "% full" : "none in use";
 
 
     // swap tank
@@ -360,7 +308,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     out.forEach(function (x, i) {
       if (i < 9 && x.value >= total * 0.018) keep.push(x); else { rest.value += x.value; rest.n++; }
     });
-    if (rest.n) keep.push({ value: rest.value, id: "rest", name: "Everything else", desc: rest.n + " more", rest: true });
+    if (rest.n) keep.push({ value: rest.value, id: "rest", name: "Everything else", rest: true });
     return { items: keep, total: total };
   }
   function renderTree(s) {
@@ -376,7 +324,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
       // narrow tiles: "Claude Code" / "Claude app" would both clip to "Clau…", so drop the shared prefix
       var label = t.w < 90 && /^Claude ./.test(t.name) ? t.name.slice(7).replace(/^./, function (c) { return c.toUpperCase(); }) : t.name;
       var inner = '<div><div><div class="tn">' + F.esc(label) + "</div>" +
-        (cls !== "small" && t.desc && t.h > 54 && t.w > 118 ? '<div class="td">' + F.esc(t.desc) + "</div>" : "");
+        "";
       if (t.sessions && t.h > 110 && t.w > 150) {
         var rows = Math.max(1, Math.floor((t.h - 64) / 15));
         inner += '<div class="sl">' + t.sessions.slice().sort(function (a, b) { return b.memBytes - a.memBytes; }).slice(0, rows).map(function (k) {
@@ -386,7 +334,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
         inner += '<div class="dots" style="margin-top:4px">' + t.sessions.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</div>";
       }
       inner += "</div><div>" + (t.h > 30 || cls !== "small" ? '<div class="tv">' + val[0] + "<small>" + (val[1] || "") + "</small></div>" : "") +
-        (cls === "big" && memTotal ? '<div class="share">' + Math.round(t.value / memTotal * 100) + "% of your " + F.gbShort(memTotal) + "</div>" : "") + "</div></div>";
+        (cls === "big" && memTotal ? '<div class="share">' + Math.round(t.value / memTotal * 100) + "% of RAM</div>" : "") + "</div></div>";
       if (t.w < 46) cls += " tiny";
       return '<div class="tile ' + cls + '" data-row="' + F.esc(t.rowId || "") + '" title="' + F.esc(t.name + " · " + F.mem(t.value)) +
         '" style="left:' + t.x.toFixed(1) + "px;top:" + t.y.toFixed(1) + "px;width:" + t.w.toFixed(1) + "px;height:" + t.h.toFixed(1) + 'px">' + inner + "</div>";
@@ -413,9 +361,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   }
   function renderPeers(s) {
     var c = s.cpu || {}, h = s.host || {}, g = s.gpu || {};
-    var cs = V.cpuState(s);
     $("cpuTag").textContent = (c.cores || []).length + " cores";
-    $("cpuVerdict").innerHTML = cs === "busy" ? "Busy. <span>Working hard right now.</span>" : cs === "working" ? "Working. <span>Some room left.</span>" : "Calm. <span>Plenty of room.</span>";
     $("cpuTot").innerHTML = F.pct(c.totalPct) + "<small>%</small>";
     $("cpuSplit").textContent = F.pct(c.userPct, 1) + "% · " + F.pct(c.systemPct, 1) + "%";
     var P = (c.cores || []).filter(function (k) { return k.kind === "P"; }), E = (c.cores || []).filter(function (k) { return k.kind !== "P"; });
@@ -434,17 +380,11 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var e = s.energy || {};
     var thermal = { nominal: "Nominal", fair: "Warm", serious: "Hot", critical: "Very hot" }[e.thermal] || "–";
     $("enTag").textContent = e.pluggedIn ? "On power" : V.isNum(e.batteryPct) ? "On battery" : "";
-    var ev;
-    if (e.thermal === "serious" || e.thermal === "critical") ev = "Hot. <span>macOS is slowing down to cool.</span>";
-    else if (!e.pluggedIn && e.batteryPct <= 15) ev = "Low battery. <span>" + F.pct(e.batteryPct) + "% left.</span>";
-    else if (e.pluggedIn) ev = "Fine. <span>" + (e.fullyCharged ? "Plugged in, full, cool." : e.charging ? "Charging." : "Plugged in.") + "</span>";
-    else if (V.isNum(e.batteryPct)) ev = "Fine. <span>On battery, " + F.hm(e.minutesLeft) + " left.</span>";
-    else ev = "Fine. <span>Plugged in.</span>";
-    $("enVerdict").innerHTML = ev;
+    $("enBig").innerHTML = V.isNum(e.batteryPct) ? F.pct(e.batteryPct) + "<small>% battery</small>" : "–";
     kv($("enKv"), [
-      V.isNum(e.batteryPct) && ["Battery", F.pct(e.batteryPct) + "%" + (e.fullyCharged ? ", full" : e.charging ? ", charging" : "") + (e.pluggedIn && e.adapterWatts ? " · " + e.adapterWatts + " W adapter" : "")],
+      e.pluggedIn && ["Power", (e.fullyCharged ? "Full" : e.charging ? "Charging" : "Plugged in") + (e.adapterWatts ? " · " + e.adapterWatts + " W" : "")],
       (V.isNum(e.healthPct) || V.isNum(e.cycles)) && ["Health", F.pct(e.healthPct) + "% · " + F.int(e.cycles) + " cycles"],
-      V.isNum(e.minutesLeft) && [e.pluggedIn ? "On battery" : "Time left", "about " + F.hm(e.minutesLeft)],
+      V.isNum(e.minutesLeft) && ["Time left", F.hm(e.minutesLeft)],
       ["Heat", thermal + (V.isNum(e.fanRPM) ? (e.fanRPM > 0 ? " · fan " + F.int(e.fanRPM) + " rpm" : " · fan off") : "")],
       ["Most energy", most(topBy(s, "energy", 2, function (v) { return F.pct(v, 1); }))]
     ]);
@@ -452,8 +392,6 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     // network
     var n = s.network || {};
     $("netTag").textContent = n.iface || "";
-    var busy = (n.inBps || 0) + (n.outBps || 0);
-    $("netVerdict").innerHTML = busy > 50e6 ? "Busy. <span>Heavy traffic.</span>" : busy > 0.2e6 ? "Fine. <span>Light traffic.</span>" : "Quiet. <span>Almost nothing moving.</span>";
     $("netIn").innerHTML = F.rateZero(n.inBps).replace(/ (\S+)$/, "<small>$1 in</small>");
     kv($("netKv"), [
       ["Out", F.rateZero(n.outBps)],
@@ -468,14 +406,12 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var low = d.totalBytes && d.freeBytes / d.totalBytes < 0.07;
     sevClass($("diskCard"), low ? "warn" : "");
     $("diskTag").textContent = d.volume || "";
-    $("diskVerdict").innerHTML = low ? "Getting full. <span>" + F.dgb(d.freeBytes) + " free.</span>" : "Fine. <span>" + F.dgb(d.freeBytes) + " free.</span>";
+    $("diskBig").innerHTML = F.dgb(d.freeBytes).replace(/ (\S+)$/, "<small>$1 free</small>");
     $("diskFill").style.width = (full * 100).toFixed(1) + "%";
     $("diskUsed").textContent = F.dgb(d.usedBytes) + " used";
     $("diskTotal").textContent = "of " + F.dgb(d.totalBytes);
-    var swapBusy = m.swapTotalBytes && m.swapUsedBytes / m.swapTotalBytes > 0.5;
     kv($("diskKv"), [
       ["Now", F.rateZero(d.readBps) + " read · " + F.rateZero(d.writeBps) + " write"],
-      swapBusy && d.writeBps > 5e6 && ["", "<s>writes are mostly swap</s>"],
       ["Today", F.bytes(d.readTodayBytes) + " read · " + F.bytes(d.writtenTodayBytes) + " written"],
       ["Biggest", d.bigUsers == null ? "<s>measuring…</s>" : most(d.bigUsers.slice(0, 2).map(function (b) { return [F.esc(b.name), F.bytes(b.bytes)]; }))]
     ]);
@@ -498,11 +434,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     if (!query) return true;
     return (p.name + " " + V.note(p) + " " + (p.pid == null ? "" : p.pid)).toLowerCase().indexOf(query) >= 0;
   }
-  function icon(p) {
-    if (p.id === "group:claude-code") return "›_";
-    var n = (p.name || "?").replace(/^com\.apple\./, "");
-    return F.esc(n.charAt(0).toUpperCase());
-  }
+
   function cell(p, k, memTotal) {
     switch (k) {
       case "memBytes": return '<div class="memc">' + F.mem(p.memBytes) + '<span class="mb"><i style="width:' + Math.min(100, (p.memBytes || 0) / memTotal * 160).toFixed(1) + '%"></i></span></div>';
@@ -517,12 +449,11 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   }
   function zero(p, k) { return /Bps$/.test(k) && !(p[k] > 0); }
   function nameCell(p, kid) {
-    var lead = p.kind === "session" ? '<i class="mdot m-' + F.esc(p.model || "") + '" style="margin:0 5px"></i>' : '<span class="ic">' + icon(p) + "</span>";
+    var lead = p.kind === "session" ? '<i class="mdot m-' + F.esc(p.model || "") + '" style="margin:0 5px"></i>' : "";
     var hasKids = p.children && p.children.length;
     var chev = hasKids ? '<span class="chev' + (open[p.id] ? " open" : "") + '" data-id="' + F.esc(p.id) + '">▶</span>' : (kid ? "" : '<span class="chev"></span>');
     var dots = p.id === "group:claude-code" && !open[p.id] ? '<span class="dots">' + p.children.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</span>" : "";
-    var d = V.note(p);
-    return '<div class="nm">' + chev + lead + '<span class="t">' + F.esc(p.name) + "</span>" + dots + (d ? '<span class="d">' + F.esc(d) + "</span>" : "") + "</div>";
+    return '<div class="nm">' + chev + lead + '<span class="t">' + F.esc(p.name) + "</span>" + dots + "</div>";
   }
   function rowHtml(p, kid, memTotal) {
     return '<tr data-id="' + F.esc(p.id) + '" class="' + (kid ? "kid" : "") + (p.children && p.children.length ? " grp" : "") + (p.id === selected ? " sel" : "") + '">' +
@@ -552,8 +483,6 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     $("pb").innerHTML = out.join("");
     var all = V.flat(snap.processes).filter(function (p) { return !(p.children && p.children.length); }).length;
     $("q").placeholder = "Search " + F.int((snap.totals || {}).processes || all) + " processes";
-    $("psub").textContent = "Sorted by " + ({ memBytes: "memory", cpuPct: "CPU", cpuTimeSec: "CPU time", threads: "threads", energy: "energy", diskReadBps: "disk read", diskWriteBps: "disk write", netInBps: "network in", netOutBps: "network out", name: "name", user: "user" })[sortK] +
-      ". Helpers sit under their app; gray words say what each one is.";
     renderQuit();
   }
   function findProc(id) {
@@ -643,7 +572,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   renderHead();
   V.onUpdate(function (s) {
     snap = s;
-    renderTop(s); renderMemory(s); renderPeers(s); renderTable();
+    renderMemory(s); renderPeers(s); renderTable();
     var h = s.host || {};
     var so = (s.memory || {}).swapOutBytesSinceBoot;
     $("footL").textContent = F.int((s.totals || {}).processes) + " processes · " + F.int((s.totals || {}).threads) + " threads" +
