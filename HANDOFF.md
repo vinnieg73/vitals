@@ -34,8 +34,8 @@ _Last updated 2026-10-17 (evening) by the Mac session._
 - Vinnie asked for "just the stats, no extra fluff". The cloud thread did the pages (02afab5): no headline,
   quickest-fix box, verdict lines, tags or gray descriptions. Help window and its menu items stay (every tool
   gets a Help page). Installed and relaunched; renders checked; the popover fits its shorter content.
-- Still open (page): when the RAM map has a very thin column (~25 px, seen in the dark render), its values are
-  cut ("553", "497" with no unit). Thin columns should drop the value or fold into "Everything else".
+- Fixed in 8c701f8: RAM map tiles under 40 px wide or 34 px tall fold into "Everything else". Two dark
+  renders checked: every tile value is whole.
 - Right after launch, Vitals itself tops "Most energy" for ~45 s (the launch disk scan). Expected, but visible.
 
 ## Done
