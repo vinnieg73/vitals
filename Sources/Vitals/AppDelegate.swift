@@ -76,9 +76,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private func liveViews() -> [WKWebView] {
         var out: [WKWebView] = []
         if popover?.isShown == true, let w = popoverWeb { out.append(w) }
-        if window?.isVisible == true, let w = windowWeb { out.append(w) }
-        if helpWindow?.isVisible == true, let w = helpWeb { out.append(w) }
+        if showing(window), let w = windowWeb { out.append(w) }
+        if showing(helpWindow), let w = helpWeb { out.append(w) }
         return out
+    }
+
+    /// Open and at least partly in view (not minimized, covered or on another Space).
+    private func showing(_ w: NSWindow?) -> Bool {
+        guard let w else { return false }
+        return w.isVisible && w.occlusionState.contains(.visible)
     }
 
     private func updateLive() {
@@ -86,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let was = live.value
         live.value = any
         sampler.setWantProcesses(any)
-        let windowOpen = window?.isVisible == true
+        let windowOpen = showing(window)
         if windowOpen != lastWindowOpen { sampler.setWindowOpen(windowOpen); lastWindowOpen = windowOpen }
         if !any { lastJSON = nil }
         if any && !was { sampler.kick() }   // fresh rows now rather than in up to 2 s
@@ -186,6 +192,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
         updateLive()
+    }
+
+    /// Hidden windows get no updates; when one comes back into view it gets the latest numbers at once.
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        guard let w = notification.object as? NSWindow, w === window || w === helpWindow else { return }
+        updateLive()   // also takes a fresh sample if nothing was showing
+        if showing(w), let web = w === window ? windowWeb : helpWeb, let json = lastJSON { push(json, to: web) }
     }
 
     func windowWillClose(_ notification: Notification) {

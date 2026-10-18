@@ -38,6 +38,16 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   renders checked: every tile value is whole.
 - Right after launch, Vitals itself tops "Most energy" for ~45 s (the launch disk scan). Expected, but visible.
 
+## Memory leak fix (2026-10-18)
+- With the main window open, the page's web process sat at 400–450 MB (20–30% CPU) and the app grew ~6 MB/min
+  (96 → 114 MB in 3 min, in "owned unmapped"). Causes: every 2 s Swift inlined ~300 KB of JSON into a new script
+  (WebKit compiled each one), and the page rebuilt ~700 table rows.
+- Fixes: page renders only the rows in view (b028519, cloud thread); Swift pushes through one fixed
+  `callAsyncJavaScript` script with the JSON as an argument, and skips windows that are hidden or covered.
+- `--soak 6 window` after the fix (off screen, 182 updates): app 18 → 24 MB, then flat at 23.5 MB. Page 72 → 100 MB,
+  still creeping ~1 MB/min at the end (97 MB at 3.5 min, 100.6 MB at 6 min). Off-screen pages may skip painting, so
+  recheck in the real window: `ps`/`footprint` on the window's WebContent after an hour open.
+
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
   com.vinnie.vitals).
@@ -77,7 +87,11 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   right-click menu shows it on Open Vitals. (Was ⌥⌘V, which took Finder's "Move Item Here".)
 - quitProcess: refuses pid ≤ 1, Vitals itself, root's and other users' processes; apps get
   NSRunningApplication.terminate(), everything else SIGTERM. SIGKILL is never used.
-- `--dump [--scan] [--bench]`, `--render <page> <out.png> [light|dark] [--scan]`.
+- `--dump [--scan] [--bench]`, `--render <page> <out.png> [light|dark] [--scan]`, `--soak <minutes> [page]`
+  (leak check: live page off screen, prints app and page memory every 30 s).
+- Pages get updates through one fixed `callAsyncJavaScript` script with the JSON as an argument (Web.swift `push`).
+  Windows that are closed, minimized, covered or on another Space get no updates; when one comes back into view
+  it gets the latest snapshot at once (`windowDidChangeOcclusionState`).
 - Icon: `icon/make-icon.swift` draws a gray gauge whose needle sits in an amber arc.
 
 ## Cost (measured with `--dump --bench`)

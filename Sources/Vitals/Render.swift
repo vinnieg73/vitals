@@ -76,7 +76,7 @@ final class Renderer: NSObject, NSApplicationDelegate, PageActions, WKNavigation
         guard !shot else { return }
         shot = true
         if let json {
-            web.evaluateJavaScript("typeof Vitals !== 'undefined' && Vitals.update && Vitals.update(\(json)); 0") { _, error in
+            push(json, to: web) { error in
                 if let error { FileHandle.standardError.write(Data("page error in Vitals.update: \(error)\n".utf8)) }
             }
         }

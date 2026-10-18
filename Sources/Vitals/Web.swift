@@ -70,7 +70,11 @@ func makePageView(_ page: String, bridge: PageBridge, navigation: WKNavigationDe
 }
 
 @MainActor
-func push(_ json: String, to web: WKWebView) {
-    // `typeof` also finds a page-level `const Vitals`, which isn't a property of window.
-    web.evaluateJavaScript("typeof Vitals !== 'undefined' && Vitals.update && Vitals.update(\(json))", completionHandler: nil)
+func push(_ json: String, to web: WKWebView, done: ((Error?) -> Void)? = nil) {
+    // One fixed script with the JSON passed in as an argument. Inlining the JSON made WebKit compile a
+    // new ~300 KB script every 2 s. `typeof` also finds a page-level `const Vitals`.
+    web.callAsyncJavaScript("if (typeof Vitals !== 'undefined' && Vitals.update) Vitals.update(JSON.parse(s));",
+                            arguments: ["s": json], in: nil, in: .page) { result in
+        if case .failure(let error) = result { done?(error) } else { done?(nil) }
+    }
 }
