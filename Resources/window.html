@@ -7,137 +7,88 @@
 <link rel="stylesheet" href="app.css">
 <style>
 html,body{height:100%}
-body{display:flex;flex-direction:column;gap:12px;padding:16px 22px 10px;overflow:hidden;min-width:1040px}
+body{display:flex;flex-direction:column;overflow:hidden;min-width:1040px}
+.w{color:var(--warn)!important}
+.c{color:var(--crit)!important}
 
-
-/* ---- cards ---- */
-.card{background:var(--panel);border-radius:12px;padding:12px 16px 13px;min-width:0;display:flex;flex-direction:column}
-.card.alert{background:var(--sev-bg);box-shadow:inset 0 0 0 1px var(--sev-line)}
-.lab{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;color:var(--ink-3)}
-.lab .tag{font-size:11px;font-weight:600;color:var(--ink-3);white-space:nowrap}
-.alert .lab .tag{color:var(--sev)}
-.kv{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:3.5px;margin:9px 0 0;font-size:12px;line-height:1.35}
-.kv dt{color:var(--ink-3);white-space:nowrap}
-.kv dd{margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kv dd s{text-decoration:none;color:var(--ink-3)}
-.sub2{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:11.5px;font-weight:600;color:var(--ink-3)}
-.big{font-size:26px;font-weight:600;letter-spacing:-.03em;line-height:1}
-.big small{font-size:13.5px;font-weight:500;color:var(--ink-3);margin-left:2px;letter-spacing:-.01em}
-.axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-4);margin-top:3px}
-.legend{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;margin-top:7px;font-size:11.5px;color:var(--ink-3)}
-.legend span{display:flex;align-items:center;gap:5px;white-space:nowrap}
-.legend b{color:var(--ink);font-weight:500}
-
-/* ---- memory ---- */
-.mem{flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:22px;padding:13px 16px 14px}
-.mem .left{display:flex;flex-direction:column;min-width:0}
-.mnum{display:grid;grid-template-columns:repeat(3,1fr);margin-top:11px;gap:8px}
-.mnum .n{font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1}
-.mnum .n small{font-size:14px;font-weight:500;color:var(--ink-3);letter-spacing:-.01em;margin-left:2px}
-.mnum .c{font-size:11.5px;color:var(--ink-3);margin-top:5px}
-.sev-warn .mnum .w .n,.sev-crit .mnum .w .n,.sev-warn .mnum .w .c,.sev-crit .mnum .w .c{color:var(--sev)}
-.mem .stack{margin-top:13px}
-.hist{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
-.hist .h{font-size:11.5px;color:var(--ink-3);display:flex;justify-content:space-between;gap:6px}
-.hist .h b{font-weight:500}
-.alert .hist .h b{color:var(--sev)}
-.hist svg{display:block;width:100%;height:36px;margin-top:5px;color:var(--bar-2);overflow:visible}
-.alert .hist svg{color:var(--sev-fill)}
-
-/* RAM map */
-.map{display:flex;flex-direction:column;min-width:0}
-.mapbox{flex:1;display:flex;gap:8px;margin-top:8px;min-height:180px}
-.tree{flex:1;position:relative;min-width:0}
-.tile{position:absolute;padding:2px}
-.tile > div{width:100%;height:100%;border-radius:7px;background:var(--tile);color:var(--tile-ink);padding:8px 10px;overflow:hidden;
-  display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;box-shadow:inset 0 0 0 1px var(--line-2)}
-.tile > div:hover{box-shadow:inset 0 0 0 1.5px var(--ink-3)}
-.tile > div > div:first-child{min-height:0;overflow:hidden}
-.tile > div > div:last-child{flex:none}
-.tile .tn{font-size:12.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .td{font-size:11px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-.tile .tv{font-size:13px;font-weight:600;white-space:nowrap}
-.tile .tv small{font-size:11px;font-weight:500;opacity:.7;margin-left:1px}
-.tile.big > div{background:var(--tile-big);color:var(--tile-big-ink);padding:12px 14px}
-.tile.big .tn{font-size:14.5px}
-.tile.big .tv{font-size:34px;letter-spacing:-.035em;line-height:1}
-.tile.big .tv small{font-size:16px}
-.tile.big .share{font-size:12px;opacity:.75;margin-top:4px}
-.tile.small .tn{font-size:11px}
-.tile.small .tv{font-size:11px}
-.tile.small > div{padding:5px 7px}
-.tile.tiny > div{padding:5px 4px}
-.tile.tiny .tn,.tile.tiny .tv{font-size:10px;letter-spacing:-.02em}
-.tile .sl{display:flex;flex-direction:column;gap:1px;margin-top:5px;font-size:11px;min-height:0;overflow:hidden}
-.tile .sl span{display:flex;align-items:center;gap:6px;white-space:nowrap}
-.tile .sl s{text-decoration:none;margin-left:auto;opacity:.7}
-.swapcol{width:66px;flex:none;display:flex;flex-direction:column;align-items:stretch;gap:6px}
-.swapcol .tank{flex:1;border-radius:7px;background:var(--track);position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px var(--line-2)}
-.swapcol .tank i{position:absolute;left:0;right:0;bottom:0;background:var(--bar-2);transition:height .4s}
-.sev-warn .swapcol .tank i,.sev-crit .swapcol .tank i{background:var(--sev-fill)}
-.swapcol .tank b{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:13px;font-weight:600}
-.swapcol .sc{font-size:11px;color:var(--ink-3);text-align:center;line-height:1.3}
-.swapcol .sc b{display:block;color:var(--ink);font-weight:600;font-size:11.5px}
-.sev-warn .swapcol .sc b,.sev-crit .swapcol .sc b{color:var(--sev)}
-.mapcap{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3);margin-top:6px}
-
-/* ---- peers ---- */
-.peers{flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.row{display:flex;align-items:flex-end;gap:12px;margin-top:10px}
-.row .grow{flex:1;min-width:0}
-.cores{display:flex;align-items:flex-end;gap:8px;margin-left:auto}
-.cores .grp{display:flex;flex-direction:column;gap:4px}
-.cores .bars{display:flex;gap:3px;align-items:flex-end;height:30px}
-.cores .bars i{width:12px;height:30px;border-radius:3px;background:var(--track);position:relative;overflow:hidden;display:block}
-.cores .bars i b{position:absolute;left:0;right:0;bottom:0;background:var(--bar-2);transition:height .4s}
-.cores .gl{font-size:10.5px;color:var(--ink-3)}
-.mini{display:block;width:100%;height:20px;color:var(--bar-2);overflow:visible}
-.gpu{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:9px;border-top:1px solid var(--line);font-size:12px}
-.gpu .g{color:var(--ink-3);flex:none}
-.gpu .v{flex:none;font-weight:600}
-.gpu .grow{flex:1;min-width:0}
-.card .push{margin-top:auto}
-
-/* ---- processes ---- */
-.procs{flex:1;min-height:0;display:flex;flex-direction:column}
-.ptools{display:flex;align-items:center;gap:12px;margin-bottom:6px;flex:none}
-.ptools h2{margin:0;font-size:15px;font-weight:600;letter-spacing:-.012em}
-.ptools .sub{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.ptools .sp{flex:1}
-.qbtn{flex:none;border:0;border-radius:7px;height:28px;padding:0 11px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px;cursor:pointer;white-space:nowrap}
-.qbtn:hover{background:var(--panel-2)}
-.qbtn[disabled]{color:var(--ink-4);cursor:default}
-.search{display:flex;align-items:center;gap:6px;width:230px;height:28px;padding:0 9px;border-radius:7px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--line-2);flex:none}
+/* ---- top row ---- */
+.top{height:46px;flex:none;display:flex;align-items:center;gap:16px;padding:0 14px 0 28px}
+.top .host{font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.top .sp{flex:1}
+.search{display:flex;align-items:center;gap:6px;width:232px;height:28px;padding:0 9px;border-radius:7px;background:var(--panel);box-shadow:inset 0 0 0 .5px var(--line);flex:none}
 .search svg{flex:none;color:var(--ink-3)}
 .search input{border:0;background:transparent;outline:0;flex:1;font:inherit;font-size:12.5px;color:var(--ink);min-width:0;-webkit-user-select:text;user-select:text}
 .search input::placeholder{color:var(--ink-3)}
+
+/* ---- strip charts ---- */
+.scope{margin:0 14px;border-radius:9px;background:var(--scope);box-shadow:inset 0 0 0 .5px var(--line),0 0 0 .5px var(--line-2);position:relative;flex:none}
+.ch{display:grid;grid-template-columns:140px minmax(0,1fr) 474px;height:68px;border-top:1px solid var(--line-2)}
+.ch:first-child{border-top:0}
+.ch.slim{height:44px}
+.ch .nm{padding:11px 0 0 14px;min-width:0}
+.ch .nm b{display:block;font-size:12.5px;font-weight:600;letter-spacing:-.005em}
+.ch .nm span{display:block;font-size:11px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch.slim .nm{padding-top:7px}
+.plot{position:relative;min-width:0}
+.plot .sc{position:absolute;right:calc(100% + 8px);font-size:10px;color:var(--ink-3);white-space:nowrap;line-height:1}
+.ro{display:grid;grid-template-columns:114px minmax(0,1fr) minmax(0,1.05fr);column-gap:22px;align-items:center;padding:0 18px 0 22px;min-width:0}
+.ro .big{font-size:25px;font-weight:600;letter-spacing:-.035em;line-height:1;white-space:nowrap}
+.ro .big small{font-size:13px;font-weight:500;color:var(--ink-3);letter-spacing:-.01em;margin-left:1px}
+.ro .big.w small{color:var(--warn)}.ro .big.c small{color:var(--crit)}
+.ro .bl{font-size:11px;color:var(--ink-3);margin-top:4px;white-space:nowrap}
+.ro .two{display:flex;flex-direction:column;gap:5px}
+.ro .two div{display:flex;align-items:baseline;gap:6px;font-size:15px;font-weight:600;letter-spacing:-.02em;line-height:1;white-space:nowrap}
+.ro .two small{font-size:11.5px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+.ro .two .gl{font-size:8px;color:var(--ink-3);width:9px;transform:translateY(-1px)}
+.kv{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;font-size:11.5px;line-height:15px;margin:0;min-width:0}
+.kv dt{color:var(--ink-3);white-space:nowrap}
+.kv dd{margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.kv dd small{color:var(--ink-3);font-size:11px}
+.cores{display:flex;align-items:flex-end;gap:2px;height:16px;margin-top:6px}
+.cores i{display:block;width:4px;border-radius:1px;background:var(--g3);position:relative;height:16px;overflow:hidden}
+.cores i u{position:absolute;left:0;right:0;bottom:0;background:var(--g2)}
+.cores .gap{width:3px;background:none}
+.axis{position:relative;height:20px;margin:0 14px;font-size:10.5px;color:var(--ink-3);flex:none}
+.axis span{position:absolute;top:4px;transform:translateX(-50%);white-space:nowrap}
+.axis span.r{transform:translateX(-100%)}
+.axis span.l{transform:none}
+.hair{position:absolute;top:0;bottom:0;width:1px;background:var(--ink-3);opacity:.55;pointer-events:none;display:none}
+.htag{position:absolute;top:3px;pointer-events:none;display:none;font-size:10.5px;font-weight:600;padding:1px 5px;border-radius:4px;background:var(--page);
+  box-shadow:0 0 0 .5px var(--line),0 1px 3px rgba(0,0,0,.12);white-space:nowrap;color:var(--ink);z-index:3}
+.axis .htime{display:none;top:3px;font-weight:600;color:var(--ink);background:var(--page);padding:0 4px}
+
+/* ---- processes ---- */
+.procs{flex:1;min-height:0;display:flex;flex-direction:column;margin-top:2px}
+.ph{display:flex;align-items:center;gap:8px;padding:4px 22px 5px 28px;height:32px;flex:none}
+.ph h2{margin:0;font-size:13px;font-weight:600}
+.ph .n{font-size:12px;color:var(--ink-3)}
+.ph .sp{flex:1}
+.qbtn{flex:none;border:0;border-radius:6px;height:22px;padding:0 10px;background:var(--panel);box-shadow:inset 0 0 0 .5px var(--line);font-size:12px;cursor:pointer;white-space:nowrap}
+.qbtn:hover{background:var(--panel-2)}
+.qbtn[disabled]{color:var(--ink-4);cursor:default;background:var(--panel)}
 .scroll{flex:1;min-height:0;overflow:auto;border-top:1px solid var(--line)}
 table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px}
-.pt th{position:sticky;top:0;z-index:1;background:var(--page);font-size:11.5px;font-weight:500;color:var(--ink-3);text-align:right;padding:6px 8px 6px;white-space:nowrap;
-  box-shadow:inset 0 -1px 0 var(--line);cursor:pointer}
-.pt th:first-child{text-align:left;padding-left:6px}
-.pt th:last-child,.pt td:last-child{text-align:left;padding-left:18px}
-.pt th .ar{display:inline-block;width:9px;margin-left:3px;color:var(--ink-4);font-size:9px}
+.pt th{position:sticky;top:0;z-index:1;background:var(--page);font-size:11.5px;font-weight:500;color:var(--ink-3);text-align:right;padding:5px 10px;
+  white-space:nowrap;box-shadow:inset 0 -1px 0 var(--line);cursor:pointer;overflow:hidden;text-overflow:ellipsis}
+.pt th:first-child{text-align:left;padding-left:28px}
+.pt th:last-child,.pt td:last-child{text-align:left;padding-left:18px;padding-right:22px}
+.pt th .ar{display:inline-block;margin-left:4px;font-size:8px;transform:translateY(-1px)}
 .pt th.on{color:var(--ink);font-weight:600}
-.pt th.on .ar{color:var(--ink)}
-.pt tr{height:24px}
-.pt tr.pad td,.pt tr.pad{padding:0;border:0}
-.pt td{height:23px;padding:0 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line-2);overflow:hidden;text-overflow:ellipsis}
-.pt td:first-child{text-align:left;padding-left:6px}
+.pt tr.pad td,.pt tr.pad{padding:0;border:0;background:none}
+.pt td{padding:0 10px;height:24px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt tr.odd td{background:var(--zebra)}
+.pt tbody tr[data-id]:hover td{background:var(--sel)}
+.pt tr.sel td,.pt tr.sel:hover td{background:var(--sel-strong)}
+.pt td:first-child{text-align:left;padding-left:12px}
 .pt td.z{color:var(--ink-4)}
 .pt td.u{color:var(--ink-3)}
-.pt tr.kid td{background:var(--sel)}
-.pt tr.kid td:first-child{padding-left:30px}
-.pt tr.sel td{background:var(--sel-strong)}
-.pt tr.grp td{font-weight:500}
-.nm{display:flex;align-items:center;gap:8px;min-width:0}
-.nm .chev{width:12px;flex:none;color:var(--ink-3);font-size:9px;cursor:pointer;display:inline-flex;justify-content:center;transition:transform .15s}
-.nm .chev.open{transform:rotate(90deg)}
-.nm .t{flex:none;max-width:60%;overflow:hidden;text-overflow:ellipsis}
-.memc{display:flex;align-items:center;justify-content:flex-end;gap:8px}
-.memc .mb{width:36px;height:4px;border-radius:2px;background:var(--track);overflow:hidden;flex:none}
-.memc .mb i{display:block;height:100%;background:var(--bar)}
-.pfoot{flex:none;display:flex;justify-content:space-between;gap:16px;font-size:11.5px;color:var(--ink-3);padding:7px 6px 0}
+.pt td.s{font-weight:500}
+.pt .nmc{display:flex;align-items:center;gap:6px;min-width:0}
+.pt .nmc .t{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pt .chev{width:12px;flex:none;color:var(--ink-3);font-size:9px;cursor:pointer;display:inline-flex;justify-content:center;transition:transform .15s}
+.pt .chev.open{transform:rotate(90deg)}
+.pt tr.kid .nmc{padding-left:20px}
+.foot{height:26px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 22px 0 28px;font-size:11px;color:var(--ink-3);border-top:1px solid var(--line)}
 
 /* ---- confirm sheet ---- */
 .veil{position:fixed;inset:0;background:rgba(0,0,0,.25);display:flex;align-items:flex-start;justify-content:center;padding-top:120px;z-index:5}
@@ -149,86 +100,41 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 .sheet button.go{background:var(--ink);color:var(--page);font-weight:600}
 
 @media (max-width:1180px){
-  .peers{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ch{grid-template-columns:132px minmax(0,1fr) 446px}
+  .ro{column-gap:14px;padding:0 12px 0 16px}
+  .pt th,.pt td{padding-left:7px;padding-right:7px}
 }
 </style>
 </head>
 <body>
-<section class="card mem" id="memCard">
-  <div class="left">
-    <div class="lab">Memory</div>
-    <div class="mnum">
-      <div class="w"><div class="n" id="mPress"></div><div class="c" id="mPressC">pressure</div></div>
-      <div><div class="n" id="mUsed"></div><div class="c" id="mUsedC"></div></div>
-      <div class="w" id="mSwapBox"><div class="n" id="mSwap"></div><div class="c" id="mSwapC"></div></div>
-    </div>
-    <div class="stack" id="mStack"></div>
-    <div class="legend" id="mLegend"></div>
-    <div class="hist">
-      <div><div class="h">Pressure · 1 h</div><svg id="gPress" data-h="40"></svg></div>
-      <div><div class="h">Swap · 1 h</div><svg id="gSwap" data-h="40"></svg></div>
-    </div>
-  </div>
-  <div class="map">
-    <div class="lab">By app</div>
-    <div class="mapbox">
-      <div class="tree" id="tree"></div>
-      <div class="swapcol">
-        <div class="tank"><i id="swapFill"></i><b id="swapPct"></b></div>
-        <div class="sc"><b id="swapUsed"></b>GB swap</div>
-      </div>
-    </div>
-  </div>
-</section>
+<header class="top">
+  <span class="host" id="host"></span>
+  <span class="sp"></span>
+  <label class="search"><svg width="13" height="13" viewBox="0 0 16 16"><circle cx="6.8" cy="6.8" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.6 10.6 14.5 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="q" placeholder="Search processes" spellcheck="false" autocomplete="off"></label>
+</header>
 
-<section class="peers">
-  <div class="card" id="cpuCard">
-    <div class="lab">CPU <span class="tag" id="cpuTag"></span></div>
-    <div class="row">
-      <div class="big" id="cpuTot"></div>
-      <div class="cores" id="cores"></div>
-    </div>
-    <dl class="kv"><dt>User · system</dt><dd id="cpuSplit"></dd><dt>Load</dt><dd id="cpuLoad"></dd></dl>
-    <div class="gpu"><span class="g">GPU</span><span class="v" id="gpuPct"></span><div class="grow"><svg class="mini" id="gGpu" data-h="20"></svg></div><span class="g" id="gpuCores"></span></div>
-  </div>
-
-  <div class="card" id="enCard">
-    <div class="lab">Energy <span class="tag" id="enTag"></span></div>
-    <div class="row"><div class="big" id="enBig"></div></div>
-    <dl class="kv" id="enKv"></dl>
-  </div>
-
-  <div class="card" id="netCard">
-    <div class="lab">Network <span class="tag" id="netTag"></span></div>
-    <div class="row"><div class="big" id="netIn"></div></div>
-    <dl class="kv" id="netKv"></dl>
-  </div>
-
-  <div class="card" id="diskCard">
-    <div class="lab">Disk <span class="tag" id="diskTag"></span></div>
-    <div class="row"><div class="big" id="diskBig"></div></div>
-    <div class="meter s" style="margin-top:10px"><i id="diskFill"></i></div>
-    <div class="axis" style="color:var(--ink-3);font-size:11.5px;margin-top:5px"><span id="diskUsed"></span><span id="diskTotal"></span></div>
-    <dl class="kv" id="diskKv"></dl>
-  </div>
-</section>
+<div class="scope" id="scope">
+  <div class="ch" id="ch-mem"><div class="nm"><b>Memory</b><span id="sub-mem"></span></div><div class="plot"></div><div class="ro"></div></div>
+  <div class="ch" id="ch-cpu"><div class="nm"><b>CPU</b><span id="sub-cpu"></span><div class="cores" id="cores"></div></div><div class="plot"></div><div class="ro"></div></div>
+  <div class="ch slim" id="ch-gpu"><div class="nm"><b>GPU</b><span id="sub-gpu"></span></div><div class="plot"></div><div class="ro"></div></div>
+  <div class="ch" id="ch-disk"><div class="nm"><b>Disk</b><span id="sub-disk"></span></div><div class="plot"></div><div class="ro"></div></div>
+  <div class="ch" id="ch-net"><div class="nm"><b>Network</b><span id="sub-net"></span></div><div class="plot"></div><div class="ro"></div></div>
+  <div class="ch" id="ch-energy"><div class="nm"><b>Energy</b><span id="sub-energy"></span></div><div class="plot"></div><div class="ro"></div></div>
+  <div class="hair" id="hair"></div>
+</div>
+<div class="axis" id="axis"></div>
 
 <section class="procs">
-  <div class="ptools">
-    <h2>Processes</h2>
-    <span class="sp"></span>
-    <button class="qbtn" id="quitBtn" hidden></button>
-    <label class="search"><svg width="13" height="13" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="q" placeholder="Search processes" spellcheck="false" autocomplete="off"></label>
-  </div>
+  <div class="ph"><h2>Processes</h2><span class="n" id="pcount"></span><span class="sp"></span><button class="qbtn" id="quitBtn" hidden></button></div>
   <div class="scroll" id="scroll">
     <table class="pt">
-      <colgroup><col><col style="width:128px"><col style="width:64px"><col style="width:84px"><col style="width:66px"><col style="width:62px"><col style="width:84px"><col style="width:84px"><col style="width:84px"><col style="width:84px"><col style="width:118px"></colgroup>
+      <colgroup><col><col style="width:92px"><col style="width:64px"><col style="width:86px"><col style="width:68px"><col style="width:64px"><col style="width:86px"><col style="width:86px"><col style="width:80px"><col style="width:80px"><col style="width:118px"></colgroup>
       <thead><tr id="ph"></tr></thead>
       <tbody id="pb"></tbody>
     </table>
   </div>
-  <div class="pfoot"><span id="footL"></span><span id="footR"></span></div>
 </section>
+<footer class="foot"><span id="footL"></span><span id="footR"></span></footer>
 
 <div class="veil" id="veil" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="qTitle">
@@ -243,240 +149,224 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 (function () {
   "use strict";
   var V = Vitals, F = V.F, $ = function (id) { return document.getElementById(id); };
-  var GiB = V.GiB;
+  var GiB = V.GiB, isNum = V.isNum, CAP = V.CAP;
+  var snap = null, L = null;
 
-  /* ================= header + memory ================= */
-  function sevClass(el, sev) {
-    el.classList.toggle("sev-warn", sev === "warn");
-    el.classList.toggle("sev-crit", sev === "crit");
+  /* ================= strip charts ================= */
+  function u(v, unit) { return v + "<small> " + unit + "</small>"; }
+  function kv(rows) {
+    return '<dl class="kv">' + rows.filter(Boolean).map(function (r) { return "<dt>" + r[0] + '</dt><dd class="' + (r[2] || "") + '">' + r[1] + "</dd>"; }).join("") + "</dl>";
   }
-
-  function renderMemory(s) {
-    var m = s.memory || {}, st = V.memState(s), card = $("memCard");
-    var sev = st === "ok" ? "" : st;
-    sevClass(card, sev);
-    card.classList.toggle("alert", st !== "ok");
-    var total = m.totalBytes || 1;
-    var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
-
-    $("mPress").innerHTML = F.pct(m.pressurePct) + "<small>%</small>";
-    $("mPressC").textContent = "pressure";
-    $("mUsed").innerHTML = F.gb(m.usedBytes) + "<small>GB</small>";
-    $("mUsedC").textContent = "used of " + F.gb(total);
-    $("mSwap").innerHTML = F.gb(m.swapUsedBytes) + "<small>GB</small>";
-    $("mSwapC").textContent = "swap of " + F.gb(m.swapTotalBytes);
-    $("mSwapBox").classList.toggle("w", swapFrac >= 0.75);
-
-    var parts = [
-      // in use (dark): App, Wired, Compressed; can be dropped any time (light): Cached
-      ["App", m.appBytes, "var(--bar)"], ["Wired", m.wiredBytes, "var(--bar-1b)"],
-      ["Compressed", m.compressedBytes, null], ["Cached", m.cachedBytes, "var(--bar-3)"]
-    ];
-    $("mStack").innerHTML = parts.map(function (p) {
-      var w = Math.max(0, (p[1] || 0) / total * 100).toFixed(2);
-      return '<i class="' + (p[2] ? "" : "hatch-dark") + '" style="width:' + w + '%;' + (p[2] ? "background:" + p[2] : "") + (p[0] === "Cached" ? ";margin-left:3px" : "") + '"></i>';
-    }).join("");
-    $("mLegend").innerHTML = parts.map(function (p) {
-      return '<span><i class="sw ' + (p[2] ? "" : "hatch-dark") + '" style="' + (p[2] ? "background:" + p[2] : "") + '"></i>' + p[0] + " <b>" + F.gb(p[1]) + "</b></span>";
-    }).join("");
-
-    var h = m.history || {};
-    V.spark($("gPress"), h.pressurePct, 0, 100, { ref: 70 });
-    var sw = (h.swapUsedBytes || []).map(function (b) { return b / GiB; });
-    V.spark($("gSwap"), sw, 0, Math.max(1, (m.swapTotalBytes || 0) / GiB), { ref: (m.swapTotalBytes || 0) / GiB });
-
-
-    // swap tank
-    $("swapFill").style.height = (swapFrac * 100).toFixed(1) + "%";
-    $("swapPct").textContent = m.swapTotalBytes ? Math.round(swapFrac * 100) + "%" : "0%";
-    $("swapUsed").textContent = F.gb(m.swapUsedBytes) + " / " + F.gb(m.swapTotalBytes);
-    renderTree(s);
+  function bigOne(v, unit, label, cls) {
+    return '<div><div class="big ' + (cls || "") + '">' + v + (unit ? "<small>" + unit + "</small>" : "") + '</div><div class="bl ' + (cls || "") + '">' + label + "</div></div>";
   }
+  function bigTwo(a, aLab, b, bLab) {
+    var pa = F.rateParts(a), pb = F.rateParts(b);
+    return '<div class="two"><div><span class="gl">▲</span>' + pa[0] + "<small>" + pa[1] + " " + aLab + '</small></div><div><span class="gl">▼</span>' +
+      pb[0] + "<small>" + pb[1] + " " + bLab + "</small></div></div>";
+  }
+  function scaleLabel(v, unit) {
+    if (unit === "%") return v + "%";
+    if (unit === "Bps") { var p = F.rateParts(v); return p[0].replace(/\.0$/, "") + " " + p[1]; }
+    return String(+v.toFixed(1));
+  }
+  function sevCls(st) { return st === "crit" ? "c" : st === "warn" ? "w" : ""; }
+  function pctTag(v) { return isNum(v) ? Math.round(v) + "%" : "–"; }
+  function pair(a, b) { return F.rate(a) + " · " + F.rate(b); }
 
-  /* RAM map */
-  var treeItems = [], sticky = {};
-  function mapItems(s) {
-    var out = V.items(s).map(function (it) { return Object.assign({ value: it.memBytes || 0 }, it); });
-    // order by a "sticky" size that only moves when the real size changes by more than 8%,
-    // so two near-equal apps don't swap tiles every update
-    out.forEach(function (x) {
-      var k = x.id || x.name, prev = sticky[k];
-      x.rank = prev && Math.abs(x.value - prev) <= prev * 0.08 ? prev : x.value;
-    });
-    sticky = {};
-    out.forEach(function (x) { sticky[x.id || x.name] = x.rank; });
-    out.sort(function (a, b) { return b.rank - a.rank || String(a.name).localeCompare(String(b.name)); });
-    var total = out.reduce(function (t, x) { return t + x.value; }, 0);
-    var keep = [], rest = { value: 0, n: 0 };
-    out.forEach(function (x, i) {
-      if (i < 9 && x.value >= total * 0.018) keep.push(x); else { rest.value += x.value; rest.n++; }
-    });
-    if (rest.n) keep.push({ value: rest.value, id: "rest", name: "Everything else", rest: true });
-    return { items: keep, total: total };
-  }
-  function renderTree(s) {
-    var box = $("tree"), r = box.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    var mi = mapItems(s), memTotal = (s.memory || {}).totalBytes || (s.host || {}).memBytes;
-    var tiles = V.treemap(mi.items, r.width, r.height);
-    // a sliver too thin to show its number folds into "Everything else"
-    while (tiles.some(function (t) { return t.w < 40 || t.h < 34; }) && mi.items.length > 2) {
-      var its = mi.items, last = its[its.length - 1], rest = last.rest ? last : null;
-      var drop = its[its.length - (rest ? 2 : 1)];
-      its.splice(its.indexOf(drop), 1);
-      if (rest) { rest.value += drop.value; rest.n = (rest.n || 0) + 1; }
-      else its.push({ value: drop.value, id: "rest", name: "Everything else", rest: true, n: 1 });
-      tiles = V.treemap(its, r.width, r.height);
-    }
-    treeItems = tiles;
-    box.innerHTML = tiles.map(function (t, i) {
-      var area = t.w * t.h, cls = i === 0 && t.w >= 170 && t.h >= 120 ? "big" : area < 5200 ? "small" : "";
-      var val = F.gbShort(t.value).split(" ");
-      if (t.w < 66 && val[1]) val = [val[0], val[1].charAt(0)];
-      // narrow tiles: "Claude Code" / "Claude app" would both clip to "Clau…", so drop the shared prefix
-      var label = t.w < 90 && /^Claude ./.test(t.name) ? t.name.slice(7).replace(/^./, function (c) { return c.toUpperCase(); }) : t.name;
-      var inner = '<div><div><div class="tn">' + F.esc(label) + "</div>" +
-        "";
-      if (t.sessions && t.h > 110 && t.w > 150) {
-        var rows = Math.max(1, Math.floor((t.h - 64) / 15));
-        inner += '<div class="sl">' + t.sessions.slice().sort(function (a, b) { return b.memBytes - a.memBytes; }).slice(0, rows).map(function (k) {
-          return '<span><i class="mdot m-' + F.esc(k.model || "") + '"></i>' + F.esc(k.name) + "<s>" + F.gbShort(k.memBytes).replace(" MB", "") + "</s></span>";
-        }).join("") + "</div>";
-      } else if (t.sessions && t.h > 64) {
-        inner += '<div class="dots" style="margin-top:4px">' + t.sessions.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</div>";
-      }
-      inner += "</div><div>" + (t.h > 30 || cls !== "small" ? '<div class="tv">' + val[0] + "<small>" + (val[1] || "") + "</small></div>" : "") +
-        (cls === "big" && memTotal ? '<div class="share">' + Math.round(t.value / memTotal * 100) + "% of RAM</div>" : "") + "</div></div>";
-      if (t.w < 46) cls += " tiny";
-      return '<div class="tile ' + cls + '" data-row="' + F.esc(t.rowId || "") + '" title="' + F.esc(t.name + " · " + F.mem(t.value)) +
-        '" style="left:' + t.x.toFixed(1) + "px;top:" + t.y.toFixed(1) + "px;width:" + t.w.toFixed(1) + "px;height:" + t.h.toFixed(1) + 'px">' + inner + "</div>";
-    }).join("");
-  }
-  $("tree").addEventListener("click", function (e) {
-    var t = e.target.closest(".tile[data-row]");
-    if (!t || !t.dataset.row) return;
-    query = ""; $("q").value = "";
-    selectRow(t.dataset.row, true);
+  // each channel: chart spec, live series, readout, hover tag
+  var CH = [
+    { id: "mem", opt: { type: "level", max: 100, thr: 70, crit: 90, pad: 8 }, unit: "%",
+      data: function () { return [L.pressurePct]; },
+      tag: function (i) { return pctTag(L.pressurePct[i]); },
+      tagCls: function (i) { var v = L.pressurePct[i]; return v >= 90 ? "c" : v >= 70 ? "w" : ""; } },
+    { id: "cpu", opt: { type: "stack", max: 100, pad: 8 }, unit: "%",
+      data: function () { return [L.cpuSystemPct, L.cpuUserPct]; },
+      tag: function (i) { var a = L.cpuSystemPct[i], b = L.cpuUserPct[i]; return isNum(a) && isNum(b) ? pctTag(a + b) : "–"; } },
+    { id: "gpu", opt: { type: "single", max: 100, pad: 6 }, unit: "%",
+      data: function () { return [L.gpuPct]; },
+      tag: function (i) { return pctTag(L.gpuPct[i]); } },
+    { id: "disk", opt: { type: "mirror", floor: 1e6, pad: 8 }, unit: "Bps",
+      data: function () { return [L.diskReadBps, L.diskWriteBps]; },
+      tag: function (i) { return pair(L.diskReadBps[i], L.diskWriteBps[i]); } },
+    { id: "net", opt: { type: "mirror", floor: 1e5, pad: 8 }, unit: "Bps",
+      data: function () { return [L.netInBps, L.netOutBps]; },
+      tag: function (i) { return pair(L.netInBps[i], L.netOutBps[i]); } },
+    { id: "energy", opt: { type: "single", floor: 10, pad: 8 }, unit: "",
+      data: function () { return [L.energyImpact]; },
+      tag: function (i) { return isNum(L.energyImpact[i]) ? L.energyImpact[i].toFixed(1) : "–"; } }
+  ];
+  CH.forEach(function (c) {
+    var row = $("ch-" + c.id);
+    c.plot = row.querySelector(".plot");
+    c.ro = row.querySelector(".ro");
+    c.strip = new V.Strip(c.plot, c.opt);
+    c.scTop = document.createElement("span"); c.scTop.className = "sc";
+    c.scBot = document.createElement("span"); c.scBot.className = "sc";
+    c.htag = document.createElement("span"); c.htag.className = "htag";
+    c.plot.appendChild(c.scTop); c.plot.appendChild(c.scBot); c.plot.appendChild(c.htag);
   });
 
-  /* ================= peers ================= */
-  function kv(el, rows) {
-    el.innerHTML = rows.filter(Boolean).map(function (r) { return "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>"; }).join("");
+  var axisBuilt = "";
+  function layout() {
+    CH.forEach(function (c) { c.strip.size(c.plot.clientWidth, c.plot.clientHeight); });
+    var p = CH[0].plot, left = p.offsetLeft, w = p.clientWidth, key = left + "x" + w;
+    if (key === axisBuilt) return;
+    axisBuilt = key;
+    $("axis").innerHTML = ["5 min", "4 min", "3 min", "2 min", "1 min", "now"].map(function (t, k) {
+      return '<span class="' + (k === 5 ? "r" : k === 0 ? "l" : "") + '" style="left:' + (left + w * k / 5).toFixed(1) + 'px">' + t + "</span>";
+    }).join("") + '<span class="htime" id="htime"></span>';
   }
-  function topBy(s, key, n, fmt) {
-    var list = V.items(s).map(function (it) { return { name: it.short || (it.name === "Claude app" ? "Claude" : it.name), v: it[key] }; });
-    list = list.filter(function (x) { return V.isNum(x.v) && x.v > 0; }).sort(function (a, b) { return b.v - a.v; }).slice(0, n);
-    return list.length ? list.map(function (x) { return [F.esc(x.name), fmt(x.v)]; }) : [["Nothing much", ""]];
+
+  function drawCharts(s) {
+    L = V.liveOf(s);
+    var ms = V.memState(s);
+    layout();
+    CH.forEach(function (c) {
+      var d = c.data(), st = c.strip;
+      st.draw(d[0], d[1], c.id === "mem" ? (ms === "ok" ? "" : ms) : "");
+      var lab = scaleLabel(st.max, c.unit);
+      if (c.scTop.textContent !== lab) c.scTop.textContent = lab;
+      var bl = c.opt.type === "mirror" ? lab : "0";
+      if (c.scBot.textContent !== bl) c.scBot.textContent = bl;
+      c.scTop.style.top = (st.top - 2) + "px";
+      c.scBot.style.top = (st.bot - (c.opt.type === "mirror" ? 8 : 6)) + "px";
+    });
+    if (hoverX != null) hover(hoverX);
   }
-  function most(rows) {
-    return rows.map(function (r, i) { return i ? "<s>" + r[0] + " " + r[1] + "</s>" : r[0] + " " + r[1]; }).join(" · ");
-  }
-  function renderPeers(s) {
-    var c = s.cpu || {}, h = s.host || {}, g = s.gpu || {};
-    $("cpuTag").textContent = (c.cores || []).length + " cores";
-    $("cpuTot").innerHTML = F.pct(c.totalPct) + "<small>%</small>";
-    $("cpuSplit").textContent = F.pct(c.userPct, 1) + "% · " + F.pct(c.systemPct, 1) + "%";
-    var P = (c.cores || []).filter(function (k) { return k.kind === "P"; }), E = (c.cores || []).filter(function (k) { return k.kind !== "P"; });
-    function grp(arr, l) {
-      if (!arr.length) return "";
-      return '<div class="grp"><div class="bars">' + arr.map(function (k) { return '<i title="' + Math.round(k.pct) + '%"><b style="height:' + Math.max(0, Math.min(100, k.pct)).toFixed(0) + '%"></b></i>'; }).join("") +
-        '</div><div class="gl">' + arr.length + " " + l + "</div></div>";
+
+  /* hover: one hairline through every chart, a value tag in each, the time on the axis */
+  var hoverX = null;
+  function hover(x) {
+    var w = CH[0].strip.w, plotLeft = CH[0].plot.offsetLeft;
+    if (!L || x < 0 || x > w) { unhover(); return; }
+    hoverX = x;
+    var slot = Math.round(x / w * (CAP - 1)), px = slot / (CAP - 1) * w;
+    var hair = $("hair"); hair.style.display = "block"; hair.style.left = (plotLeft + px).toFixed(1) + "px";
+    var secs = (CAP - 1 - slot) * ((L && L.stepSec) || 2), ht = $("htime");
+    if (ht) {
+      ht.style.display = "block"; ht.style.left = (plotLeft + px).toFixed(1) + "px";
+      ht.textContent = secs ? "−" + Math.floor(secs / 60) + ":" + ("0" + secs % 60).slice(-2) : "now";
     }
-    $("cores").innerHTML = grp(P, "performance") + grp(E, "efficiency");
-    $("cpuLoad").textContent = (c.load || []).map(function (x) { return F.pct(x, 1); }).join(" · ");
-    $("gpuPct").textContent = F.pct(g.pct) + "%";
-    $("gpuCores").textContent = h.gpuCores ? h.gpuCores + " cores" : "";
-    V.spark($("gGpu"), g.history, 0, 100);
-
-    // energy
-    var e = s.energy || {};
-    var thermal = { nominal: "Nominal", fair: "Warm", serious: "Hot", critical: "Very hot" }[e.thermal] || "–";
-    $("enTag").textContent = e.pluggedIn ? "On power" : V.isNum(e.batteryPct) ? "On battery" : "";
-    $("enBig").innerHTML = V.isNum(e.batteryPct) ? F.pct(e.batteryPct) + "<small>% battery</small>" : "–";
-    kv($("enKv"), [
-      e.pluggedIn && ["Power", (e.fullyCharged ? "Full" : e.charging ? "Charging" : "Plugged in") + (e.adapterWatts ? " · " + e.adapterWatts + " W" : "")],
-      (V.isNum(e.healthPct) || V.isNum(e.cycles)) && ["Health", F.pct(e.healthPct) + "% · " + F.int(e.cycles) + " cycles"],
-      V.isNum(e.minutesLeft) && ["Time left", F.hm(e.minutesLeft)],
-      ["Heat", thermal + (V.isNum(e.fanRPM) ? (e.fanRPM > 0 ? " · fan " + F.int(e.fanRPM) + " rpm" : " · fan off") : "")],
-      ["Most energy", most(topBy(s, "energy", 2, function (v) { return F.pct(v, 1); }))]
-    ]);
-
-    // network
-    var n = s.network || {};
-    $("netTag").textContent = n.iface || "";
-    $("netIn").innerHTML = F.rateZero(n.inBps).replace(/ (\S+)$/, "<small>$1 in</small>");
-    kv($("netKv"), [
-      ["Out", F.rateZero(n.outBps)],
-      ["Today", F.bytes(n.inTodayBytes) + " in · " + F.bytes(n.outTodayBytes) + " out"],
-      ["Packets", F.int(n.packetsInPs) + "/s in · " + F.int(n.packetsOutPs) + "/s out"],
-      ["Most", most(topBy(s, "netInBps", 2, F.rate))]
-    ]);
-
-    // disk
-    var d = s.disk || {}, ms = V.memState(s), m = s.memory || {};
-    var full = d.totalBytes ? d.usedBytes / d.totalBytes : 0;
-    var low = d.totalBytes && d.freeBytes / d.totalBytes < 0.07;
-    sevClass($("diskCard"), low ? "warn" : "");
-    $("diskTag").textContent = d.volume || "";
-    $("diskBig").innerHTML = F.dgb(d.freeBytes).replace(/ (\S+)$/, "<small>$1 free</small>");
-    $("diskFill").style.width = (full * 100).toFixed(1) + "%";
-    $("diskUsed").textContent = F.dgb(d.usedBytes) + " used";
-    $("diskTotal").textContent = "of " + F.dgb(d.totalBytes);
-    kv($("diskKv"), [
-      ["Now", F.rateZero(d.readBps) + " read · " + F.rateZero(d.writeBps) + " write"],
-      ["Today", F.bytes(d.readTodayBytes) + " read · " + F.bytes(d.writtenTodayBytes) + " written"],
-      ["Biggest", d.bigUsers == null ? "<s>measuring…</s>" : most(d.bigUsers.slice(0, 2).map(function (b) { return [F.esc(b.name), F.bytes(b.bytes)]; }))]
-    ]);
-
+    CH.forEach(function (c) {
+      var i = c.strip.index(px), tg = c.htag;
+      if (i < 0) { tg.style.display = "none"; return; }
+      tg.textContent = c.tag(i);
+      tg.className = "htag " + (c.tagCls ? c.tagCls(i) : "");
+      tg.style.display = "block";
+      var tw = tg.offsetWidth;
+      tg.style.left = (px + 6 + tw > w ? px - 6 - tw : px + 6).toFixed(1) + "px";
+    });
   }
+  function unhover() {
+    hoverX = null;
+    $("hair").style.display = "none";
+    var ht = $("htime"); if (ht) ht.style.display = "none";
+    CH.forEach(function (c) { c.htag.style.display = "none"; });
+  }
+  $("scope").addEventListener("mousemove", function (e) { hover(e.clientX - CH[0].plot.getBoundingClientRect().left); });
+  $("scope").addEventListener("mouseleave", unhover);
+
+  /* readouts at the right */
+  function renderReadouts(s) {
+    var m = s.memory || {}, c = s.cpu || {}, g = s.gpu || {}, d = s.disk || {}, n = s.network || {}, e = s.energy || {}, h = s.host || {}, t = s.totals || {};
+    var ms = V.memState(s), swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
+    var swapCls = ms === "crit" && swapFrac >= 0.97 ? "c" : swapFrac >= 0.75 ? "w" : "";
+
+    $("sub-mem").textContent = F.gbShort(m.totalBytes || h.memBytes);
+    var press = V.now(m.pressurePct, L.pressurePct);
+    CH[0].ro.innerHTML = bigOne(F.pct(press), "%", "Pressure", sevCls(ms)) +
+      kv([["Used", u(F.gb(m.usedBytes), "GB")], ["Cached", u(F.gb(m.cachedBytes), "GB")],
+        ["Swap", u(F.gb(m.swapUsedBytes), "GB") + "<small> / " + F.gb(m.swapTotalBytes) + "</small>", swapCls]]) +
+      kv([["App", u(F.gb(m.appBytes), "GB")], ["Wired", u(F.gb(m.wiredBytes), "GB")], ["Compressed", u(F.gb(m.compressedBytes), "GB")]]);
+
+    var cores = c.cores || [], P = cores.filter(function (k) { return k.kind === "P"; }), E = cores.filter(function (k) { return k.kind !== "P"; });
+    var np = P.length || h.pCores, ne = E.length || h.eCores;
+    $("sub-cpu").textContent = np || ne ? (np || 0) + " P + " + (ne || 0) + " E cores" : "";
+    function bars(a) { return a.map(function (k) { return '<i><u style="height:' + Math.max(0, Math.min(100, k.pct || 0)).toFixed(0) + '%"></u></i>'; }).join(""); }
+    $("cores").innerHTML = bars(P) + (P.length && E.length ? '<i class="gap"></i>' : "") + bars(E);
+    var user = V.now(c.userPct, L.cpuUserPct), sys = V.now(c.systemPct, L.cpuSystemPct);
+    var tot = isNum(c.totalPct) ? c.totalPct : isNum(user) && isNum(sys) ? user + sys : null;
+    CH[1].ro.innerHTML = bigOne(F.pct(tot), "%", "Total") +
+      kv([["User", u(F.pct(user, 1), "%")], ["System", u(F.pct(sys, 1), "%")], ["Idle", u(F.pct(isNum(c.idlePct) ? c.idlePct : isNum(tot) ? 100 - tot : null, 1), "%")]]) +
+      kv([["Load", (c.load || []).map(function (x) { return F.pct(x, 1); }).join("&nbsp; ") || "–"], ["Threads", F.int(t.threads)], ["Processes", F.int(t.processes)]]);
+
+    $("sub-gpu").textContent = h.gpuCores ? h.gpuCores + " cores" : "";
+    CH[2].ro.innerHTML = '<div><div class="big">' + F.pct(V.now(g.pct, L.gpuPct)) + "<small>%</small></div></div><div></div><div></div>";
+
+    $("sub-disk").textContent = d.volume || "";
+    CH[3].ro.innerHTML = bigTwo(V.now(d.readBps, L.diskReadBps), "read", V.now(d.writeBps, L.diskWriteBps), "write") +
+      kv([["Read today", dec(d.readTodayBytes)], ["Written today", dec(d.writtenTodayBytes)],
+        ["Swapped out", isNum(m.swapOutBytesSinceBoot) ? u(Math.round(m.swapOutBytesSinceBoot / GiB), "GB") : "–"]]) +
+      kv([["Free", dec(d.freeBytes)], ["Used", dec(d.usedBytes)], ["Capacity", dec(d.totalBytes)]]);
+
+    $("sub-net").textContent = n.iface || "";
+    CH[4].ro.innerHTML = bigTwo(V.now(n.inBps, L.netInBps), "in", V.now(n.outBps, L.netOutBps), "out") +
+      kv([["Packets in/s", F.int(n.packetsInPs)], ["Packets out/s", F.int(n.packetsOutPs)]]) +
+      kv([["Received today", dec(n.inTodayBytes)], ["Sent today", dec(n.outTodayBytes)]]);
+
+    var thermal = { nominal: "Nominal", fair: "Fair", serious: "Serious", critical: "Critical" }[e.thermal] || "–";
+    var hasBatt = isNum(e.batteryPct);
+    $("sub-energy").textContent = e.pluggedIn ? "On power" + (e.adapterWatts ? " · " + e.adapterWatts + " W" : "") : hasBatt ? "On battery" : "";
+    var imp = V.now(e.impact, L.energyImpact);
+    CH[5].ro.innerHTML = bigOne(isNum(imp) ? imp.toFixed(1) : "–", "", "Energy impact") +
+      kv([hasBatt && ["Battery", u(F.pct(e.batteryPct), "%")], hasBatt && ["Time left", isNum(e.minutesLeft) ? F.hm(e.minutesLeft).replace(" min", " m") : "–"], ["Thermal", thermal]]) +
+      kv([hasBatt && ["Health", u(F.pct(e.healthPct), "%")], hasBatt && ["Cycles", F.int(e.cycles)],
+        isNum(e.fanRPM) && ["Fan", e.fanRPM > 0 ? u(F.int(e.fanRPM), "rpm") : "Off"]]);
+  }
+  // decimal GB like Finder, number then a quiet unit
+  function dec(b) { return isNum(b) ? u((b / 1e9).toFixed(1), "GB") : "–"; }
 
   /* ================= process table ================= */
   var cols = [
-    { k: "name", t: "Name" }, { k: "memBytes", t: "Memory" }, { k: "cpuPct", t: "CPU %" }, { k: "cpuTimeSec", t: "CPU time" },
+    { k: "name", t: "Process" }, { k: "memBytes", t: "Memory" }, { k: "cpuPct", t: "CPU %" }, { k: "cpuTimeSec", t: "CPU time" },
     { k: "threads", t: "Threads" }, { k: "energy", t: "Energy" }, { k: "diskReadBps", t: "Disk read" }, { k: "diskWriteBps", t: "Disk write" },
     { k: "netInBps", t: "Net in" }, { k: "netOutBps", t: "Net out" }, { k: "user", t: "User" }
   ];
-  var sortK = "memBytes", sortDir = -1, query = "", open = {}, selected = null, snap = null, visible = [];
+  var sortK = "memBytes", sortDir = -1, query = "", open = {}, selected = null, visible = [];
   function cmp(a, b) {
     var x = a[sortK], y = b[sortK];
-    if (sortK === "name" || sortK === "user") return String(x || "").localeCompare(String(y || "")) * sortDir;
+    if (sortK === "name" || sortK === "user") {
+      if (x == null || y == null) return x == null && y == null ? 0 : x == null ? 1 : -1;   // no user: always last
+      return String(x).localeCompare(String(y)) * sortDir;
+    }
     return ((x || 0) - (y || 0)) * sortDir;
   }
   function match(p) {
     if (!query) return true;
-    return (p.name + " " + V.note(p) + " " + (p.pid == null ? "" : p.pid)).toLowerCase().indexOf(query) >= 0;
+    return (p.name + " " + V.note(p) + " " + (p.pid == null ? "" : p.pid) + " " + (p.model || "")).toLowerCase().indexOf(query) >= 0;
   }
-
-  function cell(p, k, memTotal) {
+  function cell(p, k) {
     switch (k) {
-      case "memBytes": return '<div class="memc">' + F.mem(p.memBytes) + '<span class="mb"><i style="width:' + Math.min(100, (p.memBytes || 0) / memTotal * 160).toFixed(1) + '%"></i></span></div>';
+      case "memBytes": return F.mem(p.memBytes);
       case "cpuPct": return F.pct(p.cpuPct, 1);
       case "cpuTimeSec": return F.dur(p.cpuTimeSec);
       case "threads": return F.int(p.threads);
       case "energy": return F.pct(p.energy, 1);
       case "diskReadBps": case "diskWriteBps": case "netInBps": case "netOutBps": return F.rate(p[k]);
-      case "user": return F.esc(p.user || "");
+      case "user": return p.user == null ? "–" : F.esc(p.user);
     }
     return "";
   }
-  function zero(p, k) { return /Bps$/.test(k) && !(p[k] > 0); }
+  function dim(p, k) { return /Bps$/.test(k) ? !(p[k] > 0) : k === "user" ? p.user == null : k !== "name" && !isNum(p[k]); }
   function nameCell(p, kid) {
-    var lead = p.kind === "session" ? '<i class="mdot m-' + F.esc(p.model || "") + '" style="margin:0 5px"></i>' : "";
+    var lead = p.kind === "session" ? '<i class="mdot m-' + F.esc(p.model || "") + '"></i>' : "";
     var hasKids = p.children && p.children.length;
-    var chev = hasKids ? '<span class="chev' + (open[p.id] ? " open" : "") + '" data-id="' + F.esc(p.id) + '">▶</span>' : (kid ? "" : '<span class="chev"></span>');
-    var dots = p.id === "group:claude-code" && !open[p.id] ? '<span class="dots">' + p.children.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</span>" : "";
-    return '<div class="nm">' + chev + lead + '<span class="t">' + F.esc(p.name) + "</span>" + dots + "</div>";
+    var chev = kid ? "" : hasKids ? '<span class="chev' + (open[p.id] ? " open" : "") + '" data-id="' + F.esc(p.id) + '">▶</span>' : '<span class="chev"></span>';
+    var dots = p.id === "group:claude-code" && hasKids && !open[p.id] ? '<span class="dots">' + p.children.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</span>" : "";
+    return '<div class="nmc">' + chev + lead + '<span class="t">' + F.esc(p.name) + "</span>" + dots + "</div>";
   }
-  function rowHtml(p, kid, memTotal) {
-    return '<tr data-id="' + F.esc(p.id) + '" class="' + (kid ? "kid" : "") + (p.children && p.children.length ? " grp" : "") + (p.id === selected ? " sel" : "") + '">' +
-      cols.map(function (c) {
-        return '<td class="' + (zero(p, c.k) ? "z" : "") + (c.k === "user" ? " u" : "") + '">' + (c.k === "name" ? nameCell(p, kid) : cell(p, c.k, memTotal)) + "</td>";
-      }).join("") + "</tr>";
+  function rowHtml(p, kid, i) {
+    var cls = (kid ? "kid" : "") + (i % 2 ? " odd" : "") + (p.id === selected ? " sel" : "");
+    return '<tr data-id="' + F.esc(p.id) + '" class="' + cls + '">' + cols.map(function (c) {
+      var tc = (dim(p, c.k) ? "z" : "") + (c.k === "user" ? " u" : "") + (c.k === sortK && c.k !== "name" && c.k !== "user" ? " s" : "");
+      return '<td class="' + tc + '">' + (c.k === "name" ? nameCell(p, kid) : cell(p, c.k)) + "</td>";
+    }).join("") + "</tr>";
   }
   function renderHead() {
     $("ph").innerHTML = cols.map(function (c) {
       var on = c.k === sortK;
-      return '<th data-k="' + c.k + '" class="' + (on ? "on" : "") + '">' + c.t + '<span class="ar">' + (on ? (sortDir < 0 ? "▼" : "▲") : "⇅") + "</span></th>";
+      return '<th data-k="' + c.k + '" class="' + (on ? "on" : "") + '">' + c.t + (on ? '<span class="ar">' + (sortDir < 0 ? "▼" : "▲") + "</span>" : "") + "</th>";
     }).join("");
   }
   // Only the rows in view (plus a margin) are built; spacer rows stand in for the rest.
@@ -484,12 +374,12 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   var ROW_H = 24, kidOf = {};
   function renderRows() {
     if (!snap) return;
-    var sc = $("scroll"), memTotal = (snap.memory || {}).totalBytes || 18 * GiB;
+    var sc = $("scroll");
     var first = Math.max(0, Math.floor(sc.scrollTop / ROW_H) - 8);
     var last = Math.min(visible.length, Math.ceil((sc.scrollTop + sc.clientHeight) / ROW_H) + 8);
     var out = [];
     if (first) out.push('<tr class="pad" style="height:' + first * ROW_H + 'px"></tr>');
-    for (var i = first; i < last; i++) out.push(rowHtml(visible[i], kidOf[visible[i].id], memTotal));
+    for (var i = first; i < last; i++) out.push(rowHtml(visible[i], kidOf[visible[i].id], i));
     if (last < visible.length) out.push('<tr class="pad" style="height:' + (visible.length - last) * ROW_H + 'px"></tr>');
     $("pb").innerHTML = out.join("");
   }
@@ -506,22 +396,24 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
       }
     });
     renderRows();
-    var all = V.flat(snap.processes).filter(function (p) { return !(p.children && p.children.length); }).length;
-    $("q").placeholder = "Search " + F.int((snap.totals || {}).processes || all) + " processes";
+    var total = (snap.totals || {}).processes || V.flat(snap.processes).filter(function (p) { return !(p.children && p.children.length); }).length;
+    $("pcount").textContent = query ? F.int(visible.length) + " / " + F.int(total) : F.int(total);
+    $("q").placeholder = "Search " + F.int(total) + " processes";
     renderQuit();
   }
   function findProc(id) {
     var hit = null;
-    V.flat(snap && snap.processes).some(function (p) { if (p.id === id) { hit = p; return true; } return false; });
+    if (id) V.flat(snap && snap.processes).some(function (p) { if (p.id === id) { hit = p; return true; } return false; });
     return hit;
   }
-  function quittable(p) { return p && p.pid != null && p.pid > 1 && p.user !== "root" && p.name !== "Vitals" && p.id !== "group:claude-code"; }
+  // a process Vitals may ask to quit: has a pid, isn't launchd/kernel, belongs to the user (user null = root or another user)
+  function quittable(p) { return p && p.pid != null && p.pid > 1 && p.user != null && p.user !== "root" && p.name !== "Vitals" && p.id !== "group:claude-code"; }
   function renderQuit() {
-    var p = selected && findProc(selected), b = $("quitBtn");
+    var p = findProc(selected), b = $("quitBtn");
     b.hidden = !p;
     if (!p) return;
-    var name = p.name;
-    b.textContent = quittable(p) ? "Quit " + name + "…" : p.id === "group:claude-code" ? "Pick one session to quit" : "Part of macOS";
+    var label = quittable(p) ? "Quit " + p.name + "…" : "Quit";
+    if (b.textContent !== label) b.textContent = label;
     b.disabled = !quittable(p);
   }
   function selectRow(id, reveal) {
@@ -542,6 +434,9 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     else if (top + ROW_H > sc.scrollTop + view) sc.scrollTop = top + ROW_H - view;
     renderRows();
   }
+  // select a row from anywhere (search Enter, or Swift: Vitals.reveal("pid:123")), opening its group
+  V.reveal = function (id) { if (snap && findProc(id)) selectRow(id, true); };
+
   var sr = 0;
   $("scroll").addEventListener("scroll", function () { if (!sr) sr = requestAnimationFrame(function () { sr = 0; renderRows(); }); });
   $("ph").addEventListener("click", function (e) {
@@ -556,16 +451,15 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var tr = e.target.closest("tr[data-id]");
     if (tr) selectRow(tr.dataset.id === selected ? null : tr.dataset.id);
   });
-  $("q").addEventListener("input", function (e) { query = e.target.value.trim().toLowerCase(); renderTable(); });
+  $("q").addEventListener("input", function (e) { query = e.target.value.trim().toLowerCase(); $("scroll").scrollTop = 0; renderTable(); });
 
   /* quit, with a sheet that asks first */
   var pending = null;
   function askQuit() {
-    var p = selected && findProc(selected);
+    var p = findProc(selected);
     if (!quittable(p)) return;
     pending = p;
-    var name = p.name;
-    $("qTitle").textContent = "Quit " + name + "?";
+    $("qTitle").textContent = "Quit " + p.name + "?";
     $("qText").textContent = (p.memBytes ? "This frees about " + F.gbShort(p.memBytes) + ". " : "") + "Anything unsaved in it may be lost.";
     $("veil").hidden = false;
     $("qYes").focus();
@@ -582,23 +476,37 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   /* keyboard */
   document.addEventListener("keydown", function (e) {
     if (!$("veil").hidden) { if (e.key === "Escape") closeSheet(); return; }
-    var cmd = e.metaKey;
+    var cmd = e.metaKey, inSearch = document.activeElement === $("q");
     if (cmd && e.key.toLowerCase() === "f") { e.preventDefault(); $("q").focus(); $("q").select(); return; }
     if (cmd && (e.key === "1" || e.key === "2" || e.key === "3")) {
       e.preventDefault(); sortK = { 1: "memBytes", 2: "cpuPct", 3: "energy" }[e.key]; sortDir = -1; renderHead(); renderTable(); return;
     }
     if (cmd && e.key === "Backspace") { e.preventDefault(); askQuit(); return; }
     if (cmd && (e.key === "?" || e.key === "/")) { e.preventDefault(); V.post("openHelp"); return; }
-    if (e.key === "Escape" && document.activeElement === $("q")) { $("q").value = ""; query = ""; $("q").blur(); renderTable(); return; }
-    if (document.activeElement === $("q")) return;
+    if (inSearch && e.key === "Escape") { $("q").value = ""; query = ""; $("q").blur(); renderTable(); if (selected) showRow(selected, "center"); return; }
+    if (inSearch && e.key === "Enter") {
+      e.preventDefault();
+      // the first row whose own name matches, else the first match
+      var hit = visible.filter(function (p) { return String(p.name).toLowerCase().indexOf(query) >= 0; })[0] || visible.filter(match)[0];
+      if (hit) { $("q").blur(); selectRow(hit.id); showRow(hit.id, "center"); }
+      return;
+    }
+    if (inSearch && e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    if (e.key === "Escape" && selected) { selectRow(null); return; }
     var i = visible.findIndex(function (p) { return p.id === selected; });
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
+      if (inSearch) $("q").blur();
       var j = e.key === "ArrowDown" ? Math.min(visible.length - 1, i + 1) : Math.max(0, i - 1);
       if (visible[j]) { selectRow(visible[j].id); showRow(visible[j].id, "nearest"); }
     } else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && selected) {
       var p = findProc(selected);
-      if (p && p.children && p.children.length) { open[p.id] = e.key === "ArrowRight"; renderTable(); }
+      if (p && p.children && p.children.length) { e.preventDefault(); open[p.id] = e.key === "ArrowRight"; renderTable(); }
+      else if (p && e.key === "ArrowLeft" && kidOf[p.id]) {
+        // from a child, Left goes to its group
+        var g = (snap.processes || []).filter(function (x) { return (x.children || []).indexOf(p) >= 0; })[0];
+        if (g) { e.preventDefault(); selectRow(g.id); showRow(g.id, "nearest"); }
+      }
     }
   });
 
@@ -606,15 +514,22 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   renderHead();
   V.onUpdate(function (s) {
     snap = s;
-    renderMemory(s); renderPeers(s); renderTable();
+    drawCharts(s);
+    renderReadouts(s);
+    renderTable();
     var h = s.host || {};
-    var so = (s.memory || {}).swapOutBytesSinceBoot;
-    $("footL").textContent = F.int((s.totals || {}).processes) + " processes · " + F.int((s.totals || {}).threads) + " threads" +
-      (V.isNum(so) && so > 0 ? " · " + F.gbShort(so) + " swapped out since the last restart" : "");
-    $("footR").textContent = [h.model, (h.chip || "").replace(/^Apple /, ""), h.memBytes ? F.gbShort(h.memBytes) : null, h.uptimeSec ? "up " + F.uptime(h.uptimeSec) : null]
-      .filter(Boolean).join(" · ") + " · updates every 2 s";
+    var host = [h.model, (h.chip || "").replace(/^Apple /, ""), h.memBytes ? F.gbShort(h.memBytes) : null, h.os].filter(Boolean).join(" · ");
+    if ($("host").textContent !== host) $("host").textContent = host;
+    var up = h.uptimeSec ? "Up " + F.uptime(h.uptimeSec) : "";
+    if ($("footL").textContent !== up) $("footL").textContent = up;
+    var right = "Every " + (((s.live || {}).stepSec) || 2) + " s · last 5 min";
+    if ($("footR").textContent !== right) $("footR").textContent = right;
   });
-  var rt; addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { if (snap) renderTree(snap); }, 60); });
+  var rz = 0;
+  addEventListener("resize", function () {
+    if (rz) return;
+    rz = requestAnimationFrame(function () { rz = 0; if (snap) { drawCharts(snap); renderRows(); } else layout(); });
+  });
 })();
 </script>
 </body>

@@ -41,7 +41,7 @@
     },
     gpu: { pct: 9, history: series(120, 5, function (t, r) { return 8 + (r() - .5) * 6 + (t > .7 && t < .75 ? 7 : 0); }) },
     energy: { batteryPct: 100, pluggedIn: true, charging: false, fullyCharged: true, adapterWatts: 96, cycles: 47, healthPct: 100,
-      minutesLeft: 380, thermal: "nominal", fanRPM: 0 },
+      minutesLeft: 380, thermal: "nominal", fanRPM: 0, impact: null },
     disk: { volume: "Macintosh HD", totalBytes: 494.4e9, usedBytes: 400.1e9, freeBytes: 94.3e9, readBps: 14.2e6, writeBps: 38.6e6,
       readTodayBytes: 61.2e9, writtenTodayBytes: 97.4e9,
       bigUsers: [{ name: "Xcode simulators", bytes: 58e9 }, { name: "Photos library", bytes: 41e9 }, { name: "Downloads", bytes: 22e9 },
@@ -72,25 +72,86 @@
       proc(1503, "Wakey", "app", "vinnie", 18 * M, 0.0, 192, 4, 0.0, 0, 0, 0, 0),
       proc(1, "launchd", "process", "root", 34 * M, 0.1, 6010, 5, 0.1, 0, 0, 0, 0),
       proc(320, "bluetoothd", "process", "root", 12 * M, 0.1, 812, 7, 0.0, 0, 0, 0, 0),
-      proc(330, "coreaudiod", "process", "_coreaudiod", 22 * M, 0.3, 2210, 12, 0.2, 0, 0, 0, 0)
+      proc(330, "coreaudiod", "process", null, 22 * M, 0.3, 2210, 12, 0.2, 0, 0, 0, 0)
     ]
   };
+  // energy impact right now = sum of the top-level processes' energy (DATA.md)
+  snap.energy.impact = Math.round(snap.processes.reduce(function (t, p) { return t + (p.energy || 0); }, 0) * 10) / 10;
+
+  /* live: the strip charts, 150 points at 2 s (the last 5 minutes), oldest first, ending on the numbers above */
+  var N = 150;
+  function bump(t, c, w) { var d = (t - c) / w; return Math.exp(-d * d); }
+  function live(seed, f, last, round) {
+    var r = rng(seed), a = [];
+    for (var i = 0; i < N; i++) a.push(f(i / (N - 1), r));
+    a[N - 1] = last;
+    return round ? a.map(function (v) { return Math.round(v * round) / round; }) : a;
+  }
+  snap.live = {
+    stepSec: 2,
+    pressurePct: live(7, function (t, r) { return 63 + 15 * (1 - Math.exp(-t * 3.2)) / (1 - Math.exp(-3.2)) - 7 * bump(t, .5, .035) + (r() - .5) * 1.4; }, 78, 10),
+    swapUsedBytes: live(11, function (t, r) { return (5.94 + .08 * t + (r() - .5) * .01) * G; }, snap.memory.swapUsedBytes),
+    cpuUserPct: live(4, function (t, r) { return 21 + Math.sin(t * 13) * 3 + (r() - .5) * 8 + 22 * bump(t, .7, .025) + 9 * bump(t, .22, .02); }, snap.cpu.userPct, 10),
+    cpuSystemPct: live(3, function (t, r) { return 10.5 + (r() - .5) * 4 + 6 * bump(t, .7, .025) + 3 * bump(t, .22, .02); }, snap.cpu.systemPct, 10),
+    gpuPct: live(5, function (t, r) { return 8 + (r() - .5) * 4 + 13 * bump(t, .71, .02) + 4 * bump(t, .4, .04); }, snap.gpu.pct, 10),
+    diskReadBps: live(9, function (t, r) { var b = r() < .08 ? 25 + r() * 35 : 0; return (6 + r() * 9 + b + 30 * bump(t, .22, .015)) * 1e6; }, snap.disk.readBps),
+    diskWriteBps: live(13, function (t, r) { var b = r() < .12 ? 30 + r() * 45 : 0; return (24 + r() * 16 + b + 20 * bump(t, .7, .02)) * 1e6; }, snap.disk.writeBps),
+    netInBps: live(17, function (t, r) { var b = r() < .1 ? 2 + r() * 3.5 : 0; return (1.4 + r() * 1.6 + b + 3 * bump(t, .55, .03)) * 1e6; }, snap.network.inBps),
+    netOutBps: live(19, function (t, r) { var b = r() < .06 ? .5 + r() * .8 : 0; return (.18 + r() * .25 + b) * 1e6; }, snap.network.outBps),
+    energyImpact: live(23, function (t, r) { return 82 + (r() - .5) * 12 + 26 * bump(t, .7, .025) + 10 * bump(t, .22, .02); }, snap.energy.impact, 10)
+  };
+  // like the real feed: the first point of a rate series has nothing to compare against
+  ["diskReadBps", "diskWriteBps", "netInBps", "netOutBps"].forEach(function (k) { snap.live[k][0] = null; });
+  var KEYS = Object.keys(snap.live).filter(function (k) { return k !== "stepSec"; });
+
+  // ?fresh: right after launch, one point per series (?fresh=12 keeps 12)
+  // ?gaps: energy impact null while no page was showing (a long run of nulls), plus a short gap in CPU
+  var q = location.search + location.hash;
+  var fresh = /fresh(?:=(\d+))?/.exec(q);
+  if (fresh) {
+    var keep = Math.max(1, +(fresh[1] || 1));
+    KEYS.forEach(function (k) { snap.live[k] = snap.live[k].slice(-keep); });
+    if (keep === 1) ["diskReadBps", "diskWriteBps", "netInBps", "netOutBps"].forEach(function (k) { snap.live[k][0] = null; });
+  }
+  if (/gaps/.test(q)) {
+    var E = snap.live.energyImpact;
+    for (var i = 0; i < E.length - 18; i++) E[i] = null;
+    for (i = E.length - 3; i < E.length; i++) E[i] = null;
+    snap.energy.impact = null;
+    var C = snap.live.cpuUserPct, Cs = snap.live.cpuSystemPct;
+    for (i = 60; i < 75 && i < C.length; i++) { C[i] = null; Cs[i] = null; }
+  }
+
+  function push(k, v) { var a = snap.live[k]; if (a.length >= N) a.shift(); a.push(v); }
   window.VitalsSample = {
     snapshot: snap,
     start: function (update) {
       update(snap);
-      var still = /still/.test(location.search + location.hash);
+      var still = /still/.test(q);
       if (still || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
       var r = rng(42);
-      setInterval(function () {
-        var c = Math.round(34 + (r() - .5) * 6);
-        snap.cpu.totalPct = c; snap.cpu.history.shift(); snap.cpu.history.push(c);
-        snap.cpu.cores.forEach(function (k) { k.pct = Math.max(2, Math.min(98, k.pct + (r() - .5) * 10)); });
-        snap.gpu.pct = Math.max(1, 9 + (r() - .5) * 4); snap.gpu.history.shift(); snap.gpu.history.push(snap.gpu.pct);
-        snap.network.inBps = (2.4 + (r() - .5) * .6) * 1e6;
-        snap.disk.writeBps = (38.6 + (r() - .5) * 8) * 1e6;
-        update(snap);
-      }, 2000);
+      setInterval(function () { VitalsSample.tick(r); update(snap); }, 2000);
+    },
+    // one 2 s step: every live series shifts left by one and gets a new point
+    tick: function (r) {
+      r = r || Math.random;
+      var m = snap.memory, c = snap.cpu, d = snap.disk, n = snap.network, e = snap.energy;
+      m.pressurePct = Math.round(Math.max(72, Math.min(84, m.pressurePct + (r() - .5) * 1.6)) * 10) / 10;
+      c.userPct = Math.round(Math.max(8, 22.4 + (r() - .5) * 9) * 10) / 10;
+      c.systemPct = Math.round(Math.max(4, 11.1 + (r() - .5) * 4) * 10) / 10;
+      c.totalPct = Math.round(c.userPct + c.systemPct); c.idlePct = Math.round((100 - c.userPct - c.systemPct) * 10) / 10;
+      c.history.shift(); c.history.push(c.totalPct);
+      c.cores.forEach(function (k) { k.pct = Math.max(2, Math.min(98, k.pct + (r() - .5) * 10)); });
+      snap.gpu.pct = Math.round(Math.max(1, 9 + (r() - .5) * 4) * 10) / 10; snap.gpu.history.shift(); snap.gpu.history.push(snap.gpu.pct);
+      d.readBps = (6 + r() * 9 + (r() < .08 ? 25 + r() * 35 : 0)) * 1e6;
+      d.writeBps = (24 + r() * 16 + (r() < .12 ? 30 + r() * 45 : 0)) * 1e6;
+      n.inBps = (1.4 + r() * 1.6 + (r() < .1 ? 2 + r() * 3.5 : 0)) * 1e6;
+      n.outBps = (.18 + r() * .25 + (r() < .06 ? .5 + r() * .8 : 0)) * 1e6;
+      if (e.impact != null || r() < .3) e.impact = Math.round((84 + (r() - .5) * 10) * 10) / 10;
+      push("pressurePct", m.pressurePct); push("swapUsedBytes", m.swapUsedBytes);
+      push("cpuUserPct", c.userPct); push("cpuSystemPct", c.systemPct); push("gpuPct", snap.gpu.pct);
+      push("diskReadBps", d.readBps); push("diskWriteBps", d.writeBps); push("netInBps", n.inBps); push("netOutBps", n.outBps);
+      push("energyImpact", e.impact);
     }
   };
 })();
