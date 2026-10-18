@@ -55,7 +55,8 @@ unknown; the page shows "–".
     cycles, healthPct,                       // MaxCapacity / DesignCapacity
     minutesLeft,                             // on battery: IOPS time to empty; plugged in: estimate at current draw, or null
     thermal: "nominal" | "fair" | "serious" | "critical",   // ProcessInfo.thermalState
-    fanRPM                                   // null if unreadable (page then just omits the fan)
+    fanRPM,                                  // null if unreadable (page then just omits the fan)
+    impact                                   // sum of the top-level processes' energy right now
   },
 
   disk: {
@@ -68,6 +69,15 @@ unknown; the page shows "–".
   network: {
     iface: "Wi-Fi", inBps, outBps, packetsInPs, packetsOutPs,
     inTodayBytes, outTodayBytes              // since local midnight, same baseline idea
+  },
+
+  live: {                                    // the strip charts: last 5 minutes, one point every 2 s
+    stepSec: 2,                              // up to 150 points each, oldest first; starts with 1 point at launch
+    pressurePct: [..], swapUsedBytes: [..],
+    cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
+    diskReadBps: [..], diskWriteBps: [..],
+    netInBps: [..], netOutBps: [..],
+    energyImpact: [..]                       // sum of the top-level processes' energy (same units as Proc.energy)
   },
 
   totals: { processes, threads },
