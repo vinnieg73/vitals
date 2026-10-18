@@ -120,6 +120,8 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 .pt th .ar{display:inline-block;width:9px;margin-left:3px;color:var(--ink-4);font-size:9px}
 .pt th.on{color:var(--ink);font-weight:600}
 .pt th.on .ar{color:var(--ink)}
+.pt tr{height:24px}
+.pt tr.pad td,.pt tr.pad{padding:0;border:0}
 .pt td{height:23px;padding:0 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line-2);overflow:hidden;text-overflow:ellipsis}
 .pt td:first-child{text-align:left;padding-left:6px}
 .pt td.z{color:var(--ink-4)}
@@ -476,20 +478,33 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
       return '<th data-k="' + c.k + '" class="' + (on ? "on" : "") + '">' + c.t + '<span class="ar">' + (on ? (sortDir < 0 ? "▼" : "▲") : "⇅") + "</span></th>";
     }).join("");
   }
+  // Only the rows in view (plus a margin) are built; spacer rows stand in for the rest.
+  // Rebuilding all ~700 rows every 2 s kept thousands of dead DOM nodes waiting on WebKit's GC.
+  var ROW_H = 24, kidOf = {};
+  function renderRows() {
+    if (!snap) return;
+    var sc = $("scroll"), memTotal = (snap.memory || {}).totalBytes || 18 * GiB;
+    var first = Math.max(0, Math.floor(sc.scrollTop / ROW_H) - 8);
+    var last = Math.min(visible.length, Math.ceil((sc.scrollTop + sc.clientHeight) / ROW_H) + 8);
+    var out = [];
+    if (first) out.push('<tr class="pad" style="height:' + first * ROW_H + 'px"></tr>');
+    for (var i = first; i < last; i++) out.push(rowHtml(visible[i], kidOf[visible[i].id], memTotal));
+    if (last < visible.length) out.push('<tr class="pad" style="height:' + (visible.length - last) * ROW_H + 'px"></tr>');
+    $("pb").innerHTML = out.join("");
+  }
   function renderTable() {
     if (!snap) return;
-    var memTotal = (snap.memory || {}).totalBytes || 18 * GiB, out = [];
-    visible = [];
+    visible = []; kidOf = {};
     (snap.processes || []).slice().sort(cmp).forEach(function (p) {
       var kids = (p.children || []).filter(match);
       if (!match(p) && !kids.length) return;
-      out.push(rowHtml(p, false, memTotal)); visible.push(p);
+      visible.push(p);
       var isOpen = open[p.id] || (query && kids.length);
       if (p.children && p.children.length && isOpen) {
-        (query && !match(p) ? kids : p.children).slice().sort(cmp).forEach(function (k) { out.push(rowHtml(k, true, memTotal)); visible.push(k); });
+        (query && !match(p) ? kids : p.children).slice().sort(cmp).forEach(function (k) { visible.push(k); kidOf[k.id] = true; });
       }
     });
-    $("pb").innerHTML = out.join("");
+    renderRows();
     var all = V.flat(snap.processes).filter(function (p) { return !(p.children && p.children.length); }).length;
     $("q").placeholder = "Search " + F.int((snap.totals || {}).processes || all) + " processes";
     renderQuit();
@@ -515,9 +530,19 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
       V.flat(snap.processes).forEach(function (g) { if (g.children && g.children.some(function (k) { return k.id === id; })) open[g.id] = true; });
     }
     renderTable();
-    var tr = document.querySelector('#pb tr[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
-    if (tr && reveal) tr.scrollIntoView({ block: "center" });
+    if (reveal) showRow(id, "center");
   }
+  function showRow(id, how) {
+    var i = visible.findIndex(function (p) { return p.id === id; }), sc = $("scroll");
+    if (i < 0) return;
+    var head = $("ph").offsetHeight, top = i * ROW_H, view = sc.clientHeight - head;
+    if (how === "center") sc.scrollTop = Math.max(0, top - view / 2);
+    else if (top < sc.scrollTop) sc.scrollTop = top;
+    else if (top + ROW_H > sc.scrollTop + view) sc.scrollTop = top + ROW_H - view;
+    renderRows();
+  }
+  var sr = 0;
+  $("scroll").addEventListener("scroll", function () { if (!sr) sr = requestAnimationFrame(function () { sr = 0; renderRows(); }); });
   $("ph").addEventListener("click", function (e) {
     var th = e.target.closest("th"); if (!th) return;
     var k = th.dataset.k;
@@ -569,8 +594,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       var j = e.key === "ArrowDown" ? Math.min(visible.length - 1, i + 1) : Math.max(0, i - 1);
-      if (visible[j]) selectRow(visible[j].id);
-      var tr = document.querySelector("#pb tr.sel"); if (tr) tr.scrollIntoView({ block: "nearest" });
+      if (visible[j]) { selectRow(visible[j].id); showRow(visible[j].id, "nearest"); }
     } else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && selected) {
       var p = findProc(selected);
       if (p && p.children && p.children.length) { open[p.id] = e.key === "ArrowRight"; renderTable(); }
