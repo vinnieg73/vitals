@@ -48,6 +48,14 @@ _Last updated 2026-10-17 (evening) by the Mac session._
   still creeping ~1 MB/min at the end (97 MB at 3.5 min, 100.6 MB at 6 min). Off-screen pages may skip painting, so
   recheck in the real window: `ps`/`footprint` on the window's WebContent after an hour open.
 
+## Activity Monitor-style redesign (pending, 2026-10-18)
+- Vinnie wants the stats conveyed more like Activity Monitor. The cloud thread is making mockups; nothing to build
+  until he picks one. Likely Swift additions: 2 s history arrays (~150 points: pressure, CPU user/system, disk
+  read/write, network in/out), per-process compressed memory and idle wakeups.
+- Checked feasibility: idle wakeups = `ri_pkg_idle_wkups` (rusage V4, already read). Compressed per process =
+  `task_name_for_pid` + `task_info(TASK_VM_INFO).compressed`, which works unprivileged for Vinnie's own processes
+  (Safari: 208 of 295 MB compressed); root's and other users' stay null like the other per-process fields.
+
 ## RAM bar shading (2026-10-18)
 - b5daf0d (cloud thread): the memory bar shades what's really in use (App, Wired, Compressed) strong and Cached
   faint, no new colors. Installed; light and dark renders checked (in dark mode "strong" is the light shade).
