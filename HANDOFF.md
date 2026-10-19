@@ -90,8 +90,8 @@ _Last updated 2026-10-19 by the Mac session._
   enters over 75%, leaves under 72%.
 - Checked: `--status-log --status-test` (cycles 8 test states every 2 s, including critical) for 3 min: 98 updates,
   every one length 34.0 / button frame 34.0.
-- **For the cloud thread:** help.html "Menu bar icon" (lines 84–91) still shows "RAM 78%" for Strained and the
-  "Out of RAM" pill for Critical. It should show the gauge + amber dot, and a red gauge + red dot.
+- help.html's "Menu bar icon" section was updated to match by the cloud thread (d9a314d) and installed 2026-10-19
+  ~00:54Z; the installed app logged length 34.0 / button 34.0 at launch.
 - `--status-log` prints length, button width and fitting width on each change; `--status-test` fakes the states.
   Run them with `open -n <app> --stdout <file> --args --status-log --status-test`, quit the installed copy first,
   and kill the test copy after (it shows in the real menu bar).
