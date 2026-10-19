@@ -1,6 +1,6 @@
 # Vitals — handoff
 
-_Last updated 2026-10-19 by the Mac session._
+_Last updated 2026-10-19 ~01:15 UTC by the Mac session._
 
 ## Status
 - The Swift side is built and green (`scripts/build.sh`). `--dump` matches vm_stat, sysctl,
@@ -92,7 +92,14 @@ _Last updated 2026-10-19 by the Mac session._
   every one length 34.0 / button frame 34.0.
 - help.html's "Menu bar icon" section was updated to match by the cloud thread (d9a314d) and installed 2026-10-19
   ~00:54Z; the installed app logged length 34.0 / button 34.0 at launch.
-- `--status-log` prints length, button width and fitting width on each change; `--status-test` fakes the states.
+- Then Vinnie couldn't see Vitals at all: Claude Meter's 234 pt slot left no room and macOS's own overflow (« at
+  the notch, MenuBarAgent) took Vitals, the leftmost item since it was relaunched last. Claude Meter went to 193 pt
+  (v0.9.21) and both apps set `statusItem.autosaveName` ("Vitals" here), so a ⌘-drag sticks across relaunches.
+  No position seeding: on macOS 27 "NSStatusItem Preferred Position" values aren't screen coordinates (probed: 50–150
+  → x 1266, 200 → 1146, 250–270 → 1108, 290+ → 899 with Claude Meter at 354). Vinnie's defaults hold Vitals = 260
+  (set while probing), which puts it right of Claude Meter: logged at window x 1108, 50 wide (34 + padding), Claude
+  Meter at 899, 50.5 pt free beside the notch (right edge 848.5 on the 1512 pt built-in display).
+- `--status-log` prints length, button width, fitting width and the button window's screen x/width on each change; `--status-test` fakes the states.
   Run them with `open -n <app> --stdout <file> --args --status-log --status-test`, quit the installed copy first,
   and kill the test copy after (it shows in the real menu bar).
 

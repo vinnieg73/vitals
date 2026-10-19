@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         buildMenu()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.autosaveName = "Vitals" // so a ⌘-drag to a new spot sticks across relaunches
         if let b = statusItem.button {
             b.target = self
             b.action = #selector(statusClicked)
@@ -67,8 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
     private func logStatus(_ what: String) {
         guard statusLog, let b = statusItem.button else { return }
-        print(String(format: "%@  length %.1f  button %.1f  fits %.1f  %@", ISO8601DateFormatter().string(from: Date()),
-                     statusItem.length, b.frame.width, b.fittingSize.width, what))
+        let f = b.window?.frame ?? .zero // in screen coordinates
+        print(String(format: "%@  length %.1f  button %.1f  fits %.1f  window x %.1f w %.1f  %@", ISO8601DateFormatter().string(from: Date()),
+                     statusItem.length, b.frame.width, b.fittingSize.width, f.minX, f.width, what))
         fflush(stdout)
     }
 
