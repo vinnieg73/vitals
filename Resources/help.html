@@ -43,6 +43,11 @@ ol.steps b{color:var(--ink);font-weight:600}
 .vi .wd.off{background:none}
 .vi.crit{color:var(--crit-fill)}.vi.crit .wd{background:var(--crit-fill)}
 .st .k{font-size:14px;font-weight:600}
+img.states{display:block;width:100%;max-width:720px;height:auto;border-radius:8px;margin:4px 0 6px}
+img.states.dk{display:none}
+.st.t{grid-template-columns:90px 1fr;align-items:baseline;gap:16px}.st.t .x{margin-top:0}
+:root[data-theme="dark"] img.states.lt{display:none}:root[data-theme="dark"] img.states.dk{display:block}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) img.states.lt{display:none}:root:not([data-theme="light"]) img.states.dk{display:block}}
 .st .x{font-size:13px;color:var(--ink-2);margin-top:2px;line-height:1.4}
 p.body{font-size:13px;line-height:1.5;color:var(--ink-2);max-width:720px;margin:0 0 8px}
 p.body b{color:var(--ink);font-weight:600}
@@ -83,13 +88,11 @@ p.body b{color:var(--ink);font-weight:600}
   </div>
 
   <h2 id="icon">Menu bar icon</h2>
-  <p class="body">A small gauge that always keeps the same width, so it never pushes your other icons around. Click it for the numbers and the top memory users.</p>
-  <div class="st"><div class="strip"><span class="vi"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".25"></svg><span class="wd off"></span></span><span>6:17 PM</span></div>
-    <div><div class="k">Calm</div><div class="x">Just the gauge.</div></div></div>
-  <div class="st"><div class="strip"><span class="vi"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".78"></svg><span class="wd"></span></span><span>6:17 PM</span></div>
-    <div><div class="k">Strained</div><div class="x">Gauge plus an amber dot: memory pressure is 70% or more, or swap is over 75% full.</div></div></div>
-  <div class="st"><div class="strip"><span class="vi crit"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".97"></svg><span class="wd"></span></span><span>6:17 PM</span></div>
-    <div><div class="k">Critical</div><div class="x">Red gauge and red dot: swap is full and apps may freeze.</div></div></div>
+  <p class="body">A small icon that always keeps the same width, so it never pushes your other icons around. Click it for the numbers and the top memory users.</p>
+  <img class="states lt" src="menubar-states-light.png" alt="Menu bar icon states"><img class="states dk" src="menubar-states-dark.png" alt="Menu bar icon states">
+  <div class="st t"><div class="k">Calm</div><div class="x">Just the gauge.</div></div>
+  <div class="st t"><div class="k">Strained</div><div class="x">The gauge turns into the icon of what's strained, with an amber dot. Memory chip: pressure 70%+ or swap 75%+. Thermometer: the Mac is hot. Battery: under 20% and unplugged. Drive: under 10% free. CPU chip: 85%+ for 30 seconds.</div></div>
+  <div class="st t"><div class="k">Critical</div><div class="x">The icon and dot turn red: swap is full, the Mac is overheating, battery is under 10%, or the disk is under 3% free. If several things are strained, the worst one shows.</div></div>
 
   <h2 id="about">What Vitals shows</h2>
   <p class="body">Vitals reads the same counters Activity Monitor does, every 2 seconds, and puts all five of its tabs on one screen: <b>CPU, Memory, Energy, Disk and Network</b>. The list at the bottom has every Activity Monitor column at once. Helper processes sit under the app they belong to, and your Claude Code sessions are grouped together with a dot in their model's color.</p>
