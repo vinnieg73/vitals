@@ -106,8 +106,11 @@ _Last updated 2026-10-19 ~01:15 UTC by the Mac session._
 ## Menu bar icon shows what's strained (2026-10-19)
 - Asked for by Vinnie (via the coordinator): the icon shows the area under pressure. `StatusIcon.Judge` (sampler queue)
   rates each area every tick; the most severe wins, ties go Memory, Heat, Disk, CPU.
-  - Memory (`memorychip`): as app.js memState. Critical: level critical, or swap ≥ 97% with pressure ≥ 85. Strained:
-    level warn, pressure ≥ 70 or swap ≥ 75%. Leaves strained under 65 / 72%; critical's swap line drops to 95% / 80.
+  - Memory (`memorychip`): as app.js memStateAt (cloud 5ed169c). Swap by size, never by % full (macOS adds a 1 GB
+    swap file only when the ones it has are nearly full, so % full is nearly always high; Vinnie's 5 GB was five
+    files, not a cap). warnAt = max(4 GiB, 45% of RAM) (8.1 GiB here), critAt = 75% of RAM; RAM falls back to 16 GiB
+    like the pages. Strained: level warn, pressure ≥ 70, or swap ≥ warnAt; clears under 65 / warnAt − 1 GiB.
+    Critical: level critical, or pressure ≥ 85 with swap ≥ critAt; clears under 80 or critAt − 1 GiB.
   - Heat (`thermometer.medium`): thermal serious = strained, critical = critical.
   - No battery state: removed the same day at Vinnie's ask, since macOS's own battery icon already shows the charge.
     The window and popover keep their battery numbers.
@@ -127,6 +130,9 @@ _Last updated 2026-10-19 ~01:15 UTC by the Mac session._
 - After battery came out: the harness again (battery at 5% unplugged now stays calm; heat beats disk on a tie), 8 states,
   `--status-test` 24 updates all 34.0 at window x 1100. Previews re-rendered and copied over
   `Resources/menubar-states-{light,dark}.png` (the coordinator asked; Help shows them).
+- Swap rule change (2026-10-19 ~03:40Z): fake-snapshot checks of every line above (his 4.7 of 5 GB at pressure 50 =
+  calm; 8 GiB RAM → warn at 4 GiB). Installed; with his real numbers (pressure 50, level normal, swap 4.65 GiB) the
+  icon is calm, the plain gauge, 34 pt at window x 1100.
 - Help's menu bar section is the cloud thread's to update.
 
 ## Memory used % for the pages (2026-10-19)

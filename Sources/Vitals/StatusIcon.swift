@@ -70,18 +70,21 @@ enum StatusIcon {
         private func judge(_ area: Area, _ snap: [String: Any], was: Severity, now: Date) -> Severity {
             switch area {
             case .memory:
-                // As the pages' memState: critical when macOS says so, or swap nearly full under high
-                // pressure; strained from pressure 70 or swap 75%. Leaves strained under 65 / 72%.
+                // As the pages' memStateAt. Swap by size, not by how full the swap files are: macOS adds a
+                // 1 GB file only when the ones it has are nearly full, so "% full" is nearly always high.
+                // Strained: level warn, pressure 70+, or swap at max(4 GiB, 45% of RAM). Critical: level
+                // critical, or pressure 85+ with swap at 75% of RAM. Strained clears under pressure 65 and
+                // 1 GiB under the swap line; critical clears under pressure 80 or 1 GiB under its swap line.
                 let m = snap["memory"] as? [String: Any] ?? [:]
                 let level = m["level"] as? String
                 let p = num(m["pressurePct"]) ?? 0
-                let total = num(m["swapTotalBytes"]) ?? 0
-                let swap = total > 0 ? (num(m["swapUsedBytes"]) ?? 0) / total : 0
-                let held = was >= .warn
-                if level == "critical" || (swap >= (was == .critical ? 0.95 : 0.97) && p >= (was == .critical ? 80 : 85)) {
-                    return .critical
-                }
-                if level == "warn" || p >= (held ? 65 : 70) || swap >= (held ? 0.72 : 0.75) { return .warn }
+                let swap = num(m["swapUsedBytes"]) ?? 0
+                let gib = 1_073_741_824.0
+                let ram = num(m["totalBytes"]).flatMap { $0 > 0 ? $0 : nil } ?? 16 * gib // as the pages, if unknown
+                let warnAt = max(4 * gib, 0.45 * ram), critAt = 0.75 * ram
+                let crit = was == .critical, held = was >= .warn
+                if level == "critical" || (p >= (crit ? 80 : 85) && swap >= (crit ? critAt - gib : critAt)) { return .critical }
+                if level == "warn" || p >= (held ? 65 : 70) || swap >= (held ? warnAt - gib : warnAt) { return .warn }
                 return .ok
             case .heat:
                 switch (snap["energy"] as? [String: Any])?["thermal"] as? String {
