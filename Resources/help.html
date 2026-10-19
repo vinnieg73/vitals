@@ -91,8 +91,8 @@ p.body b{color:var(--ink);font-weight:600}
   <p class="body">A small icon that always keeps the same width, so it never pushes your other icons around. Click it for the numbers and the top memory users.</p>
   <img class="states lt" src="menubar-states-light.png" alt="Menu bar icon states"><img class="states dk" src="menubar-states-dark.png" alt="Menu bar icon states">
   <div class="st t"><div class="k">Calm</div><div class="x">Just the gauge.</div></div>
-  <div class="st t"><div class="k">Strained</div><div class="x">The gauge turns into the icon of what's strained, with an amber dot. Memory chip: pressure 70%+ or swap 75%+. Thermometer: the Mac is hot. Drive: under 10% free. CPU chip: 85%+ for 30 seconds.</div></div>
-  <div class="st t"><div class="k">Critical</div><div class="x">The icon and dot turn red: swap is full, the Mac is overheating, or the disk is under 3% free. If several things are strained, the worst one shows.</div></div>
+  <div class="st t"><div class="k">Strained</div><div class="x">The gauge turns into the icon of what's strained, with an amber dot. Memory chip: pressure 70%+, or swap over 45% of your RAM (8 GB on an 18 GB Mac). Thermometer: the Mac is hot. Drive: under 10% free. CPU chip: 85%+ for 30 seconds.</div></div>
+  <div class="st t"><div class="k">Critical</div><div class="x">The icon and dot turn red: macOS says memory is critical, or pressure is 85%+ with swap over 75% of your RAM, the Mac is overheating, or the disk is under 3% free. If several things are strained, the worst one shows.</div></div>
 
   <h2 id="about">What Vitals shows</h2>
   <p class="body">Vitals reads the same counters Activity Monitor does, every 2 seconds, and puts all five of its tabs on one screen: <b>CPU, Memory, Energy, Disk and Network</b>. The list at the bottom has every Activity Monitor column at once. Helper processes sit under the app they belong to, and your Claude Code sessions are grouped together with a dot in their model's color.</p>
@@ -131,15 +131,14 @@ p.body b{color:var(--ink);font-weight:600}
   V.onUpdate(function (s) {
     var m = s.memory || {}, c = s.cpu || {}, d = s.disk || {}, h = s.host || {};
     var ms = V.memState(s), sev = ms === "ok" ? "" : ms;
-    var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
     var topEnergy = V.flat(s.processes).filter(function (p) { return p.kind !== "group" && !(p.children && p.children.length); })
       .sort(function (a, b) { return (b.energy || 0) - (a.energy || 0); })[0];
     var cores = (c.cores || []).length;
     $("terms").innerHTML = [
       term("Memory pressure", "How hard macOS is working to fit everything in memory. Low is good. High means your Mac is juggling.",
         "Yours: <b>" + F.pct(m.pressurePct) + "%, " + (ms === "crit" ? "critical" : ms === "warn" ? "strained" : "normal") + "</b>", sev),
-      term("Swap", "Memory overflow parked on the SSD. Much slower than real memory, and it wears the SSD.",
-        "Yours: <b>" + F.gb(m.swapUsedBytes) + " of " + F.gb(m.swapTotalBytes) + " GB</b>", swapFrac >= 0.75 ? (sev || "warn") : ""),
+      term("Swap", "Memory overflow parked on the SSD. Much slower than real memory, and it wears the SSD. macOS adds swap 1 GB at a time as it needs it, so the total grows and shrinks.",
+        "Yours: <b>" + F.gb(m.swapUsedBytes) + " of " + F.gb(m.swapTotalBytes) + " GB</b>", V.swapCls(s) === "c" ? "crit" : V.swapCls(s) === "w" ? "warn" : ""),
       term("Compressed", "Memory macOS has squashed to make room. Cheaper than swap, but it costs a little CPU.", "Yours: <b>" + F.gb(m.compressedBytes) + " GB</b>"),
       term("Wired", "Memory macOS itself needs and can't move or free. You can't change it.", "Yours: <b>" + F.gb(m.wiredBytes) + " GB</b>"),
       term("App memory", "What your apps are using right now. This is the part you can free by quitting things.", "Yours: <b>" + F.gb(m.appBytes) + " GB</b>"),

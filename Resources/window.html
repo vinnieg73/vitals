@@ -270,8 +270,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   /* readouts at the right */
   function renderReadouts(s) {
     var m = s.memory || {}, c = s.cpu || {}, g = s.gpu || {}, d = s.disk || {}, n = s.network || {}, e = s.energy || {}, h = s.host || {}, t = s.totals || {};
-    var ms = V.memState(s), swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
-    var swapCls = ms === "crit" && swapFrac >= 0.97 ? "c" : swapFrac >= 0.75 ? "w" : "";
+    var ms = V.memState(s), swapCls = V.swapCls(s);
 
     $("sub-mem").textContent = F.gbShort(m.totalBytes || h.memBytes);
     var used = V.now(m.totalBytes && isNum(m.usedBytes) ? m.usedBytes / m.totalBytes * 100 : null, L.memUsedPct);

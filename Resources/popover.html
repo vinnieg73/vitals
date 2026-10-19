@@ -82,7 +82,6 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
   V.onUpdate(function (s) {
     var m = s.memory || {}, c = s.cpu || {}, g = s.gpu || {}, d = s.disk || {}, n = s.network || {}, e = s.energy || {}, h = s.host || {};
     var L = V.liveOf(s), ms = V.memState(s);
-    var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
     var MS = V.memSev(s, L), data = [[L.memUsedPct], [L.cpuSystemPct, L.cpuUserPct], [L.gpuPct], [L.diskReadBps, L.diskWriteBps], [L.netInBps, L.netOutBps], [L.energyImpact]];
     strips.forEach(function (st, i) {
       st.size(plots[i].clientWidth, plots[i].clientHeight);
@@ -90,7 +89,7 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     });
 
     var mc = ms === "crit" ? "c" : ms === "warn" ? "w" : "";
-    var sc = ms === "crit" && swapFrac >= 0.97 ? "c" : swapFrac >= 0.75 ? "w" : "";
+    var sc = V.swapCls(s);
     set("r-mem", '<b class="' + mc + '">' + F.pct(V.now(m.totalBytes && isNum(m.usedBytes) ? m.usedBytes / m.totalBytes * 100 : null, L.memUsedPct)) + "<small>% used</small></b>" +
       '<span class="' + sc + '">Swap ' + F.gb(m.swapUsedBytes) + " / " + F.gb(m.swapTotalBytes) + " GB</span>");
     var user = V.now(c.userPct, L.cpuUserPct), sys = V.now(c.systemPct, L.cpuSystemPct);

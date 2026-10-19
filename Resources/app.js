@@ -142,21 +142,31 @@
     return p.name;
   }
 
-  function memStateAt(pressure, swapFrac, level) {
-    if (level === "critical" || (swapFrac >= 0.97 && pressure >= 85)) return "crit";
-    if (level === "warn" || pressure >= 70 || swapFrac >= 0.75) return "warn";
+  // Swap is judged by size, not by how full it looks: macOS adds 1 GB swap files as it needs them,
+  // so used / total sits near 100% even when nothing is wrong. Warn above 45% of RAM (8 GB on 18 GB), at least 4 GB.
+  function swapWarnAt(ram) { return Math.max(4 * GiB, (ram || 16 * GiB) * 0.45); }
+  function swapCritAt(ram) { return (ram || 16 * GiB) * 0.75; }
+  function ramOf(s) { return (s.memory || {}).totalBytes || (s.host || {}).memBytes; }
+  function memStateAt(pressure, swapBytes, ram, level) {
+    if (level === "critical" || (pressure >= 85 && swapBytes >= swapCritAt(ram))) return "crit";
+    if (level === "warn" || pressure >= 70 || swapBytes >= swapWarnAt(ram)) return "warn";
     return "ok";
   }
   function memState(s) {
     var m = s.memory || {};
-    return memStateAt(m.pressurePct, m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0, m.level);
+    return memStateAt(m.pressurePct, m.swapUsedBytes || 0, ramOf(s), m.level);
+  }
+  // "w" / "c" / "" for the swap number
+  function swapCls(s) {
+    var m = s.memory || {}, sw = m.swapUsedBytes || 0, ram = ramOf(s);
+    return memState(s) === "crit" && sw >= swapCritAt(ram) ? "c" : sw >= swapWarnAt(ram) ? "w" : "";
   }
   // memory strain per live point (pressure and swap), for coloring the used-% line; the last point uses the current level too
   function memSev(s, L) {
     var m = s.memory || {}, P = L.pressurePct || [], S = L.swapUsedBytes || [], n = (L.memUsedPct || []).length, out = [];
     for (var i = 0; i < n; i++) {
       var k = P.length - n + i, p = P[k], sw = S[S.length - n + i];
-      out.push(!isNum(p) && !isNum(sw) ? null : memStateAt(p, m.swapTotalBytes && isNum(sw) ? sw / m.swapTotalBytes : 0, i === n - 1 ? m.level : null));
+      out.push(!isNum(p) && !isNum(sw) ? null : memStateAt(p, isNum(sw) ? sw : 0, ramOf(s), i === n - 1 ? m.level : null));
     }
     return out;
   }
@@ -168,7 +178,7 @@
   // the sentence at the top of the window and popover
   function summary(s) {
     var m = s.memory || {}, ms = memState(s);
-    var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
+    var swapBig = (m.swapUsedBytes || 0) >= swapWarnAt(ramOf(s));
     var big = biggest(s), totalGB = F.gbShort(m.totalBytes || (s.host || {}).memBytes);
     var others = [];
     if (hot(s)) others.push("hot");
@@ -179,13 +189,13 @@
 
     if (ms === "crit") return {
       sev: "crit", head: "Your Mac is out of memory.",
-      sub: "Apps may freeze. " + friendly(big) + " is using <b>" + F.gbShort(big && big.memBytes) + " of your " + totalGB + "</b>, and swap is full.",
+      sub: "Apps may freeze. " + friendly(big) + " is using <b>" + F.gbShort(big && big.memBytes) + " of your " + totalGB + "</b>, and swap is large.",
       short: friendly(big) + " is using " + F.gbShort(big && big.memBytes) + " of your " + totalGB + "."
     };
     if (ms === "warn") return {
       sev: "warn", head: "Your Mac is short on memory.",
       sub: friendly(big) + " is using <b>" + F.gbShort(big && big.memBytes) + " of your " + totalGB + "</b>" +
-        (swapFrac >= 0.75 ? ", and swap is nearly full." : ".") + rest,
+        (swapBig ? ", and " + F.gbShort(m.swapUsedBytes) + " is in swap." : ".") + rest,
       short: friendly(big) + " is using " + F.gbShort(big && big.memBytes) + " of your " + totalGB + "."
     };
     if (hot(s)) return { sev: "warn", head: "Your Mac is running hot.", sub: "macOS is slowing things down to cool off. Busiest right now: <b>" + F.esc(busiest(s)) + "</b>.", short: "Busiest: " + busiest(s) + "." };
@@ -505,7 +515,7 @@
 
   /* ---------- wiring ---------- */
   var Vitals = window.Vitals = {
-    F: F, note: note, flat: flat, items: items, biggest: biggest, friendly: friendly, memState: memState, memSev: memSev, cpuState: cpuState,
+    F: F, note: note, flat: flat, items: items, biggest: biggest, friendly: friendly, memState: memState, memSev: memSev, swapCls: swapCls, swapWarnAt: swapWarnAt, cpuState: cpuState,
     summary: summary, fix: fix, spark: spark, trend: trend, treemap: treemap, post: post, native: native,
     Strip: Strip, niceMax: niceMax, liveOf: liveOf, now: now, lastNum: lastNum, CAP: CAP,
     GiB: GiB, MiB: MiB, isNum: isNum,
