@@ -1,0 +1,1170 @@
+<title>Vitals Lines and Dials</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column of option cards; each card shows the menu bar mock big (2.5x) with an actual-size strip, width, and how it behaves. */
+:root{
+  --bg:#f1f2f4; --card:#ffffff; --ink:#17181b; --ink-2:#575a61; --ink-3:#8b8e95; --line:rgba(16,20,28,.09);
+  --bar:#e6e6ea; --bar-ink:#1d1d20; --bar-ink-2:#6e6e74; --track:rgba(0,0,0,.14);
+  --warn:#d48a10; --crit:#d0342c; --pick:#b5700f; --pick-soft:rgba(224,154,29,.14);
+  --sans:Inter,-apple-system,"SF Pro Text",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#131416; --card:#1c1d20; --ink:#f0f1f3; --ink-2:#a7aab0; --ink-3:#72757b; --line:rgba(255,255,255,.08);
+  --bar:#1e1e21; --bar-ink:#f2f2f4; --bar-ink-2:#9a9aa0; --track:rgba(255,255,255,.2);
+  --warn:#f0a93a; --crit:#ff5a4f; --pick:#f0b04a; --pick-soft:rgba(238,169,41,.16); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131416; --card:#1c1d20; --ink:#f0f1f3; --ink-2:#a7aab0; --ink-3:#72757b; --line:rgba(255,255,255,.08);
+  --bar:#1e1e21; --bar-ink:#f2f2f4; --bar-ink-2:#9a9aa0; --track:rgba(255,255,255,.2);
+  --warn:#f0a93a; --crit:#ff5a4f; --pick:#f0b04a; --pick-soft:rgba(238,169,41,.16); color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.02em;text-wrap:balance}
+.lede{margin:4px 0 0;color:var(--ink-2);max-width:62ch}
+.ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px}
+.seg button{font:inherit;font-size:13px;font-weight:500;border:0;background:transparent;color:var(--ink-2);padding:5px 12px;border-radius:6px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.now{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card.rec{box-shadow:inset 0 0 0 1.5px var(--pick)}
+.top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.top h2{margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.w{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+.badge{font-size:11.5px;font-weight:600;color:var(--pick);background:var(--pick-soft);padding:2px 8px;border-radius:20px}
+.card p{margin:0;color:var(--ink-2);font-size:13.5px;max-width:66ch}
+.mb{background:var(--bar);border-radius:10px;height:60px;display:flex;align-items:center;justify-content:flex-end;gap:22px;padding:0 20px;overflow:hidden;
+  box-shadow:inset 0 0 0 1px var(--line);color:var(--bar-ink);font-size:16px;font-weight:500;white-space:nowrap}
+.mb .cm{display:flex;align-items:center;gap:7px;color:var(--bar-ink)}
+.mb .clk{color:var(--bar-ink)}
+.mb svg{display:block;flex:none}
+.small{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;color:var(--ink-3);font-size:12px;min-width:0}
+.mb1{background:var(--bar);height:24px;border-radius:5px;display:flex;align-items:center;gap:9px;padding:0 9px;box-shadow:inset 0 0 0 1px var(--line);color:var(--bar-ink);font-size:13px;font-weight:500;white-space:nowrap}
+ul{margin:0;padding-left:18px;color:var(--ink-2);font-size:13.5px;display:flex;flex-direction:column;gap:3px}
+#ov{display:flex;flex-direction:column;gap:14px}
+.ovs h3{margin:0 0 4px;font-size:12px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em}
+.ovr{display:grid;grid-template-columns:minmax(0,1fr) auto 52px;align-items:center;gap:10px;padding:5px 6px;border-radius:7px;color:var(--ink);text-decoration:none;font-size:13px}
+.ovr:hover{background:var(--line)}
+.ovr.rec .ovn{color:var(--pick);font-weight:600}
+.ovr .mb1{zoom:1.5}
+.ovr .w{text-align:right}
+.ovn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sec{margin-top:14px}.st{margin:0;font-size:20px;font-weight:700;letter-spacing:-.015em}.sl{margin:2px 0 0;color:var(--ink-2)}
+footer{color:var(--ink-3);font-size:12.5px}
+@media (max-width:520px){.ovr{grid-template-columns:minmax(0,1fr) 52px;row-gap:4px}.ovr .ovn{grid-column:1/-1}.ovr .mb1{justify-self:start}.mb .cm,.mb1 .cm1{display:none}.mb{justify-content:center}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Line charts and dials</h1>
+    <p class="lede">Variations on your two picks, 20 and 23, plus a few that mix them. Live numbers; switch the state to see how each one warns you.</p>
+  </header>
+  <div class="ctl">
+    <div class="seg" role="group" aria-label="State">
+      <button id="sCalm" aria-pressed="true">Calm</button>
+      <button id="sMem" aria-pressed="false">Memory tight</button>
+      <button id="sCpu" aria-pressed="false">CPU busy</button>
+    </div>
+    <div class="seg" role="group" aria-label="Motion">
+      <button id="bLive" aria-pressed="true">Live</button>
+      <button id="bStill" aria-pressed="false">Still</button>
+    </div>
+    <span class="now" id="now"></span>
+  </div>
+  <div class="card" id="ovc"><div class="top"><h2>All of them at actual size</h2></div><div id="ov"></div></div>
+  <div id="list" style="display:flex;flex-direction:column;gap:16px"></div>
+  <footer>Today's icon is 34 pt. Every 10 pt wider pushes about one more menu bar icon behind the notch. Heat and disk warnings work the same in every option: the icon swaps to a thermometer or drive with a dot.</footer>
+</div>
+
+<script>window.WIDE_SETS = [];</script>
+<script>
+// Strip-chart (sparkline) takes on the wide Vitals menu bar item.
+// Every option reads h.V / h.hist and the colors at draw time, so it follows live data and light/dark.
+window.WIDE_FACTORY = function (h) {
+  "use strict";
+  var FONT = "-apple-system,Inter,system-ui,sans-serif";
+  function clamp(v) { return Math.max(0, Math.min(100, v)); }
+  // average the 40 samples into n evenly spaced points (smoother, and 1 pt per point at 1x)
+  function resample(a, n) {
+    var out = [], L = a.length;
+    if (!L) return out;
+    for (var i = 0; i < n; i++) {
+      var s = Math.floor(i * L / n), e = Math.max(s + 1, Math.floor((i + 1) * L / n)), t = 0;
+      for (var j = s; j < e; j++) t += a[j];
+      out.push(t / (e - s));
+    }
+    out[n - 1] = a[L - 1]; // the line ends exactly on the live value
+    return out;
+  }
+  // points for values in a box x0..x1, top..bot (0% at bot, 100% at top)
+  function pts(k, n, x0, x1, top, bot) {
+    var v = resample(h.hist[k].length ? h.hist[k] : [h.V[k]], n), p = [];
+    v[n - 1] = h.V[k];
+    for (var i = 0; i < n; i++) p.push([x0 + (x1 - x0) * i / (n - 1), bot - (bot - top) * clamp(v[i]) / 100]);
+    return p;
+  }
+  function line(p) { return p.map(function (q, i) { return (i ? "L" : "M") + q[0].toFixed(2) + " " + q[1].toFixed(2); }).join(""); }
+  function area(p, bot) { return line(p) + "L" + p[p.length - 1][0].toFixed(2) + " " + bot + "L" + p[0][0].toFixed(2) + " " + bot + "Z"; }
+  function stroke(d, c, w, op) { return '<path d="' + d + '" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-linejoin="round" stroke-linecap="round"' + (op ? ' opacity="' + op + '"' : "") + "/>"; }
+  function num(x, y, v, c, size) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="end" font-family="' + FONT + '" font-size="' + size + '" font-weight="600" fill="' + c +
+      '" style="font-variant-numeric:tabular-nums" letter-spacing="-0.2">' + Math.min(99, Math.round(v)) + "</text>";
+  }
+  function tiny(x, y, t, c, anchor) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="' + (anchor || "end") + '" font-family="' + FONT + '" font-size="7" font-weight="700" letter-spacing="0.2" fill="' + c + '">' + t + "</text>";
+  }
+  var NAME = { cpu: "CPU", gpu: "GPU", ram: "RAM" }, LETTER = { cpu: "C", gpu: "G", ram: "M" };
+
+  return [
+    { id: "sp-1", name: "Three lines with numbers", w: 122,
+      desc: "The Vitals window's strip charts, shrunk to fit the menu bar: a short line for each part showing the last few minutes, with the number right now where the line ends.",
+      how: ["Left to right: CPU, GPU, RAM; each number is that part's % right now",
+            "Strained: that part's line and number turn amber (red if critical)",
+            "88 pt wider than today"],
+      draw: function () {
+        var s = "", seg = 36, gap = 7, lw = 17;
+        h.K.forEach(function (k, i) {
+          var x = i * (seg + gap), sv = h.sev(k), c = h.col(sv), p = pts(k, 18, x + 1, x + lw, 5, 17.6), e = p[p.length - 1];
+          s += '<line x1="' + (x + 0.5) + '" y1="18.6" x2="' + (x + lw + 0.5) + '" y2="18.6" stroke="' + h.css("--track") + '" stroke-width="1"/>';
+          s += stroke(line(p), c, sv ? 1.6 : 1.3);
+          s += '<circle cx="' + e[0].toFixed(2) + '" cy="' + e[1].toFixed(2) + '" r="1.4" fill="' + c + '"/>';
+          s += num(x + seg, 12.6, h.V[k], c, 11);
+          s += tiny(x + seg, 19, NAME[k], sv ? c : h.css("--bar-ink-2"));
+        });
+        return s;
+      } },
+
+    { id: "sp-2", name: "Stacked mini charts", w: 46,
+      desc: "Three thin filled charts stacked on top of each other, one per part, each showing the last few minutes. No numbers, just the shape of what's been happening.",
+      how: ["Top CPU, middle GPU, bottom RAM; the higher the fill, the busier",
+            "Strained: that strip fills amber (red if critical)",
+            "12 pt wider than today"],
+      draw: function () {
+        var s = "", rows = [[3, 7.4], [8.8, 13.2], [14.6, 19]], x0 = 7.5, x1 = 45;
+        h.K.forEach(function (k, i) {
+          var r = rows[i], sv = h.sev(k), c = h.col(sv), p = pts(k, 38, x0, x1, r[0], r[1]);
+          s += '<rect x="' + x0 + '" y="' + r[0] + '" width="' + (x1 - x0) + '" height="' + (r[1] - r[0]).toFixed(2) + '" rx="0.8" fill="' + h.css("--track") + '"/>';
+          s += '<path d="' + area(p, r[1]) + '" fill="' + c + '"/>';
+          s += tiny(2.6, r[1] - 0.15, LETTER[k], sv ? c : h.css("--bar-ink-2"), "middle");
+        });
+        return s;
+      } },
+
+    { id: "sp-3", name: "One chart, RAM shaded", w: 64,
+      desc: "One small chart with all three: RAM as a shaded area, CPU as a solid line on top, GPU as a fainter line. The number at the end is CPU, or whichever part is strained.",
+      how: ["Shaded area RAM, dark line CPU, faint line GPU",
+            "Strained: that part turns amber (red if critical) and the number switches to it",
+            "30 pt wider than today"],
+      draw: function () {
+        var x0 = 0.8, x1 = 44, top = 3.5, bot = 18.6, n = 34, s = "", w = h.worst(), shown = w || "cpu";
+        var pr = pts("ram", n, x0, x1, top, bot), pc = pts("cpu", n, x0, x1, top, bot), pg = pts("gpu", n, x0, x1, top, bot);
+        var sr = h.sev("ram"), sc = h.sev("cpu"), sg = h.sev("gpu");
+        s += '<path d="' + area(pr, bot) + '" fill="' + (sr ? h.col(sr) : h.css("--track")) + '"' + (sr ? ' fill-opacity="0.32"' : "") + "/>";
+        s += stroke(line(pr), sr ? h.col(sr) : h.css("--bar-ink-2"), sr ? 1.1 : 0.8, sr ? 0 : 0.8);
+        s += '<line x1="' + x0 + '" y1="' + bot + '" x2="' + x1 + '" y2="' + bot + '" stroke="' + h.css("--bar-ink-2") + '" stroke-width="0.8" opacity="0.7"/>';
+        s += stroke(line(pg), sg ? h.col(sg) : h.css("--bar-ink-2"), 1);
+        s += stroke(line(pc), h.col(sc), sc ? 1.6 : 1.35);
+        var e = pc[n - 1];
+        s += '<circle cx="' + e[0].toFixed(2) + '" cy="' + e[1].toFixed(2) + '" r="1.6" fill="' + h.col(sc) + '"/>';
+        var c = h.col(h.sev(shown));
+        s += tiny(64, 9.2, NAME[shown], w ? c : h.css("--bar-ink-2"));
+        s += num(64, 18.6, h.V[shown], c, 11);
+        return s;
+      } }
+  ];
+};
+
+window.WIDE_SETS.push({ s: 'lines', keep: ["sp-1"], f: window.WIDE_FACTORY }); window.WIDE_FACTORY = null;
+</script>
+<script>
+// Round 4, key "la": tighter, cleaner takes on "Three lines with numbers" (sp-1, 122 pt).
+// Same marks as sp-1 (a short line of the last few minutes ending in a dot, then the number right now),
+// each option saving width a different way. Everything reads h.V / h.hist and the colors at draw time.
+window.WIDE_FACTORY = function (h) {
+  "use strict";
+  var FONT = "-apple-system,Inter,system-ui,sans-serif";
+  var LETTER = { cpu: "C", gpu: "G", ram: "M" };
+  function clamp(v) { return Math.max(0, Math.min(100, v)); }
+  function f(n) { return (+n).toFixed(2); }
+  // average the 40 samples into n evenly spaced points; the last point is the live value
+  function resample(a, n) {
+    var out = [], L = a.length;
+    for (var i = 0; i < n; i++) {
+      var s = Math.floor(i * L / n), e = Math.max(s + 1, Math.floor((i + 1) * L / n)), t = 0;
+      for (var j = s; j < e; j++) t += a[j];
+      out.push(t / (e - s));
+    }
+    return out;
+  }
+  // the most recent `frac` of the history (1 = all of it), as n points in the box x0..x1, top..bot
+  function pts(k, n, x0, x1, top, bot, frac) {
+    var a = h.hist[k].length ? h.hist[k] : [h.V[k]];
+    if (frac && frac < 1) a = a.slice(Math.floor(a.length * (1 - frac)));
+    var v = resample(a, n), p = [];
+    v[n - 1] = h.V[k];
+    for (var i = 0; i < n; i++) p.push([x0 + (x1 - x0) * i / (n - 1), bot - (bot - top) * clamp(v[i]) / 100]);
+    return p;
+  }
+  function path(p) { return p.map(function (q, i) { return (i ? "L" : "M") + f(q[0]) + " " + f(q[1]); }).join(""); }
+  function stroke(p, c, w) { return '<path d="' + path(p) + '" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-linejoin="round" stroke-linecap="round"/>'; }
+  function endDot(p, c, r) { var e = p[p.length - 1]; return '<circle cx="' + f(e[0]) + '" cy="' + f(e[1]) + '" r="' + r + '" fill="' + c + '"/>'; }
+  function hair(x1, x2, y, c) { return '<line x1="' + x1 + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" stroke="' + c + '" stroke-width="1"/>'; }
+  function num(x, y, v, c, size, anchor) {
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (anchor || "end") + '" font-family="' + FONT + '" font-size="' + size +
+      '" font-weight="600" fill="' + c + '" style="font-variant-numeric:tabular-nums" letter-spacing="-0.2">' + Math.min(99, Math.round(v)) + "</text>";
+  }
+  function letter(x, y, k, c, anchor) {
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (anchor || "start") + '" font-family="' + FONT + '" font-size="7" font-weight="700" fill="' + c + '">' + LETTER[k] + "</text>";
+  }
+  function look(k) { var sv = h.sev(k); return { sv: sv, c: h.col(sv), lab: sv ? h.col(sv) : h.css("--bar-ink-2"), lw: sv ? 1.6 : 1.3 }; }
+
+  return [
+    { id: "la-1", name: "Number above the line", w: 72,
+      desc: "Same three lines and numbers, but each number sits on top of its line's end instead of beside it, so each part takes about half the width.",
+      how: ["Left to right: CPU (C), GPU (G), RAM (M); the number is the % right now, the line under it the last few minutes",
+            "Strained: that part's line, number and letter turn amber (red if critical)",
+            "72 pt, 50 pt narrower than the 122 pt original (38 pt wider than today)"],
+      draw: function () {
+        var s = "", G = 21, gap = 4.5;
+        h.K.forEach(function (k, i) {
+          var x = i * (G + gap), L = look(k), p = pts(k, 14, x + 1, x + G - 1.4, 12.6, 18, 1);
+          s += hair(x, x + G, 19.5, h.css("--track"));
+          s += stroke(p, L.c, L.lw) + endDot(p, L.c, 1.4);
+          s += letter(x + 0.3, 10.8, k, L.lab);
+          s += num(x + G, 10.8, h.V[k], L.c, 10.5);
+        });
+        return s;
+      } },
+
+    { id: "la-2", name: "Short tails", w: 84,
+      desc: "The original layout with a much shorter line (only the most recent half of the history) tucked right against each number, and a single letter instead of CPU / GPU / RAM.",
+      how: ["Left to right: CPU, GPU, RAM (C, G, M under each number); the short line is the recent trend",
+            "Strained: that part's line, number and letter turn amber (red if critical)",
+            "84 pt, 38 pt narrower than the original (50 pt wider than today)"],
+      draw: function () {
+        var s = "", G = 25, gap = 4.5, tl = 9;
+        h.K.forEach(function (k, i) {
+          var x = i * (G + gap), L = look(k), p = pts(k, 9, x + 0.8, x + tl, 5, 17.4, 0.5);
+          s += hair(x + 0.3, x + tl + 0.5, 18.6, h.css("--track"));
+          s += stroke(p, L.c, L.lw) + endDot(p, L.c, 1.4);
+          s += num(x + tl + 2.1, 12.6, h.V[k], L.c, 11, "start");
+          s += letter(x + tl + 2.4, 19, k, L.lab);
+        });
+        return s;
+      } },
+
+    { id: "la-3", name: "One floor, no labels", w: 93,
+      desc: "The original with every non-number mark taken out: no CPU / GPU / RAM words, shorter lines, and one shared floor line under all three so they read as one strip.",
+      how: ["Always CPU, GPU, RAM from left to right, like the Vitals window; each number is that part's % right now",
+            "Strained: that part's line and number turn amber (red if critical)",
+            "93 pt, 29 pt narrower than the original (59 pt wider than today)"],
+      draw: function () {
+        var s = hair(0.5, 92.5, 18.9, h.css("--track")), G = 27, gap = 6, lw = 11;
+        h.K.forEach(function (k, i) {
+          var x = i * (G + gap), L = look(k), p = pts(k, 14, x + 1.4, x + lw, 4.5, 17.6, 1);
+          s += stroke(p, L.c, L.lw) + endDot(p, L.c, 1.4);
+          s += num(x + lw + 2.3, 15.2, h.V[k], L.c, 11, "start");
+        });
+        return s;
+      } },
+
+    { id: "la-4", name: "Numbers ride the lines", w: 90,
+      desc: "Like the original but with no labels and shorter lines, and each number sits on its line's end dot, moving up and down with it.",
+      how: ["Always CPU, GPU, RAM from left to right; each number is that part's % right now and sits at its line's height",
+            "Strained: that part's line and number turn amber (red if critical)",
+            "90 pt, 32 pt narrower than the original (56 pt wider than today)"],
+      draw: function () {
+        var s = "", G = 27.4, gap = 3.9, lw = 11;
+        h.K.forEach(function (k, i) {
+          var x = i * (G + gap), L = look(k), p = pts(k, 12, x + 1, x + lw, 7.2, 15, 1), e = p[p.length - 1];
+          s += hair(x + 0.5, x + lw + 0.5, 18.6, h.css("--track"));
+          s += stroke(p, L.c, L.lw) + endDot(p, L.c, 1.4);
+          s += num(x + lw + 2.3, e[1] + 3.95, h.V[k], L.c, 11, "start");
+        });
+        return s;
+      } }
+  ];
+};
+
+window.WIDE_SETS.push({ s: 'lines', keep: null, f: window.WIDE_FACTORY }); window.WIDE_FACTORY = null;
+</script>
+<script>
+// Round 4, key "lb": richer chart styles on Pick A ("Three lines with numbers").
+// Same three groups (chart, number, tiny label), same ~120 pt, but the chart itself carries more:
+// a filled area, a bar per sample, or a full-height scale with a half-way guide.
+// RAM sits near 80% and barely moves; every option keeps the honest 0-100 scale and makes the LEVEL
+// readable (fill, full columns, guides) instead of stretching the wiggle.
+window.WIDE_FACTORY = function (h) {
+  "use strict";
+  var FONT = "-apple-system,Inter,system-ui,sans-serif";
+  var NAME = { cpu: "CPU", gpu: "GPU", ram: "RAM" }, uid = 0;
+  function f(n) { return (+n).toFixed(2); }
+  function clamp(v) { return Math.max(0, Math.min(100, v)); }
+  // average the 40 samples into n evenly spaced values; the last one is the live value
+  function resample(k, n) {
+    var a = h.hist[k].length ? h.hist[k] : [h.V[k]], out = [], L = a.length;
+    for (var i = 0; i < n; i++) {
+      var s = Math.floor(i * L / n), e = Math.max(s + 1, Math.floor((i + 1) * L / n)), t = 0;
+      for (var j = s; j < e; j++) t += a[j];
+      out.push(t / (e - s));
+    }
+    out[n - 1] = h.V[k];
+    return out;
+  }
+  function pts(k, n, x0, x1, top, bot) {
+    return resample(k, n).map(function (v, i) { return [x0 + (x1 - x0) * i / (n - 1), bot - (bot - top) * clamp(v) / 100]; });
+  }
+  function line(p) { return p.map(function (q, i) { return (i ? "L" : "M") + f(q[0]) + " " + f(q[1]); }).join(""); }
+  function area(p, bot) { return line(p) + "L" + f(p[p.length - 1][0]) + " " + bot + "L" + f(p[0][0]) + " " + bot + "Z"; }
+  function stroke(d, c, w) { return '<path d="' + d + '" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-linejoin="round" stroke-linecap="round"/>'; }
+  function hl(x1, x2, y, c, w, dash) {
+    return '<line x1="' + f(x1) + '" y1="' + f(y) + '" x2="' + f(x2) + '" y2="' + f(y) + '" stroke="' + c + '" stroke-width="' + w + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + "/>";
+  }
+  function num(x, y, v, c) {
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="end" font-family="' + FONT + '" font-size="11" font-weight="600" fill="' + c +
+      '" style="font-variant-numeric:tabular-nums" letter-spacing="-0.2">' + Math.min(99, Math.round(v)) + "</text>";
+  }
+  function tiny(x, y, t, c) {
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="end" font-family="' + FONT + '" font-size="7" font-weight="700" letter-spacing="0.2" fill="' + c + '">' + t + "</text>";
+  }
+  // number + label column, right-aligned at xr (same as the original)
+  function readout(xr, k) {
+    var sv = h.sev(k), c = h.col(sv);
+    return num(xr, 12.6, h.V[k], c) + tiny(xr, 19, NAME[k], sv ? c : h.css("--bar-ink-2"));
+  }
+  // lay out three groups; draw(k, x, sev, color) draws one chart starting at x
+  function groups(seg, gap, chart) {
+    return h.K.map(function (k, i) {
+      var x = i * (seg + gap), sv = h.sev(k);
+      return chart(k, x, sv, h.col(sv)) + readout(x + seg, k);
+    }).join("");
+  }
+
+  return [
+    { id: "lb-1", name: "Filled lines", w: 120,
+      desc: "The same three lines, a little taller, with the space under each line softly filled in, so you can see how full each part is as well as how it has moved.",
+      how: ["Left to right: CPU, GPU, RAM; the filled height is how busy that part is, the number is right now",
+            "Strained: that line, its fill and its number turn amber (red if critical)",
+            "120 pt, 2 pt narrower than the original; 86 pt wider than today"],
+      draw: function () {
+        var top = 3.6, bot = 18.6, cw = 17;
+        return groups(36, 6, function (k, x, sv, c) {
+          var p = pts(k, 15, x + 0.5, x + cw, top, bot), e = p[p.length - 1];
+          return '<path d="' + area(p, bot) + '" fill="' + (sv ? c : h.css("--track")) + '"' + (sv ? ' fill-opacity="0.3"' : "") + "/>" +
+            stroke(line(p), c, sv ? 1.5 : 1.3) +
+            '<circle cx="' + f(e[0]) + '" cy="' + f(e[1]) + '" r="1.5" fill="' + c + '"/>';
+        });
+      } },
+
+    { id: "lb-2", name: "Bar history", w: 120,
+      desc: "Instead of a line, a row of thin bars, one for each moment over the last few minutes, each standing in its own faint full-height slot, with the number right now beside them.",
+      how: ["Each bar is how busy that part was at that moment; the faint slot behind it is 100%",
+            "Strained: that part's bars and number turn amber (red if critical)",
+            "120 pt, 2 pt narrower than the original; 86 pt wider than today"],
+      draw: function () {
+        var top = 3.6, bot = 18.6, n = 9, pitch = 2, bw = 1.5;
+        return groups(36, 6, function (k, x, sv, c) {
+          var v = resample(k, n), s = "", tr = h.css("--track"), past = sv ? c : h.css("--bar-ink-2");
+          for (var i = 0; i < n; i++) {
+            var bx = x + i * pitch, hgt = (bot - top) * clamp(v[i]) / 100, last = i === n - 1;
+            s += '<rect x="' + f(bx) + '" y="' + top + '" width="' + bw + '" height="' + f(bot - top) + '" fill="' + tr + '"/>';
+            s += '<rect x="' + f(bx) + '" y="' + f(bot - hgt) + '" width="' + bw + '" height="' + f(Math.max(0.8, hgt)) + '" fill="' + (last ? c : past) + '"/>';
+          }
+          return s;
+        });
+      } },
+
+    { id: "lb-3", name: "Tall lines on a tiny scale", w: 120,
+      desc: "The same three lines drawn the full height of the menu bar, each on a tiny scale with marks at half and full, so you can tell at a glance whether a part is under or over half.",
+      how: ["Left edge of each chart is a tiny scale: bottom 0%, middle mark 50%, top mark 100%",
+            "Strained: that line and its number turn amber (red if critical)",
+            "120 pt, 2 pt narrower than the original; 86 pt wider than today"],
+      draw: function () {
+        var top = 3.5, bot = 18.5, cw = 17, ink2 = h.css("--bar-ink-2"), tr = h.css("--track"), mid = (top + bot) / 2;
+        return groups(36, 6, function (k, x, sv, c) {
+          var p = pts(k, 15, x + 2.5, x + cw, top, bot), e = p[p.length - 1];
+          return '<line x1="' + f(x + 0.5) + '" y1="' + top + '" x2="' + f(x + 0.5) + '" y2="' + bot + '" stroke="' + tr + '" stroke-width="1"/>' +
+            hl(x, x + 2.5, top + 0.4, ink2, 0.8) + hl(x, x + 2.5, mid, ink2, 0.8) +
+            hl(x, x + cw + 0.5, bot + 0.1, tr, 1) +
+            hl(x + 3, x + cw, mid, tr, 0.6, "0.6 1.4") +
+            stroke(line(p), c, sv ? 1.6 : 1.35) +
+            '<circle cx="' + f(e[0]) + '" cy="' + f(e[1]) + '" r="1.5" fill="' + c + '"/>';
+        });
+      } },
+
+    { id: "lb-4", name: "Filled windows", w: 120,
+      desc: "Each line becomes a solid filled shape inside its own faint box, the box standing for 100%, so the three read like small level meters that remember the last few minutes.",
+      how: ["The faint box is 100%; the solid shape is how busy that part has been, its right edge is right now",
+            "Strained: that shape and its number turn amber (red if critical)",
+            "120 pt, 2 pt narrower than the original; 86 pt wider than today"],
+      draw: function () {
+        var top = 3.5, bot = 18.5, cw = 17;
+        return groups(36, 6, function (k, x, sv, c) {
+          var p = pts(k, 15, x, x + cw, top, bot), id = "lbw" + (uid++);
+          return '<clipPath id="' + id + '"><rect x="' + x + '" y="' + top + '" width="' + cw + '" height="' + (bot - top) + '" rx="1.6"/></clipPath>' +
+            '<rect x="' + x + '" y="' + top + '" width="' + cw + '" height="' + (bot - top) + '" rx="1.6" fill="' + h.css("--track") + '"/>' +
+            '<path clip-path="url(#' + id + ')" d="' + area(p, bot) + '" fill="' + (sv ? c : h.css("--bar-ink-2")) + '"/>' +
+            '<path clip-path="url(#' + id + ')" d="' + line(p) + '" fill="none" stroke="' + c + '" stroke-width="1.2" stroke-linejoin="round"/>';
+        });
+      } }
+  ];
+};
+
+window.WIDE_SETS.push({ s: 'lines', keep: null, f: window.WIDE_FACTORY }); window.WIDE_FACTORY = null;
+</script>
+<script>
+// New layouts for Pick A ("Three lines with numbers"): same lines, same numbers, arranged differently.
+// Every option reads h.V / h.hist and the colors at draw time, so it follows live data and light/dark.
+window.WIDE_FACTORY = function (h) {
+  "use strict";
+  var FONT = "-apple-system,Inter,system-ui,sans-serif";
+  function clamp(v) { return Math.max(0, Math.min(100, v)); }
+  function f2(n) { return n.toFixed(2); }
+  // average the 40 samples into n evenly spaced points; the last point is the live value
+  function resample(a, n) {
+    var out = [], L = a.length;
+    if (!L) return out;
+    for (var i = 0; i < n; i++) {
+      var s = Math.floor(i * L / n), e = Math.max(s + 1, Math.floor((i + 1) * L / n)), t = 0;
+      for (var j = s; j < e; j++) t += a[j];
+      out.push(t / (e - s));
+    }
+    return out;
+  }
+  // points for part k in a box x0..x1, top..bot (0% at bot, 100% at top); newest at x1 (or at x0 when rev)
+  function pts(k, n, x0, x1, top, bot, rev) {
+    var v = resample(h.hist[k].length ? h.hist[k] : [h.V[k]], n), p = [];
+    v[n - 1] = h.V[k];
+    for (var i = 0; i < n; i++) {
+      var t = i / (n - 1);
+      p.push([rev ? x1 - (x1 - x0) * t : x0 + (x1 - x0) * t, bot - (bot - top) * clamp(v[i]) / 100]);
+    }
+    return p;
+  }
+  function line(p) { return p.map(function (q, i) { return (i ? "L" : "M") + f2(q[0]) + " " + f2(q[1]); }).join(""); }
+  function area(p, bot) { return line(p) + "L" + f2(p[p.length - 1][0]) + " " + bot + "L" + f2(p[0][0]) + " " + bot + "Z"; }
+  function stroke(d, c, w, op) {
+    return '<path d="' + d + '" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-linejoin="round" stroke-linecap="round"' +
+      (op != null ? ' opacity="' + op + '"' : "") + "/>";
+  }
+  function dot(p, r, c) { return '<circle cx="' + f2(p[0]) + '" cy="' + f2(p[1]) + '" r="' + r + '" fill="' + c + '"/>'; }
+  function hline(x0, x1, y, c, w, op) {
+    return '<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke="' + c + '" stroke-width="' + (w || 1) + '"' + (op != null ? ' opacity="' + op + '"' : "") + "/>";
+  }
+  function num(x, y, v, c, size, anchor) {
+    return '<text x="' + f2(x) + '" y="' + f2(y) + '" text-anchor="' + (anchor || "end") + '" font-family="' + FONT + '" font-size="' + size +
+      '" font-weight="600" fill="' + c + '" style="font-variant-numeric:tabular-nums" letter-spacing="-0.2">' + Math.min(99, Math.round(v)) + "</text>";
+  }
+  function tiny(x, y, t, c, anchor) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="' + (anchor || "end") + '" font-family="' + FONT +
+      '" font-size="7" font-weight="700" letter-spacing="0.2" fill="' + c + '">' + t + "</text>";
+  }
+  var NAME = { cpu: "CPU", gpu: "GPU", ram: "RAM" }, LETTER = { cpu: "C", gpu: "G", ram: "M" };
+  function ink() { return h.css("--bar-ink"); }
+  function ink2() { return h.css("--bar-ink-2"); }
+  function track() { return h.css("--track"); }
+  // label color: secondary ink when fine, the warning color when strained
+  function labC(k) { var sv = h.sev(k); return sv ? h.col(sv) : ink2(); }
+
+  // the three parts drawn in one shared chart: RAM as a shaded area, GPU as a light line, CPU as the dark line
+  function sharedChart(x0, x1, top, bot, n) {
+    var s = "", pr = pts("ram", n, x0, x1, top, bot), pg = pts("gpu", n, x0, x1, top, bot), pc = pts("cpu", n, x0, x1, top, bot);
+    var sr = h.sev("ram"), sg = h.sev("gpu"), sc = h.sev("cpu");
+    s += '<path d="' + area(pr, bot) + '" fill="' + (sr ? h.col(sr) : track()) + '"' + (sr ? ' fill-opacity="0.3"' : "") + "/>";
+    s += stroke(line(pr), sr ? h.col(sr) : ink2(), sr ? 1.2 : 0.9);
+    s += hline(x0, x1, bot + 0.4, ink2(), 0.8, 0.6);
+    s += stroke(line(pg), sg ? h.col(sg) : ink2(), sg ? 1.4 : 1.05);
+    s += stroke(line(pc), h.col(sc), sc ? 1.6 : 1.35);
+    return { s: s, end: { cpu: pc[n - 1], gpu: pg[n - 1], ram: pr[n - 1] } };
+  }
+
+  return [
+    { id: "lc-1", name: "One chart, three numbers", w: 93,
+      desc: "All three lines share one bigger chart instead of three little ones, with the three numbers lined up after it.",
+      how: ["Chart: dark line CPU, light line GPU, shaded area RAM; numbers left to right CPU, GPU, RAM",
+             "Strained: that part's line (or shading) and number turn amber (red if critical)",
+             "29 pt narrower than the original's 122 pt (59 pt wider than today)"],
+      draw: function () {
+        var x0 = 0.8, x1 = 31, top = 4, bot = 18.2, c = sharedChart(x0, x1, top, bot, 26), s = c.s;
+        h.K.forEach(function (k) { var sv = h.sev(k); if (k !== "ram" || sv) s += dot(c.end[k], k === "cpu" ? 1.5 : 1.25, sv ? h.col(sv) : (k === "cpu" ? ink() : ink2())); });
+        h.K.forEach(function (k, i) {
+          var xr = 51.5 + i * 20.5, sv = h.sev(k);
+          s += num(xr, 12.6, h.V[k], h.col(sv), 11);
+          s += tiny(xr, 19, NAME[k], labC(k));
+        });
+        return s;
+      } },
+
+    { id: "lc-2", name: "Two rows", w: 69,
+      desc: "The same three lines and numbers on two short rows, CPU and GPU on top and RAM underneath, so it takes a bit over half the width.",
+      how: ["Top row CPU then GPU, bottom row RAM; each number is that part's % right now",
+             "Strained: that part's line, letter and number turn amber (red if critical)",
+             "53 pt narrower than the original's 122 pt (35 pt wider than today)"],
+      draw: function () {
+        var s = "", rows = { cpu: [0, 3.6, 9.6, 10.4], gpu: [35.6, 3.6, 9.6, 10.4], ram: [0, 12.4, 18.4, 19.2] };
+        // [x, line top, line bottom, number baseline]
+        var spans = { cpu: [7.8, 17.4, 32], gpu: [43, 53.4, 68], ram: [7.8, 53.4, 68] }; // line x0, line x1, number right edge
+        h.K.forEach(function (k) {
+          var r = rows[k], sp = spans[k], sv = h.sev(k), c = h.col(sv), n = k === "ram" ? 26 : 9;
+          var p = pts(k, n, sp[0], sp[1], r[1], r[2]), e = p[n - 1];
+          s += hline(sp[0], sp[1], r[2] + 0.6, track(), 0.8);
+          s += stroke(line(p), c, sv ? 1.4 : 1.15);
+          s += dot(e, 1.2, c);
+          s += tiny(r[0] + 3.5, r[3] - 0.2, LETTER[k], labC(k), "middle");
+          s += num(sp[2], r[3], h.V[k], c, 10);
+        });
+        return s;
+      } },
+
+    { id: "lc-3", name: "Number first, line trailing", w: 104,
+      desc: "Each number comes first and its line runs out behind it, newest point touching the number, like a trail of the last few minutes.",
+      how: ["Left to right: CPU, GPU, RAM; the line reads right to left, oldest at the far end",
+             "Strained: that part's number and trail turn amber (red if critical)",
+             "18 pt narrower than the original's 122 pt (70 pt wider than today)"],
+      draw: function () {
+        var s = "", seg = 32, gap = 4;
+        h.K.forEach(function (k, i) {
+          var x = i * (seg + gap), sv = h.sev(k), c = h.col(sv), x0 = x + 18.6, x1 = x + seg - 0.8;
+          var p = pts(k, 14, x0, x1, 5, 17.4, true), e = p[p.length - 1];
+          s += hline(x0, x1, 18.6, track(), 1);
+          s += stroke(line(p), c, sv ? 1.5 : 1.25);
+          s += dot(e, 1.4, c);
+          s += num(x + 16, 12.6, h.V[k], c, 11);
+          s += tiny(x + 16, 19, NAME[k], labC(k));
+        });
+        return s;
+      } },
+
+    { id: "lc-4", name: "Numbers ride the lines", w: 111,
+      desc: "One long floor with the three lines on it, and each number sits right at the tip of its line, moving up and down with it.",
+      how: ["Left to right: CPU, GPU, RAM, each with a small letter in front; a number's height is its own line's height",
+             "Strained: that part's line, letter and number turn amber (red if critical)",
+             "11 pt narrower than the original's 122 pt (77 pt wider than today)"],
+      draw: function () {
+        var s = "", seg = 34, gap = 4, top = 4.5, bot = 17.4;
+        s += hline(0.5, 110.5, 18.8, track(), 1);
+        h.K.forEach(function (k, i) {
+          var x = i * (seg + gap), sv = h.sev(k), c = h.col(sv), x0 = x + 7, x1 = x + 18.2;
+          var p = pts(k, 14, x0, x1, top, bot), e = p[p.length - 1];
+          s += stroke(line(p), c, sv ? 1.5 : 1.25);
+          s += dot(e, 1.4, c);
+          // number vertically centered on the line's tip, kept inside the bar
+          var cy = Math.max(7.4, Math.min(14.8, e[1]));
+          s += num(x1 + 2.6, cy + 3.9, h.V[k], c, 11, "start");
+          s += tiny(x + 3.4, 17.6, LETTER[k], labC(k), "middle");
+        });
+        return s;
+      } }
+  ];
+};
+
+window.WIDE_SETS.push({ s: 'lines', keep: null, f: window.WIDE_FACTORY }); window.WIDE_FACTORY = null;
+</script>
+<script>
+// Instrument dials: wider Vitals menu bar icons built from today's needle gauge.
+window.WIDE_FACTORY = function (h) {
+  "use strict";
+  var FONT = "-apple-system,Inter,system-ui,sans-serif";
+  var D = Math.PI / 180;
+  var NAME = { cpu: "CPU", gpu: "GPU", ram: "RAM" };
+
+  function f(n) { return (+n).toFixed(2); }
+  function clamp(p) { return Math.max(0, Math.min(100, p)); }
+  function txt(x, y, s, size, weight, color, anchor) {
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (anchor || "middle") + '" font-family="' + FONT + '" font-size="' + size +
+      '" font-weight="' + weight + '" fill="' + color + '" style="font-variant-numeric:tabular-nums">' + s + "</text>";
+  }
+  function line(x1, y1, x2, y2, c, w, cap) {
+    return '<line x1="' + f(x1) + '" y1="' + f(y1) + '" x2="' + f(x2) + '" y2="' + f(y2) + '" stroke="' + c + '" stroke-width="' + w + '" stroke-linecap="' + (cap || "round") + '"/>';
+  }
+  function arc(cx, cy, r, a0, a1, c, w) {
+    return '<path d="' + h.arcPath(cx, cy, r, a0 * D, a1 * D) + '" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-linecap="round"/>';
+  }
+  // Today's gauge, scaled: a solid arc from 195 to -15 degrees, a needle that stops short of it, a round hub.
+  // o: {sw, from, to, inset, hub, ticks}
+  function dial(cx, cy, r, pct, c, o) {
+    o = o || {};
+    var sw = o.sw || 1.7, a0 = o.from == null ? 195 : o.from, a1 = o.to == null ? -15 : o.to;
+    var inset = o.inset == null ? 2.2 : o.inset, hub = o.hub || 1.6;
+    var a = (a0 - (a0 - a1) * clamp(pct) / 100) * D;
+    var s = arc(cx, cy, r, a0, a1, c, sw);
+    if (o.ticks) for (var i = 1; i < o.ticks; i++) {
+      var t = (a0 - (a0 - a1) * i / o.ticks) * D, r0 = r - sw / 2 - 0.2, r1 = r0 - (o.tickLen || 1.6);
+      s += line(cx + r0 * Math.cos(t), cy - r0 * Math.sin(t), cx + r1 * Math.cos(t), cy - r1 * Math.sin(t), h.css("--bar-ink-2"), o.tickW || 0.9, "butt");
+    }
+    s += line(cx, cy, cx + (r - inset) * Math.cos(a), cy - (r - inset) * Math.sin(a), c, o.nw || sw);
+    s += '<circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + hub + '" fill="' + c + '"/>';
+    return s;
+  }
+  function c(k) { return h.col(h.sev(k)); }
+  function labC(k) { return h.sev(k) ? c(k) : h.css("--bar-ink-2"); }
+
+  return [
+    { id: "dl-1", name: "Three dials", w: 58,
+      desc: "Today's gauge, three times over, like the dials on a car dashboard: CPU, GPU and RAM side by side, each with its own needle.",
+      how: ["Left to right: CPU, GPU, RAM; each needle points at how busy that part is",
+            "Strained: that dial and its label turn amber, or red when critical",
+            "58 pt, 24 pt wider than today"],
+      draw: function () {
+        return h.K.map(function (k, i) {
+          var cx = 9 + i * 20;
+          return dial(cx, 10.9, 6.9, h.V[k], c(k), { from: 190, to: -10, inset: 2.1 }) + txt(cx, 19.6, NAME[k], 7, 600, labC(k));
+        }).join("");
+      } },
+
+    { id: "dl-2", name: "Big RAM dial, two small", w: 58,
+      desc: "A big RAM dial in the middle, like today's icon, with smaller CPU and GPU dials on either side, the way a car puts the speedometer between smaller gauges.",
+      how: ["Middle: RAM, the same reading as today's icon; left CPU, right GPU",
+            "Strained: that dial and its label turn amber, or red when critical",
+            "58 pt, 24 pt wider than today"],
+      draw: function () {
+        var s = "", side = [["cpu", 8.5], ["gpu", 49.5]];
+        side.forEach(function (p) { s += dial(p[1], 12.4, 5.3, h.V[p[0]], c(p[0]), { sw: 1.5, from: 180, to: 0, inset: 1.6, hub: 1.3 }) + txt(p[1], 19.6, NAME[p[0]], 7, 600, labC(p[0])); });
+        s += dial(29, 12.4, 8.5, h.V.ram, c("ram"), { sw: 1.9, from: 180, to: 0, inset: 2.3, hub: 1.9 });
+        s += txt(29, 19.6, "RAM", 7, 600, labC("ram"));
+        return s;
+      } },
+
+    { id: "dl-3", name: "One wide dial, two tick readouts", w: 64,
+      desc: "One large dial whose needle always shows the busiest part, with two small rows of ticks beside it for the other two parts.",
+      how: ["The dial's letter says which part the needle shows; each row of ticks shows another part's level",
+            "Strained: the needle jumps to that part and turns amber, or red when critical",
+            "64 pt, 30 pt wider than today"],
+      draw: function () {
+        var top = h.worst() || h.busiest(), rest = h.K.filter(function (k) { return k !== top; });
+        var cx = 15, cy = 17, r = 13;
+        var s = dial(cx, cy, r, h.V[top], c(top), { sw: 1.9, from: 180, to: 0, inset: 2.6, hub: 2, ticks: 4, tickLen: 1.8 });
+        s += txt(7, 16.4, NAME[top].charAt(0), 7, 700, c(top));
+        rest.forEach(function (k, j) {
+          var y0 = j === 0 ? 4 : 13, x0 = 33, n = 8, col = c(k), lit = Math.round(clamp(h.V[k]) / 100 * n);
+          s += txt(x0, y0 + 5, NAME[k].charAt(0), 7, 700, labC(k), "start");
+          for (var i = 0; i < n; i++) {
+            var x = x0 + 7 + i * 3;
+            s += '<rect x="' + x + '" y="' + y0 + '" width="2" height="5" rx=".4" fill="' + (i < lit ? col : h.css("--track")) + '"/>';
+          }
+        });
+        return s;
+      } }
+  ];
+};
+
+window.WIDE_SETS.push({ s: 'dials', keep: ["dl-1"], f: window.WIDE_FACTORY }); window.WIDE_FACTORY = null;
+</script>
+<script>
+// Round 4, key "da": refined dials. Variations on "Three dials" (dl-1) drawn like finely made instruments.
+window.WIDE_FACTORY = function (h) {
+  "use strict";
+  var FONT = "-apple-system,Inter,system-ui,sans-serif";
+  var D = Math.PI / 180;
+  var LET = { cpu: "C", gpu: "G", ram: "R" };
+
+  function f(n) { return (+n).toFixed(2); }
+  function clamp(p) { return Math.max(0, Math.min(100, p)); }
+  function txt(x, y, s, size, weight, color) {
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="middle" font-family="' + FONT + '" font-size="' + size +
+      '" font-weight="' + weight + '" fill="' + color + '" style="font-variant-numeric:tabular-nums">' + s + "</text>";
+  }
+  function line(x1, y1, x2, y2, c, w, cap) {
+    return '<line x1="' + f(x1) + '" y1="' + f(y1) + '" x2="' + f(x2) + '" y2="' + f(y2) + '" stroke="' + c + '" stroke-width="' + w + '" stroke-linecap="' + (cap || "round") + '"/>';
+  }
+  function arc(cx, cy, r, a0, a1, c, w, cap) {
+    return '<path d="' + h.arcPath(cx, cy, r, a0 * D, a1 * D) + '" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-linecap="' + (cap || "round") + '"/>';
+  }
+  function pol(cx, cy, r, deg) { return [cx + r * Math.cos(deg * D), cy - r * Math.sin(deg * D)]; }
+  function c(k) { return h.col(h.sev(k)); }
+  function labC(k) { return h.sev(k) ? c(k) : h.css("--bar-ink-2"); }
+
+  // One refined dial.
+  // o: r, sw (arc width), from/to (degrees, clockwise), ticks (count of intervals), tickIn/tickLen/tickW,
+  //    nw (needle width), tail, gap (needle tip short of arc), hub, letter, ly (letter baseline), mode "arc" | "seg"
+  function dial(k, cx, cy, o) {
+    var pct = clamp(h.V[k]), col = c(k), ink2 = h.css("--bar-ink-2"), trk = h.css("--track");
+    var a0 = o.from, a1 = o.to, r = o.r, sw = o.sw;
+    var an = a0 - (a0 - a1) * pct / 100, s = "";
+    if (o.mode === "seg") {
+      // the scale itself is the reading: the arc is cut into short pieces that light up to the value
+      var n = o.segs, span = (a0 - a1) / n, gapDeg = o.segGap / r / D;
+      for (var i = 0; i < n; i++) {
+        var s0 = a0 - span * i, s1 = s0 - span;
+        s += arc(cx, cy, r, s0 - (i ? gapDeg / 2 : 0), s1 + (i < n - 1 ? gapDeg / 2 : 0), pct >= (i + 0.5) * 100 / n || (i === 0 && pct > 2) ? col : trk, sw, "butt");
+      }
+    } else {
+      s += arc(cx, cy, r, a0, a1, trk, sw, o.cap);
+      if (pct > 0.5) s += arc(cx, cy, r, a0, an, col, sw, o.cap);
+    }
+    if (o.ticks) for (var j = o.tickEnds ? 0 : 1; j <= (o.tickEnds ? o.ticks : o.ticks - 1); j++) {
+      var tt = a0 - (a0 - a1) * j / o.ticks, q0 = pol(cx, cy, r - sw / 2 - o.tickIn, tt), q1 = pol(cx, cy, r - sw / 2 - o.tickIn - o.tickLen, tt);
+      s += line(q0[0], q0[1], q1[0], q1[1], ink2, o.tickW, "butt");
+    }
+    var tip = pol(cx, cy, r - sw / 2 - o.gap, an), tl = pol(cx, cy, -(o.tail || 0), an);
+    s += line(tl[0], tl[1], tip[0], tip[1], col, o.nw);
+    s += '<circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + o.hub + '" fill="' + col + '"/>';
+    if (o.letter !== false) s += txt(cx, o.ly, LET[k], o.lsize || 7, 700, labC(k));
+    return s;
+  }
+
+  // shared look for options 1 and 4
+  var FINE = { r: 8.1, sw: 1.5, from: 220, to: -40, ticks: 4, tickIn: 0.7, tickLen: 1.3, tickW: 0.8,
+               nw: 1.05, tail: 1.4, gap: 1.2, hub: 1.9, ly: 19.3 };
+  function cp(o, extra) { var x = {}, k; for (k in o) x[k] = o[k]; for (k in extra) x[k] = extra[k]; return x; }
+
+  return [
+    { id: "da-1", name: "Instrument dials", w: 56,
+      desc: "The same three dials, but each one is filled in up to its needle, has small scale marks, a thinner needle on a bigger hub, and its letter inside, so the dials are bigger at about the same width.",
+      how: ["Left to right: C (CPU), G (GPU), R (RAM); the dark part of each arc and the needle show how busy it is",
+            "Strained: that dial and its letter turn amber, or red when critical",
+            "56 pt, 2 pt narrower than the original's 58 pt"],
+      draw: function () {
+        return h.K.map(function (k, i) { return dial(k, 9.5 + i * 18.5, 11.8, FINE); }).join("");
+      } },
+
+    { id: "da-2", name: "Fanned cluster", w: 47,
+      desc: "The three dials tucked closer together like a car's instrument cluster: the outer two are turned slightly outward so their arcs clear the middle one, which makes it narrower than the original without shrinking the dials.",
+      how: ["Left to right: C (CPU), G (GPU), R (RAM); the filled arc and the needle show how busy it is, each on its own arc",
+            "Strained: that dial and its letter turn amber, or red when critical",
+            "47 pt, 11 pt narrower than the original's 58 pt"],
+      draw: function () {
+        var cy = 11.8, o = cp(FINE, { ticks: 0 });
+        return dial("cpu", 8.9, cy, cp(o, { from: 225, to: 45 })) +
+               dial("gpu", 23.4, cy, o) +
+               dial("ram", 37.9, cy, cp(o, { from: 135, to: -45 }));
+      } },
+
+    { id: "da-3", name: "Tick-scale dials", w: 56,
+      desc: "Each dial's arc is made of small marks that light up to the reading, like a rev counter, with a thin needle on a bigger hub and the letter inside.",
+      how: ["Left to right: C (CPU), G (GPU), R (RAM); lit marks and the needle show how busy it is",
+            "Strained: that dial's marks, needle and letter turn amber, or red when critical",
+            "56 pt, 2 pt narrower than the original's 58 pt"],
+      draw: function () {
+        var o = { mode: "seg", r: 8.0, sw: 1.7, segs: 8, segGap: 1.1, from: 220, to: -40,
+                  nw: 1.05, tail: 1.4, gap: 1.2, hub: 1.9, ly: 19.3 };
+        return h.K.map(function (k, i) { return dial(k, 9.5 + i * 18.5, 11.8, o); }).join("");
+      } },
+
+    { id: "da-4", name: "Compact instrument dials", w: 46,
+      desc: "Option 1 made smaller and tighter, with the scale marks dropped, so it takes less menu bar room than the original.",
+      how: ["Left to right: C (CPU), G (GPU), R (RAM); the dark part of each arc and the needle show how busy it is",
+            "Strained: that dial and its letter turn amber, or red when critical",
+            "46 pt, 12 pt narrower than the original's 58 pt"],
+      draw: function () {
+        var o = cp(FINE, { r: 6.9, sw: 1.4, ticks: 0, hub: 1.7, gap: 1.0, from: 215, to: -35, ly: 19.2 });
+        return h.K.map(function (k, i) { return dial(k, 8 + i * 15, 11.2, o); }).join("");
+      } }
+  ];
+};
+
+window.WIDE_SETS.push({ s: 'dials', keep: null, f: window.WIDE_FACTORY }); window.WIDE_FACTORY = null;
+</script>
+<script>
+// Dials with numbers: today's three-dial icon (dl-1) with the exact percent added to each dial.
+window.WIDE_FACTORY = function (h) {
+  "use strict";
+  var FONT = "-apple-system,Inter,system-ui,sans-serif";
+  var D = Math.PI / 180;
+  var LET = { cpu: "C", gpu: "G", ram: "M" };
+
+  function f(n) { return (+n).toFixed(2); }
+  function clamp(p) { return Math.max(0, Math.min(100, p)); }
+  function num(k) { return String(Math.min(99, Math.round(clamp(h.V[k])))); } // two digits max, so the width never changes
+  function txt(x, y, s, size, weight, color, anchor) {
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (anchor || "middle") + '" font-family="' + FONT + '" font-size="' + size +
+      '" font-weight="' + weight + '" fill="' + color + '" style="font-variant-numeric:tabular-nums">' + s + "</text>";
+  }
+  function line(x1, y1, x2, y2, c, w) {
+    return '<line x1="' + f(x1) + '" y1="' + f(y1) + '" x2="' + f(x2) + '" y2="' + f(y2) + '" stroke="' + c + '" stroke-width="' + w + '" stroke-linecap="round"/>';
+  }
+  function arc(cx, cy, r, a0, a1, c, w) {
+    return '<path d="' + h.arcPath(cx, cy, r, a0 * D, a1 * D) + '" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-linecap="round"/>';
+  }
+  // Today's gauge: solid arc, a needle from the hub that stops short of the arc, a round hub.
+  // o: {sw, from, to, inset, hub, nIn (needle starts this far from the centre; no hub when set)}
+  function dial(cx, cy, r, pct, c, o) {
+    o = o || {};
+    var sw = o.sw || 1.6, a0 = o.from == null ? 190 : o.from, a1 = o.to == null ? -10 : o.to;
+    var inset = o.inset == null ? 2.1 : o.inset;
+    var a = (a0 - (a0 - a1) * clamp(pct) / 100) * D, r0 = o.nIn || 0, r1 = o.nOut || r - inset;
+    var s = arc(cx, cy, r, a0, a1, c, sw);
+    s += line(cx + r0 * Math.cos(a), cy - r0 * Math.sin(a), cx + r1 * Math.cos(a), cy - r1 * Math.sin(a), c, o.nw || sw);
+    if (!o.nIn) s += '<circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + (o.hub || 1.5) + '" fill="' + c + '"/>';
+    return s;
+  }
+  function c(k) { return h.col(h.sev(k)); }
+  function c2(k) { return h.sev(k) ? c(k) : h.css("--bar-ink-2"); }
+
+  return [
+    { id: "db-1", name: "Numbers under the dials", w: 60,
+      desc: "The same three dials, but the CPU / GPU / RAM label under each one is swapped for its exact percent.",
+      how: ["Left to right: CPU, GPU, RAM; the needle shows the level, the number under it the exact percent",
+            "Strained: that dial and its number turn amber, or red when critical",
+            "60 pt: 2 pt wider than the three dials, 26 pt wider than today"],
+      draw: function () {
+        return h.K.map(function (k, i) {
+          var cx = 10 + i * 20;
+          return dial(cx, 9.4, 6.1, h.V[k], c(k), { hub: 1.3 }) + txt(cx, 19.8, num(k), 10, 600, c(k));
+        }).join("");
+      } },
+
+    { id: "db-2", name: "Letter under, number beside", w: 98,
+      desc: "Each dial keeps a label under it, cut to one letter (C, G, M), and gets its exact percent in large type beside it.",
+      how: ["C = CPU, G = GPU, M = memory; needle shows the level, the number beside it the exact percent",
+            "Strained: that dial, letter and number turn amber, or red when critical",
+            "98 pt: 40 pt wider than the three dials, 64 pt wider than today"],
+      draw: function () {
+        return h.K.map(function (k, i) {
+          var x0 = i * 34, cx = x0 + 8;
+          return dial(cx, 10.2, 6.4, h.V[k], c(k), { hub: 1.4 }) + txt(cx, 19.6, LET[k], 7, 700, c2(k)) +
+            txt(x0 + 16.6, 15, num(k), 11, 600, c(k), "start");
+        }).join("");
+      } },
+
+    { id: "db-3", name: "Number in the bowl", w: 76,
+      desc: "Bigger dials with the exact percent sitting inside each arc, like a car's digital speed readout; the needle becomes a short pointer that crosses the rim, so it never runs over the number.",
+      how: ["Left to right: CPU, GPU, RAM; the pointer across the rim shows the level, the number inside the exact percent",
+            "Strained: that dial and its number turn amber, or red when critical",
+            "76 pt: 18 pt wider than the three dials, 42 pt wider than today"],
+      draw: function () {
+        return h.K.map(function (k, i) {
+          var cx = 12 + i * 26;
+          return dial(cx, 15, 10.4, h.V[k], c(k), { from: 175, to: 5, sw: 1.5, nIn: 6.9, nOut: 11.2, nw: 2 }) +
+            txt(cx, 19.6, num(k), 10, 600, c(k));
+        }).join("");
+      } },
+
+    { id: "db-4", name: "Letter and number under", w: 66, rec: true,
+      desc: "The three dials with a short label under each: a small letter (C, G, M) followed by the exact percent.",
+      how: ["C = CPU, G = GPU, M = memory; needle shows the level, the number under it the exact percent",
+            "Strained: that dial, letter and number turn amber, or red when critical",
+            "66 pt: 8 pt wider than the three dials, 32 pt wider than today"],
+      draw: function () {
+        return h.K.map(function (k, i) {
+          var cx = 10 + i * 22.5;
+          return dial(cx, 9.4, 6.1, h.V[k], c(k), { hub: 1.3 }) +
+            txt(cx - 7, 19.8, LET[k], 7, 700, c2(k)) + txt(cx - 3.1, 19.8, num(k), 10, 600, c(k), "start");
+        }).join("");
+      } }
+  ];
+};
+
+window.WIDE_SETS.push({ s: 'dials', keep: null, f: window.WIDE_FACTORY }); window.WIDE_FACTORY = null;
+</script>
+<script>
+// Round 4, angle "dc": blends of the two picks, the three dials (dl-1) and the three lines with numbers (sp-1).
+// Every option reads h.V / h.hist and the colors at draw time, so it follows live data and light/dark.
+window.WIDE_FACTORY = function (h) {
+  "use strict";
+  var FONT = "-apple-system,Inter,system-ui,sans-serif";
+  var D = Math.PI / 180;
+  var NAME = { cpu: "CPU", gpu: "GPU", ram: "RAM" };
+
+  function f(n) { return (+n).toFixed(2); }
+  function clamp(p) { return Math.max(0, Math.min(100, p)); }
+  function c(k) { return h.col(h.sev(k)); }
+  function labC(k) { return h.sev(k) ? c(k) : h.css("--bar-ink-2"); }
+  function hist(k) { return h.hist[k].length ? h.hist[k].concat([h.V[k]]) : [h.V[k]]; }
+
+  function txt(x, y, s, size, weight, color, anchor, ls) {
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (anchor || "middle") + '" font-family="' + FONT + '" font-size="' + size +
+      '" font-weight="' + weight + '" fill="' + color + '" style="font-variant-numeric:tabular-nums"' + (ls ? ' letter-spacing="' + ls + '"' : "") + ">" + s + "</text>";
+  }
+  function seg(x1, y1, x2, y2, col, w, cap) {
+    return '<line x1="' + f(x1) + '" y1="' + f(y1) + '" x2="' + f(x2) + '" y2="' + f(y2) + '" stroke="' + col + '" stroke-width="' + w + '" stroke-linecap="' + (cap || "round") + '"/>';
+  }
+  function arc(cx, cy, r, a0, a1, col, w) {
+    return '<path d="' + h.arcPath(cx, cy, r, a0 * D, a1 * D) + '" fill="none" stroke="' + col + '" stroke-width="' + w + '" stroke-linecap="round"/>';
+  }
+  function ang(a0, a1, pct) { return a0 - (a0 - a1) * clamp(pct) / 100; }
+
+  // dl-1's dial: solid arc a0..a1 (degrees), needle stopping short of it, round hub.
+  // o: {sw, from, to, inset, hub, under} - `under` is markup drawn after the arc, below the needle.
+  function dial(cx, cy, r, pct, col, o) {
+    o = o || {};
+    var sw = o.sw || 1.7, a0 = o.from == null ? 190 : o.from, a1 = o.to == null ? -10 : o.to;
+    var inset = o.inset == null ? 2.1 : o.inset, hub = o.hub || 1.6, a = ang(a0, a1, pct) * D;
+    return arc(cx, cy, r, a0, a1, col, sw) + (o.under || "") +
+      seg(cx, cy, cx + (r - inset) * Math.cos(a), cy - (r - inset) * Math.sin(a), col, o.nw || sw) +
+      '<circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + hub + '" fill="' + col + '"/>';
+  }
+  // a pie slice from p0% to p1% of the dial's sweep, radius r
+  function wedge(cx, cy, r, a0, a1, p0, p1, col, op) {
+    var s = ang(a0, a1, p0) * D, e = ang(a0, a1, p1) * D;
+    return '<path d="M' + f(cx) + " " + f(cy) + "L" + f(cx + r * Math.cos(s)) + " " + f(cy - r * Math.sin(s)) + "A" + r + " " + r + " 0 " + (s - e > Math.PI ? 1 : 0) + " 1 " +
+      f(cx + r * Math.cos(e)) + " " + f(cy - r * Math.sin(e)) + 'Z" fill="' + col + '"' + (op ? ' opacity="' + op + '"' : "") + "/>";
+  }
+  // the needle's recent swing: lowest and highest value over the last few minutes
+  function range(k) {
+    var a = hist(k), lo = 100, hi = 0;
+    a.forEach(function (v) { v = clamp(v); if (v < lo) lo = v; if (v > hi) hi = v; });
+    return [lo, hi];
+  }
+
+  // sp-1's sparkline: last few minutes averaged into n points, ending exactly on the live value
+  function resample(a, n) {
+    var out = [], L = a.length;
+    for (var i = 0; i < n; i++) {
+      var s = Math.floor(i * L / n), e = Math.max(s + 1, Math.floor((i + 1) * L / n)), t = 0;
+      for (var j = s; j < e; j++) t += a[j];
+      out.push(t / (e - s));
+    }
+    return out;
+  }
+  function pts(k, n, x0, x1, top, bot) {
+    var v = resample(hist(k), n), p = [];
+    v[n - 1] = h.V[k];
+    for (var i = 0; i < n; i++) p.push([x0 + (x1 - x0) * i / (n - 1), bot - (bot - top) * clamp(v[i]) / 100]);
+    return p;
+  }
+  function path(p) { return p.map(function (q, i) { return (i ? "L" : "M") + f(q[0]) + " " + f(q[1]); }).join(""); }
+  // line + end dot + faint floor, as in sp-1
+  function spark(k, x0, x1, top, bot, floorY, o) {
+    o = o || {};
+    var sv = h.sev(k), col = c(k), p = pts(k, o.n || 16, x0, x1, top, bot), e = p[p.length - 1];
+    var s = seg(x0 - 0.5, floorY, x1 + 0.5, floorY, h.css("--track"), 1, "butt");
+    s += '<path d="' + path(p) + '" fill="none" stroke="' + col + '" stroke-width="' + (sv ? (o.sw || 1.3) + 0.3 : (o.sw || 1.3)) + '" stroke-linejoin="round" stroke-linecap="round"/>';
+    if (o.dot !== false) s += '<circle cx="' + f(e[0]) + '" cy="' + f(e[1]) + '" r="' + (o.dot || 1.4) + '" fill="' + col + '"/>';
+    return s;
+  }
+  function num(x, y, k, size) { return txt(x, y, Math.min(99, Math.round(h.V[k])), size || 11, 600, c(k), "end", "-0.2"); }
+
+  return [
+    { id: "dc-1", name: "Three dials with a swing shadow", w: 58,
+      desc: "The same three dials, plus a faint shaded slice behind each needle that shows how far it has swung over the last few minutes.",
+      how: ["Needle: that part right now; shaded slice: its lowest to highest over the last few minutes",
+            "Strained: that dial, its slice and its label turn amber (red if critical)",
+            "58 pt, same as the three dials, 24 pt wider than today"],
+      draw: function () {
+        return h.K.map(function (k, i) {
+          var cx = 9 + i * 20, cy = 10.9, r = 6.9, rg = range(k), sv = h.sev(k);
+          var sh = rg[1] - rg[0] < 1.5 ? "" : wedge(cx, cy, r - 0.8, 190, -10, rg[0], rg[1], sv ? c(k) : h.css("--bar-ink-2"), sv ? 0.5 : 0.6);
+          return dial(cx, cy, r, h.V[k], c(k), { under: sh }) + txt(cx, 19.6, NAME[k], 7, 600, labC(k));
+        }).join("");
+      } },
+
+    { id: "dc-2", name: "Line runs into a dial", w: 100,
+      desc: "Each part gets a short line of the last few minutes that runs into a small dial showing right now, so the dial takes the place of the number.",
+      how: ["Left to right: CPU, GPU, RAM; the line is the last few minutes, the dial is now",
+            "Strained: that line, dial and label turn amber (red if critical)",
+            "100 pt: 22 pt narrower than the three lines, 66 pt wider than today"],
+      draw: function () {
+        var s = "", gw = 31, gap = 3.5;
+        h.K.forEach(function (k, i) {
+          var x = i * (gw + gap), cx = x + gw - 7.8;
+          s += spark(k, x + 1, x + 13, 5, 17.6, 18.6, { n: 13, dot: 1.25 });
+          s += dial(cx, 10.9, 6.9, h.V[k], c(k), {}) + txt(cx, 19.6, NAME[k], 7, 600, labC(k));
+        });
+        return s;
+      } },
+
+    { id: "dc-3", name: "CPU and GPU lines, RAM dial", w: 94,
+      desc: "CPU and GPU as the lines with numbers, and RAM as today's dial at the end, since memory moves slowly and a needle is all it needs.",
+      how: ["Lines with numbers: CPU and GPU right now and over the last few minutes; dial: RAM",
+            "Strained: that line and number, or the RAM dial, turn amber (red if critical)",
+            "94 pt: 28 pt narrower than the three lines, 60 pt wider than today"],
+      draw: function () {
+        var s = "", gw = 33, gap = 6;
+        ["cpu", "gpu"].forEach(function (k, i) {
+          var x = i * (gw + gap);
+          s += spark(k, x + 1, x + 15, 5, 17.6, 18.6, { n: 15 });
+          s += num(x + gw, 12.6, k, 11);
+          s += txt(x + gw, 19, NAME[k], 7, 700, labC(k), "end", "0.2");
+        });
+        var cx = 2 * (gw + gap) - gap + 4 + 8.6;
+        s += dial(cx, 12.6, 8.4, h.V.ram, c("ram"), { sw: 1.9, from: 180, to: 0, inset: 2.4, hub: 1.9 });
+        s += txt(cx, 19.6, "RAM", 7, 600, labC("ram"));
+        return s;
+      } },
+
+    { id: "dc-4", name: "Dials over little lines", w: 70,
+      desc: "Three dials with a tiny line of the last few minutes tucked under each one, beside its letter, so you get now and recent history in a narrower space.",
+      how: ["Dial: that part right now; line under it: the last few minutes; C, G, M = CPU, GPU, memory",
+            "Strained: that dial, line and letter turn amber (red if critical)",
+            "70 pt: 52 pt narrower than the three lines, 36 pt wider than today"],
+      draw: function () {
+        var s = "", gw = 20, gap = 5, L = { cpu: "C", gpu: "G", ram: "M" };
+        h.K.forEach(function (k, i) {
+          var x = i * (gw + gap), cx = x + gw / 2;
+          s += dial(cx, 10, 6.1, h.V[k], c(k), { sw: 1.6, from: 185, to: -5, inset: 1.9, hub: 1.5 });
+          s += txt(x + 2.3, 19, L[k], 7, 700, labC(k));
+          s += spark(k, x + 6, x + gw - 0.6, 14, 17.8, 18.8, { n: 12, sw: 1.1, dot: 1.1 });
+        });
+        return s;
+      } }
+  ];
+};
+
+window.WIDE_SETS.push({ s: 'both', keep: null, f: window.WIDE_FACTORY }); window.WIDE_FACTORY = null;
+</script>
+
+<script>
+(function () {
+  "use strict";
+  var NS = "http://www.w3.org/2000/svg";
+  var H = { cpu: [], gpu: [], ram: [] }; (function () { for (var i = 0; i < 40; i++) { H.cpu.push(30 + Math.random() * 20); H.gpu.push(Math.random() < .2 ? 30 : 6 + Math.random() * 6); H.ram.push(78 + Math.random() * 3); } })();
+  var V = { cpu: 37, gpu: 9, ram: 80 }, T = { cpu: 37, gpu: 9, ram: 80 }, state = "calm", live = true;
+  var reduce = false; try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+  if (reduce) live = false;
+
+  function css(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function sev(k) {
+    if (state === "mem" && k === "ram") return "warn";
+    if (state === "cpu" && k === "cpu") return "warn";
+    return "";
+  }
+  function col(s) { return s === "crit" ? css("--crit") : s === "warn" ? css("--warn") : css("--bar-ink"); }
+  function worst() { return state === "mem" ? "ram" : state === "cpu" ? "cpu" : ""; }
+  function arcPath(cx, cy, r, a0, a1) {
+    var x0 = cx + r * Math.cos(a0), y0 = cy - r * Math.sin(a0), x1 = cx + r * Math.cos(a1), y1 = cy - r * Math.sin(a1);
+    var large = Math.abs(a0 - a1) > Math.PI ? 1 : 0, sweep = a1 < a0 ? 1 : 0;
+    return "M" + x0.toFixed(3) + " " + y0.toFixed(3) + "A" + r + " " + r + " 0 " + large + " " + sweep + " " + x1.toFixed(3) + " " + y1.toFixed(3);
+  }
+  // one menu bar gauge, like today's: half arc, needle, hub
+  function gauge(cx, cy, r, pct, c, sw) {
+    var a = Math.PI * (1 - pct / 100);
+    return '<path d="' + arcPath(cx, cy, r, Math.PI, 0) + '" fill="none" stroke="' + c + '" stroke-width="' + sw + '" stroke-linecap="round"/>' +
+      '<line x1="' + cx + '" y1="' + cy + '" x2="' + (cx + (r - 1.6) * Math.cos(a)).toFixed(2) + '" y2="' + (cy - (r - 1.6) * Math.sin(a)).toFixed(2) +
+      '" stroke="' + c + '" stroke-width="' + sw + '" stroke-linecap="round"/><circle cx="' + cx + '" cy="' + cy + '" r="' + (sw * 0.95).toFixed(2) + '" fill="' + c + '"/>';
+  }
+  function dot(cx, cy, s) { return s ? '<circle cx="' + cx + '" cy="' + cy + '" r="2.4" fill="' + col(s) + '"/>' : ""; }
+  function chip(cx, cy, c) { // memory chip glyph for the strain swap
+    var s = '<rect x="' + (cx - 7) + '" y="' + (cy - 4) + '" width="14" height="8" rx="1.6" fill="none" stroke="' + c + '" stroke-width="1.4"/>';
+    for (var i = 0; i < 5; i++) s += '<line x1="' + (cx - 5 + i * 2.5) + '" y1="' + (cy + 4) + '" x2="' + (cx - 5 + i * 2.5) + '" y2="' + (cy + 6) + '" stroke="' + c + '" stroke-width="1"/>';
+    return s;
+  }
+  function cpuGlyph(cx, cy, c) {
+    var s = '<rect x="' + (cx - 5.5) + '" y="' + (cy - 5.5) + '" width="11" height="11" rx="1.6" fill="none" stroke="' + c + '" stroke-width="1.4"/><rect x="' + (cx - 2.5) + '" y="' + (cy - 2.5) + '" width="5" height="5" fill="none" stroke="' + c + '" stroke-width="1.2"/>';
+    for (var i = -1; i <= 1; i++) {
+      s += '<line x1="' + (cx + i * 3) + '" y1="' + (cy - 7.5) + '" x2="' + (cx + i * 3) + '" y2="' + (cy - 5.5) + '" stroke="' + c + '" stroke-width="1"/><line x1="' + (cx + i * 3) + '" y1="' + (cy + 5.5) + '" x2="' + (cx + i * 3) + '" y2="' + (cy + 7.5) + '" stroke="' + c + '" stroke-width="1"/>';
+      s += '<line x1="' + (cx - 7.5) + '" y1="' + (cy + i * 3) + '" x2="' + (cx - 5.5) + '" y2="' + (cy + i * 3) + '" stroke="' + c + '" stroke-width="1"/><line x1="' + (cx + 5.5) + '" y1="' + (cy + i * 3) + '" x2="' + (cx + 7.5) + '" y2="' + (cy + i * 3) + '" stroke="' + c + '" stroke-width="1"/>';
+    }
+    return s;
+  }
+
+  // each option draws into a w x 22 pt box
+  function ring(cx, cy, r, pct, c, sw, start, span) { // track + fill, clockwise from start (radians, math angle)
+    start = start == null ? Math.PI / 2 : start; span = span == null ? Math.PI * 2 - 0.001 : span;
+    var f = Math.max(0.02, Math.min(1, pct / 100)) * span;
+    var track = span > Math.PI * 2 - 0.01 ? '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + css("--track") + '" stroke-width="' + sw + '"/>'
+      : '<path d="' + arcPath(cx, cy, r, start, start - span) + '" fill="none" stroke="' + css("--track") + '" stroke-width="' + sw + '" stroke-linecap="round"/>';
+    f = Math.min(f, Math.PI * 2 - 0.02);
+    return track +
+      '<path d="' + arcPath(cx, cy, r, start, start - f) + '" fill="none" stroke="' + c + '" stroke-width="' + sw + '" stroke-linecap="round"/>';
+  }
+  function pie(cx, cy, r, pct, c) {
+    var f = Math.max(0.01, Math.min(0.999, pct / 100)), a0 = Math.PI / 2, a1 = a0 - f * Math.PI * 2;
+    return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + c + '" stroke-width="1.1"/>' +
+      '<path d="M' + cx + ' ' + cy + 'L' + (cx + (r - 1.6) * Math.cos(a0)).toFixed(2) + ' ' + (cy - (r - 1.6) * Math.sin(a0)).toFixed(2) + 'A' + (r - 1.6) + ' ' + (r - 1.6) + ' 0 ' + (f > .5 ? 1 : 0) + ' 1 ' +
+      (cx + (r - 1.6) * Math.cos(a1)).toFixed(2) + ' ' + (cy - (r - 1.6) * Math.sin(a1)).toFixed(2) + 'Z" fill="' + c + '"/>';
+  }
+  function busiest() { return ["cpu", "gpu", "ram"].reduce(function (m, k) { return V[k] > V[m] ? k : m; }, "cpu"); }
+  var K = ["cpu", "gpu", "ram"];
+  var OPTS = [
+    { id: "watch", name: "Watch rings", w: 22, rec: true,
+      desc: "Three full rings, one inside the other, like the Activity rings on an Apple Watch. Outside to inside: CPU, GPU, RAM. Full circles read faster than the open arcs in the first version.",
+      how: ["Outer CPU, middle GPU, inner RAM", "Strained: that ring turns amber or red", "12 pt narrower than today"],
+      draw: function () { return [[9.3], [6.4], [3.5]].map(function (r, i) { return ring(11, 11, r[0], V[K[i]], col(sev(K[i])), 2.1); }).join(""); } },
+    { id: "rainbow", name: "Rainbow gauge", w: 22,
+      desc: "Today's gauge shape, split into three bands that each fill left to right. Keeps the gauge you know, with all three parts in it.",
+      how: ["Outer band CPU, middle GPU, inner RAM", "Strained: that band turns amber or red", "Same look as today's gauge"],
+      draw: function () { return [[9.4], [6.6], [3.8]].map(function (r, i) { return ring(11, 16, r[0], V[K[i]], col(sev(K[i])), 2, Math.PI, Math.PI); }).join(""); } },
+    { id: "row", name: "Three rings in a row", w: 34,
+      desc: "Three small rings side by side: CPU, GPU, RAM. Each one is easy to read on its own, at exactly today's width.",
+      how: ["Left to right: CPU, GPU, RAM", "Strained: that ring turns amber or red", "Same width as today"],
+      draw: function () { return K.map(function (k, i) { return ring(5.5 + i * 11.5, 11, 4.3, V[k], col(sev(k)), 1.9); }).join(""); } },
+    { id: "pies", name: "Three pies in a row", w: 34,
+      desc: "Three tiny pie charts instead of rings. Solid fills are easier to see at menu bar size than thin lines.",
+      how: ["Left to right: CPU, GPU, RAM", "Strained: that pie turns amber or red", "Same width as today"],
+      draw: function () { return K.map(function (k, i) { return pie(5.5 + i * 11.5, 11, 4.8, V[k], col(sev(k))); }).join(""); } },
+    { id: "tri", name: "Triangle cluster", w: 22,
+      desc: "Three small rings stacked in a triangle: CPU and GPU on top, RAM underneath. Compact, and each ring still stands apart.",
+      how: ["Top left CPU, top right GPU, bottom RAM", "Strained: that ring turns amber or red", "12 pt narrower than today"],
+      draw: function () { var P = [[6, 6.4], [16, 6.4], [11, 15.4]]; return K.map(function (k, i) { return ring(P[i][0], P[i][1], 3.9, V[k], col(sev(k)), 1.8); }).join(""); } },
+    { id: "seg", name: "One ring, three parts", w: 22,
+      desc: "A single ring cut into three equal sections, one per part, each filling clockwise. Reads as one icon, with three levels in it.",
+      how: ["Top right CPU, bottom GPU, top left RAM", "Strained: that section turns amber or red", "12 pt narrower than today"],
+      draw: function () { var gap = 0.5, span = Math.PI * 2 / 3 - gap; return K.map(function (k, i) { var st = Math.PI / 2 - gap / 2 - i * Math.PI * 2 / 3; return ring(11, 11, 8.2, V[k], col(sev(k)), 2.6, st, span); }).join(""); } },
+    { id: "hub", name: "Rings with a RAM center", w: 22,
+      desc: "CPU and GPU as two outer rings, and RAM as a filled pie in the middle. RAM gets the most visual weight, since it's the one your Mac runs short on.",
+      how: ["Outer CPU, middle GPU, center pie RAM", "Strained: that part turns amber or red", "12 pt narrower than today"],
+      draw: function () { return ring(11, 11, 9.3, V.cpu, col(sev("cpu")), 2) + ring(11, 11, 6.4, V.gpu, col(sev("gpu")), 2) + (function () {
+          var f = Math.max(0.01, Math.min(0.999, V.ram / 100)), r = 3.9, a1 = Math.PI / 2 - f * Math.PI * 2;
+          return '<circle cx="11" cy="11" r="' + r + '" fill="' + css("--track") + '"/><path d="M11 11L11 ' + (11 - r) + 'A' + r + ' ' + r + ' 0 ' + (f > .5 ? 1 : 0) + ' 1 ' + (11 + r * Math.cos(a1)).toFixed(2) + ' ' + (11 - r * Math.sin(a1)).toFixed(2) + 'Z" fill="' + col(sev("ram")) + '"/>'; })(); } },
+    { id: "focus", name: "Busiest ring stands out", w: 22,
+      desc: "Watch rings where only the busiest part is drawn solid and the other two stay faint. You see at a glance what's working hardest.",
+      how: ["Outer CPU, middle GPU, inner RAM", "The busiest ring is solid, the others faint", "12 pt narrower than today"],
+      draw: function () { var b = busiest(); return [[9.3], [6.4], [3.5]].map(function (r, i) { var k = K[i], s = sev(k), c = s ? col(s) : k === b ? col("") : css("--bar-ink-2");
+          return '<g opacity="' + (s || k === b ? 1 : 0.55) + '">' + ring(11, 11, r[0], V[k], c, 2.1) + "</g>"; }).join(""); } },
+    { id: "halves", name: "Three mini gauges, no needles", w: 34,
+      desc: "Three small half-circle gauges that fill instead of using a needle. Closest to separate gauges per part, at today's width.",
+      how: ["Left to right: CPU, GPU, RAM", "Strained: that gauge turns amber or red", "Same width as today"],
+      draw: function () { return K.map(function (k, i) { return ring(5.5 + i * 11.5, 14.5, 4.6, V[k], col(sev(k)), 2.1, Math.PI, Math.PI); }).join(""); } },
+    { id: "num", name: "Watch rings with RAM %", w: 52,
+      desc: "The watch rings plus the RAM number next to them, for when you want a figure without clicking. Wider, so it costs menu bar room.",
+      how: ["Rings: CPU, GPU, RAM; number: RAM used", "Strained: ring and number turn amber or red", "18 pt wider than today"],
+      draw: function () { return [[9.3], [6.4], [3.5]].map(function (r, i) { return ring(11, 11, r[0], V[K[i]], col(sev(K[i])), 2.1); }).join("") +
+          '<text x="24" y="15" font-family="-apple-system,Inter,system-ui,sans-serif" font-size="12" font-weight="600" fill="' + col(sev("ram")) + '" style="font-variant-numeric:tabular-nums">' + Math.round(V.ram) + "%</text>"; } }
+  ];
+  function lab(x, y, t) { return '<text x="' + x + '" y="' + (y + 2.6) + '" text-anchor="middle" font-family="Inter,-apple-system,system-ui,sans-serif" font-size="5.6" font-weight="700" fill="' + css("--bar-ink-2") + '">' + t + "</text>"; }
+
+  function svg(o, scale) {
+    return '<svg width="' + o.w * scale + '" height="' + 22 * scale + '" viewBox="0 0 ' + o.w + ' 22" aria-hidden="true">' + o.draw() + "</svg>";
+  }
+  function meter() { return '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="' + css("--bar-ink-2") + '" stroke-width="2"/><path d="M8 2a6 6 0 0 1 5.7 4.1" fill="none" stroke="' + css("--bar-ink") + '" stroke-width="2" stroke-linecap="round"/></svg>'; }
+
+  var HH = ({ V: V, K: K, css: css, col: col, sev: sev, worst: worst, arcPath: arcPath, ring: ring, pie: pie, gauge: gauge, dot: dot, lab: lab, busiest: busiest, chip: chip, cpuGlyph: cpuGlyph, hist: H, getState: function () { return state; } });
+  var SM = {lines: { t: 'Line charts', l: 'Variations on 20. The first one is the original.', o: [] },dials: { t: 'Dials', l: 'Variations on 23. The first one is the original.', o: [] },both: { t: 'Dials and lines together', l: 'Mixing your two favourites.', o: [] }};
+  window.WIDE_SETS.forEach(function (s) { s.f(HH).forEach(function (o) { if (!s.keep || s.keep.indexOf(o.id) >= 0) { if (s.keep) { o.orig = true; o.name = o.name + ' (original)'; } SM[s.s].o.push(o); } }); });
+  var SECT = [SM.lines, SM.dials, SM.both];
+  OPTS = [].concat.apply([], SECT.map(function (s) { return s.o; }));
+  var list = document.getElementById("list");
+  function card(o) {
+    return '<article class="card' + (o.rec ? " rec" : "") + '"><div class="top"><h2>' + o.name + '</h2><span class="w">' + o.w + " pt</span>" +
+      (o.rec ? '<span class="badge">My pick</span>' : "") + "</div>" +
+      '<div class="mb"><span class="cm">' + '<span class="m"></span>34% · 2h50m&nbsp; wk 41%</span><span class="ic" data-id="' + o.id + '" data-s="2.5"></span><span class="clk">Mon 3:40 AM</span></div>' +
+      '<div class="small"><span>Actual size</span><span class="mb1"><span class="cm1">34% · 2h50m&nbsp; wk 41%</span><span class="ic" data-id="' + o.id + '" data-s="1"></span><span>Mon 3:40 AM</span></span></div>' +
+      "<p>" + o.desc + "</p><ul>" + o.how.map(function (h) { return "<li>" + h + "</li>"; }).join("") + "</ul></article>";
+  }
+  var n = 0;
+  document.getElementById("ov").innerHTML = SECT.map(function (s) { return '<div class="ovs"><h3>' + s.t + '</h3>' + s.o.map(function (o) { n++; return '<a class="ovr' + (o.rec ? " rec" : "") + '" href="#c-' + o.id + '"><span class="ovn">' + n + ". " + o.name + '</span><span class="mb1"><span class="ic" data-id="' + o.id + '" data-s="1"></span></span><span class="w">' + o.w + ' pt</span></a>'; }).join("") + "</div>"; }).join("");
+  n = 0;
+  list.innerHTML = SECT.map(function (s) { return '<section class="sec"><h2 class="st">' + s.t + '</h2><p class="sl">' + s.l + "</p></section>" + s.o.map(function (o) { n++; return card(o).replace('<article class="card', '<article id="c-' + o.id + '" class="card').replace("<h2>", "<h2>" + n + ". "); }).join(""); }).join("");
+  var icons = Array.prototype.slice.call(document.querySelectorAll(".ic")), meters = document.querySelectorAll(".m");
+  var byId = {}; OPTS.forEach(function (o) { byId[o.id] = o; });
+
+  function paint() {
+    icons.forEach(function (el) { el.innerHTML = svg(byId[el.dataset.id], +el.dataset.s); });
+    Array.prototype.forEach.call(meters, function (m) { m.innerHTML = meter(); });
+    document.getElementById("now").textContent = "CPU " + Math.round(V.cpu) + "%  GPU " + Math.round(V.gpu) + "%  RAM " + Math.round(V.ram) + "%";
+  }
+  function target() {
+    var base = state === "cpu" ? { cpu: 92, gpu: 30, ram: 81 } : state === "mem" ? { cpu: 41, gpu: 12, ram: 94 } : { cpu: 37, gpu: 9, ram: 80 };
+    T.cpu = Math.max(2, Math.min(99, base.cpu + (Math.random() - .5) * 26));
+    T.gpu = Math.max(0, Math.min(99, base.gpu + (Math.random() < .25 ? Math.random() * 45 : (Math.random() - .5) * 10)));
+    T.ram = Math.max(40, Math.min(99, base.ram + (Math.random() - .5) * 3));
+  }
+  function step() { ["cpu", "gpu", "ram"].forEach(function (k) { V[k] += (T[k] - V[k]) * 0.35; H[k].push(V[k]); if (H[k].length > 40) H[k].shift(); }); paint(); }
+  var timer = null, tick = 0;
+  function run() {
+    clearInterval(timer);
+    if (!live) { paint(); return; }
+    timer = setInterval(function () { if (tick++ % 4 === 0) target(); step(); }, 500);
+  }
+  function setState(s) {
+    state = s;
+    [["sCalm", "calm"], ["sMem", "mem"], ["sCpu", "cpu"]].forEach(function (p) { document.getElementById(p[0]).setAttribute("aria-pressed", p[1] === s); });
+    if (!live) { var b = s === "cpu" ? { cpu: 92, gpu: 30, ram: 81 } : s === "mem" ? { cpu: 41, gpu: 12, ram: 94 } : { cpu: 37, gpu: 9, ram: 80 }; Object.assign(V, b); T = Object.assign({}, b); H.cpu = []; H.gpu = []; H.ram = []; for (var i = 0; i < 40; i++) { H.cpu.push(Math.max(2, Math.min(99, b.cpu + Math.sin(i / 3) * 9 + (Math.random() - .5) * 10))); H.gpu.push(Math.max(0, Math.min(99, b.gpu + (i % 13 > 9 ? 25 : (Math.random() - .5) * 6)))); H.ram.push(Math.max(40, Math.min(99, b.ram - 2 + i * 0.05 + (Math.random() - .5)))); } H.cpu[39] = b.cpu; H.gpu[39] = b.gpu; H.ram[39] = b.ram; }
+    else target();
+    paint();
+  }
+  document.getElementById("sCalm").onclick = function () { setState("calm"); };
+  document.getElementById("sMem").onclick = function () { setState("mem"); };
+  document.getElementById("sCpu").onclick = function () { setState("cpu"); };
+  document.getElementById("bLive").onclick = function () { live = true; this.setAttribute("aria-pressed", "true"); document.getElementById("bStill").setAttribute("aria-pressed", "false"); run(); };
+  document.getElementById("bStill").onclick = function () { live = false; this.setAttribute("aria-pressed", "true"); document.getElementById("bLive").setAttribute("aria-pressed", "false"); run(); };
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", paint); } catch (e) {}
+  new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (!live) { document.getElementById("bStill").setAttribute("aria-pressed", "true"); document.getElementById("bLive").setAttribute("aria-pressed", "false"); }
+  paint(); run();
+})();
+</script>
