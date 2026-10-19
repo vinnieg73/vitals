@@ -20,6 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var lastJSON: String?
     private var lastState: StatusIcon.State?
     private var lastWindowOpen = false
+    private let warned = LockedFlag()
+    /// `--status-log`: print the item's length and button width on every change (for checking it never moves).
+    /// `--status-test`: cycle through test states instead of the real one.
+    private let statusLog = CommandLine.arguments.contains("--status-log")
+    private let statusTest = CommandLine.arguments.contains("--status-test")
     /// Read on the sampler queue: only build the (large) JSON while a page is showing.
     private let live = LockedFlag()
 
@@ -32,12 +37,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             b.target = self
             b.action = #selector(statusClicked)
             b.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            // One width for every state, so the menu bar never re-lays out.
+            statusItem.length = StatusIcon.fixedLength(for: b)
             StatusIcon.apply(.normal(pressure: 0), to: b)
+            logStatus("launch")
         }
         hotkey = Hotkey { [weak self] in MainActor.assumeIsolated { self?.toggleWindow() } }
 
-        sampler.onSnapshot = { [weak self, live] snap in
-            let state = StatusIcon.state(from: snap)
+        sampler.onSnapshot = { [weak self, live, warned, statusTest] snap in
+            var state = StatusIcon.state(from: snap, wasWarn: warned.value)
+            if statusTest { state = Self.testState() }
+            warned.value = state.isWarn
             let json = live.value ? Self.encode(snap) : nil
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.deliver(state: state, json: json) } }
         }
@@ -55,6 +65,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         return true
     }
 
+    private func logStatus(_ what: String) {
+        guard statusLog, let b = statusItem.button else { return }
+        print(String(format: "%@  length %.1f  button %.1f  fits %.1f  %@", ISO8601DateFormatter().string(from: Date()),
+                     statusItem.length, b.frame.width, b.fittingSize.width, what))
+        fflush(stdout)
+    }
+
+    private nonisolated static let testStates: [StatusIcon.State] = [
+        .normal(pressure: 3), .normal(pressure: 9), .normal(pressure: 52), .warn(pressure: 78), .warn(pressure: 100),
+        .critical(pressure: 97), .normal(pressure: 41), .warn(pressure: 66),
+    ]
+    private nonisolated(unsafe) static var testIndex = 0
+    private nonisolated static func testState() -> StatusIcon.State {
+        testIndex += 1
+        return testStates[testIndex % testStates.count]
+    }
+
     nonisolated static func encode(_ snap: [String: Any]) -> String? {
         guard let d = try? JSONSerialization.data(withJSONObject: snap) else { return nil }
         return String(decoding: d, as: UTF8.self)
@@ -66,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         if state != lastState, let b = statusItem.button {
             StatusIcon.apply(state, to: b)
             lastState = state
+            logStatus("\(state)")
         }
         guard let json else { return }
         lastJSON = json

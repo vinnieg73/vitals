@@ -1,51 +1,71 @@
 import AppKit
 
-/// The menu bar item's look, from the snapshot.
-///   normal:   gauge only (template, follows the menu bar's color)
-///   warn:     gauge + "RAM 78%" + an amber dot
+/// The menu bar item's look, from the snapshot. The item has one fixed width (`fixedLength`), so the
+/// menu bar never re-lays out and other icons don't slide in and out from behind the notch.
+///   normal:   gauge + "RAM 52%" (template, follows the menu bar's color); the dot slot stays empty
+///   warn:     the same + an amber dot
 ///   critical: red rounded pill with a white gauge and "Out of RAM"
 enum StatusIcon {
     enum State: Equatable {
-        case normal(pressure: Double)
-        case warn(pressure: Double)
-        case critical(pressure: Double)
+        case normal(pressure: Int)
+        case warn(pressure: Int)
+        case critical(pressure: Int)
+
+        var isWarn: Bool { if case .warn = self { return true } else { return false } }
     }
 
     static let amber = NSColor(srgbRed: 0xE0 / 255, green: 0x9A / 255, blue: 0x1D / 255, alpha: 1)
     static let red = NSColor(srgbRed: 0xD0 / 255, green: 0x34 / 255, blue: 0x2C / 255, alpha: 1)
 
-    static func state(from snap: [String: Any]) -> State {
+    /// `wasWarn`: swap must drop under 72% to leave warn after going over 75%, so the dot doesn't flicker
+    /// while swap hovers at the line.
+    static func state(from snap: [String: Any], wasWarn: Bool) -> State {
         let mem = snap["memory"] as? [String: Any] ?? [:]
-        let pressure = (mem["pressurePct"] as? Double) ?? 0
+        let pressure = Int(((mem["pressurePct"] as? Double) ?? 0).rounded())
         let level = mem["level"] as? String
         let used = (mem["swapUsedBytes"] as? NSNumber)?.doubleValue ?? 0
         let total = (mem["swapTotalBytes"] as? NSNumber)?.doubleValue ?? 0
-        let swapFull = total > 0 && used / total > 0.75
+        let swapFull = total > 0 && used / total > (wasWarn ? 0.72 : 0.75)
         if level == "critical" { return .critical(pressure: pressure) }
         if level == "warn" || swapFull { return .warn(pressure: pressure) }
         return .normal(pressure: pressure)
     }
 
+    /// Tabular digits, padded to three with figure spaces, and a dot slot that's always there: every
+    /// value takes the same width.
+    private static let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+
+    private static func title(pressure: Int, dot: NSColor) -> NSAttributedString {
+        let digits = String(min(100, max(0, pressure)))
+        let padded = String(repeating: "\u{2007}", count: 3 - digits.count) + digits
+        let t = NSMutableAttributedString(string: " RAM \(padded)%", attributes: [.font: font])
+        t.append(NSAttributedString(string: " ●", attributes: [
+            .font: NSFont.systemFont(ofSize: font.pointSize * 0.6), .foregroundColor: dot,
+            .baselineOffset: font.pointSize * 0.15,
+        ]))
+        return t
+    }
+
+    /// The widest the button gets (100% with the dot, or the critical pill), measured on the real button.
+    static func fixedLength(for button: NSStatusBarButton) -> CGFloat {
+        var widest: CGFloat = 0
+        for state in [State.warn(pressure: 100), .critical(pressure: 100)] {
+            apply(state, to: button)
+            widest = max(widest, button.fittingSize.width)
+        }
+        return ceil(widest)
+    }
+
     static func apply(_ state: State, to button: NSStatusBarButton) {
         switch state {
-        case .normal(let p):
-            button.image = gauge(pressure: p, color: .black, template: true)
-            button.attributedTitle = NSAttributedString(string: "")
-            button.imagePosition = .imageOnly
-            button.toolTip = "Vitals: memory pressure \(Int(p))%"
-        case .warn(let p):
-            button.image = gauge(pressure: p, color: .black, template: true)
-            let font = NSFont.menuBarFont(ofSize: 0)
-            let t = NSMutableAttributedString(string: " RAM \(Int(p.rounded()))%", attributes: [.font: font])
-            t.append(NSAttributedString(string: " ●", attributes: [
-                .font: NSFont.systemFont(ofSize: font.pointSize * 0.6), .foregroundColor: amber,
-                .baselineOffset: font.pointSize * 0.15,
-            ]))
-            button.attributedTitle = t
+        case .normal(let p), .warn(let p):
+            let warn = state.isWarn
+            button.image = gauge(pressure: Double(p), color: .black, template: true)
+            button.attributedTitle = title(pressure: p, dot: warn ? amber : .clear)
             button.imagePosition = .imageLeft
-            button.toolTip = "Vitals: your Mac is short on memory (pressure \(Int(p))%)"
+            button.toolTip = warn ? "Vitals: your Mac is short on memory (pressure \(p)%)" : "Vitals: memory pressure \(p)%"
         case .critical(let p):
-            button.image = criticalPill(pressure: p)
+            button.image = criticalPill(pressure: Double(p))
             button.attributedTitle = NSAttributedString(string: "")
             button.imagePosition = .imageOnly
             button.toolTip = "Vitals: out of memory"

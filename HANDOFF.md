@@ -1,6 +1,6 @@
 # Vitals — handoff
 
-_Last updated 2026-10-17 (evening) by the Mac session._
+_Last updated 2026-10-19 by the Mac session._
 
 ## Status
 - The Swift side is built and green (`scripts/build.sh`). `--dump` matches vm_stat, sysctl,
@@ -78,6 +78,22 @@ _Last updated 2026-10-17 (evening) by the Mac session._
 - Fix: App caches skips com.apple.* (except com.apple.dt.* = Xcode), Apple caches named without the prefix, and
   media-named folders. Biggest space users is unchanged in practice (Xcode simulators 35 GB, Code 30 GB…).
 - Checked: two launches after the fix, both scans ran, no Vitals entries at all in tccd's log.
+
+## Fixed-width menu bar item (2026-10-19)
+- Why: Vinnie said the icons kept sliding in and out from behind the notch. Vitals switched between the bare gauge
+  (18 pt) and gauge + " RAM 78% ●" (90–104 pt, by digit count), and swap hovering at the 75% line flipped it often.
+- Now: the item always shows gauge + "RAM NN%" (monospaced digits, padded to 3 with figure spaces) + a dot slot that is
+  clear unless warn. `statusItem.length` is set once at launch to the widest state measured on the real button
+  (`StatusIcon.fixedLength`: 100% with the dot, or the critical pill) = **107 pt**. It's never changed after that.
+- Updates only touch the button when the state changes (pressure is an Int now). Warn from swap has hysteresis:
+  enters over 75%, leaves under 72%.
+- Trade-off: normal is no longer icon-only, so Vitals takes 107 pt all the time instead of 18 pt most of the time.
+- Checked: `--status-log --status-test` (cycles 8 test states every 2 s, including critical) for 3 min: 92 updates,
+  every one length 107.0 / button frame 107.0. Before (old code, same button): normal 18, warn 9% 90, 78% 97,
+  100% 104, critical 107.
+- `--status-log` prints length, button width and fitting width on each change; `--status-test` fakes the states.
+  Run them with `open -n <app> --stdout <file> --args --status-log --status-test`, quit the installed copy first,
+  and kill the test copy after (it shows in the real menu bar).
 
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
