@@ -134,6 +134,9 @@ _Last updated 2026-10-19 ~01:15 UTC by the Mac session._
   big number. Swift adds `live.memUsedPct` (memory.usedBytes / totalBytes × 100, one decimal, same 150 × 2 s ring as
   the rest); DATA.md's live block has it. The pages are the cloud thread's. The menu bar icon still goes by pressure/swap.
 - Checked: `--dump` gave memUsedPct [78.8, 78.9] with 2 points, matching usedBytes / totalBytes = 78.9%.
+- The cloud's pages (0937197) show it: Memory's big number and chart are used %, pressure moved into the list.
+  Installed 2026-10-19 ~03:35Z; `--render --warm 40` of window and popover, light and dark, show "80% Used · 14.38 GB"
+  with a flat ~80% line and no page errors; committed over `docs/shots/strip-*.png`. Vitals still at window x 1100.
 
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
