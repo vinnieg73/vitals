@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var lastState: StatusIcon.State?
     private var lastWindowOpen = false
     private let judge = StatusIcon.Judge()
+    private var appearanceWatch: NSKeyValueObservation?
     /// `--status-log`: print the item's length and button width on every change (for checking it never moves).
     /// `--status-test`: cycle through test states instead of the real one.
     private let statusLog = CommandLine.arguments.contains("--status-log")
@@ -40,8 +41,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             b.sendAction(on: [.leftMouseUp, .rightMouseUp])
             // One width for every state, so the menu bar never re-lays out.
             statusItem.length = StatusIcon.fixedLength(for: b)
-            StatusIcon.apply(.calm(0), to: b)
+            StatusIcon.apply(StatusIcon.State(cpu: 0, gpu: 0, ram: 0), to: b)
             logStatus("launch")
+            // A strained icon isn't a template, so its colors are drawn for one appearance: redraw when the
+            // menu bar flips between light and dark.
+            appearanceWatch = b.observe(\.effectiveAppearance) { [weak self] _, _ in
+                DispatchQueue.main.async { MainActor.assumeIsolated {
+                    guard let self, let state = self.lastState, let b = self.statusItem.button else { return }
+                    StatusIcon.apply(state, to: b)
+                } }
+            }
         }
         hotkey = Hotkey { [weak self] in MainActor.assumeIsolated { self?.toggleWindow() } }
 
@@ -73,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         fflush(stdout)
     }
 
-    private nonisolated static let testStates: [StatusIcon.State] = StatusIcon.allStates + [.calm(9), .calm(97)]
+    private nonisolated static let testStates: [StatusIcon.State] = StatusIcon.allStates
     private nonisolated(unsafe) static var testIndex = 0
     private nonisolated static func testState() -> StatusIcon.State {
         testIndex += 1

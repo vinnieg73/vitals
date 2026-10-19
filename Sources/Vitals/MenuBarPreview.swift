@@ -1,6 +1,6 @@
 import AppKit
 
-/// `Vitals --render menubar <out.png> [light|dark]`: every state the menu bar item can show, each on a
+/// `Vitals --render menubar <out.png> [light|dark]`: the states Help pictures (`StatusIcon.helpStates`), each on a
 /// real status bar button hosted off screen at the item's fixed width, on a menu-bar-coloured strip with
 /// a caption under it. Drawn at 3x.
 @MainActor
@@ -10,8 +10,8 @@ enum MenuBarPreview {
         let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         let bar = dark ? NSColor(srgbRed: 0.16, green: 0.16, blue: 0.17, alpha: 1) : NSColor(srgbRed: 0.91, green: 0.91, blue: 0.92, alpha: 1)
         let ink = dark ? NSColor(white: 0.85, alpha: 1) : NSColor(white: 0.2, alpha: 1)
-        let states = StatusIcon.allStates
-        let scale: CGFloat = 3, row: CGFloat = 24, cell: CGFloat = 76, caption: CGFloat = 26, margin: CGFloat = 8
+        let states = StatusIcon.helpStates
+        let scale: CGFloat = 3, row: CGFloat = 24, cell: CGFloat = 80, caption: CGFloat = 26, margin: CGFloat = 8
 
         // Measure the fixed width on a button of our own, as the app does.
         let probe = NSStatusBarButton(frame: NSRect(x: 0, y: 0, width: 100, height: row))
@@ -68,9 +68,10 @@ enum MenuBarPreview {
     }
 
     private static func label(_ s: StatusIcon.State) -> String {
-        guard let area = s.area else { return "calm" }
-        let name = area == .disk ? "disk" : area == .heat ? "heat" : area.name
-        return "\(name) \(s.severity == .critical ? "crit" : "warn")"
+        if let area = s.takeover { return "\(area == .disk ? "disk" : "heat") \(s.level(area) == .critical ? "crit" : "warn")" }
+        let strained = s.levels.keys.sorted { $0.rawValue < $1.rawValue }
+            .map { "\($0 == .memory ? "RAM" : $0.name) \(s.level($0) == .critical ? "crit" : "warn")" }
+        return strained.isEmpty ? "calm" : strained.joined(separator: ", ")
     }
 }
 

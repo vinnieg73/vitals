@@ -1,6 +1,6 @@
 # Vitals — handoff
 
-_Last updated 2026-10-19 ~01:15 UTC by the Mac session._
+_Last updated 2026-10-19 ~18:05 UTC by the Mac session._
 
 ## Status
 - The Swift side is built and green (`scripts/build.sh`). `--dump` matches vm_stat, sysctl,
@@ -146,6 +146,45 @@ _Last updated 2026-10-19 ~01:15 UTC by the Mac session._
 - The cloud's pages (0937197) show it: Memory's big number and chart are used %, pressure moved into the list.
   Installed 2026-10-19 ~03:35Z; `--render --warm 40` of window and popover, light and dark, show "80% Used · 14.38 GB"
   with a flat ~80% line and no page errors; committed over `docs/shots/strip-*.png`. Vitals still at window x 1100.
+
+## Per-part menu bar icon mockups (2026-10-19)
+- Vinnie liked #20 "Three lines with numbers" and #23 "Three dials" from the cloud's "Vitals Menu Bar" artifact.
+  `docs/mockups/menubar-20-23.png` draws them plus two variants each on real status bar buttons off screen, light and
+  dark, calm / memory tight / CPU busy. Measured widths: 20 = 122 pt, 20b filled + letters = 104, 20c lines + one
+  number = 74, 23 = 58, 23b numbers under dials = 58, 23c numbers beside = 96 (today's icon 34). Throwaway Swift tool,
+  deleted after. Vinnie picked **23, three dials** (below).
+
+## Three-dial menu bar icon (2026-10-19)
+- Built to the coordinator's brief (dl-1 in `docs/mockups/menubar-dials.js`). `StatusIcon.dials`: 58×22 pt image, dials
+  at x 9 / 29 / 49, y 10.9 from the top, r 6.9, arc 190° → −10°, stroke 1.7, needle to r − 2.1, hub 1.6; 7 pt
+  semibold CPU / GPU / RAM at baseline 19.6. Needles: `cpu.totalPct`, `gpu.pct`, memory used % (null → 0).
+- `State` is now the three needles (whole %, so under 1% of movement doesn't redraw) + the levels of every strained
+  area. Several dials can be colored at once. GPU got CPU's rule (85%+ for 30 s, leaves under 75%, warn only);
+  `Area` gained `.gpu`, busy clocks are per area.
+- Heat or disk strained → `takeover`: their symbol + amber/red dot (28×16 image, centered), over the dials whatever
+  else is strained (heat wins a heat/disk tie).
+- All calm: template image (follows the menu bar). Anything colored: not a template, drawn with labelColor /
+  secondaryLabelColor for the button's effectiveAppearance, so AppDelegate KVOs `effectiveAppearance` and redraws.
+- `StatusIcon.helpStates` (9) is what `--render menubar` shows; `allStates` (12, incl. 0/0/0, 100/100/100 and RAM crit +
+  CPU warn) is what `fixedLength` measures and `--status-test` cycles.
+- Checked: release build clean; `--render menubar` light/dark by eye (needles 0 → far left, 100 → far right, colors on the
+  right dials, labels not clipped); copied to `docs/shots/` and `Resources/menubar-states-{light,dark}.png` (coordinator
+  asked). Installed; `--status-log --status-test` for 30 s: every state length 58.0 / button 58.0 (window 74), Vitals
+  at window x 1035. Claude Meter logged at x 858, 169 wide ("1% · 2h06m  wk 69%"), right edge 1027, so it has 178.5 pt
+  right of the notch edge (848.5). Its two-digit form (177) fits; the "~100%" (209) and longest (250) forms don't, and
+  then macOS moves an item into the « overflow. A ⌘-drag only picks which item goes; ~72 pt has to be freed elsewhere.
+  Vitals' right edge also moved from 1150 to 1109 (it only grew 24 pt), so something right of it took ~41 pt; can't see
+  what (status items aren't in CGWindowList on macOS 27).
+- Fake-snapshot harness (scratch, deleted): 19 checks pass. GPU 90 for 28 s ok, 32 s warn, holds at 80, clears at 70;
+  CPU and GPU clocks are independent; a dip under 85 before it's flagged restarts the clock; heat → takeover, disk
+  critical beats heat warn; null CPU/GPU on the first sample → 0.
+- CPU: right after launch Vitals ran ~63% of a core for about a minute; `sample` showed that's the launch disk scan
+  (vitals.diskscan thread busy, main thread idle), not the icon. After the scan: **2.0% of one core** over 60 s, 80 MB RSS;
+  same as before the dials (1.7–2.6% idle on 2026-10-18), though the icon now redraws when a needle moves 1%.
+- Final build installed ~15:47Z; real state logged calm (CPU ~33, GPU 10, RAM 72), 58.0 pt at window x 1035.
+- Room for Claude Meter (Vinnie chose to shorten it, 2026-10-19 ~17:40Z): Claude Meter v0.9.24 drops the 5-hour % from
+  its title when the week is in it; its widest form is now 169 pt. With every test title cycling, Claude Meter's left
+  edge stayed at x 874+ (notch edge 848.5) and Vitals at window x 1043 (74 wide). Details in Claude Meter's HANDOFF.
 
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
