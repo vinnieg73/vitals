@@ -81,16 +81,17 @@ _Last updated 2026-10-19 by the Mac session._
 
 ## Fixed-width menu bar item (2026-10-19)
 - Why: Vinnie said the icons kept sliding in and out from behind the notch. Vitals switched between the bare gauge
-  (18 pt) and gauge + " RAM 78% ●" (90–104 pt, by digit count), and swap hovering at the 75% line flipped it often.
-- Now: the item always shows gauge + "RAM NN%" (monospaced digits, padded to 3 with figure spaces) + a dot slot that is
-  clear unless warn. `statusItem.length` is set once at launch to the widest state measured on the real button
-  (`StatusIcon.fixedLength`: 100% with the dot, or the critical pill) = **107 pt**. It's never changed after that.
+  (18 pt) and gauge + " RAM 78% ●" or the "Out of RAM" pill (90–107 pt), and swap hovering at the 75% line flipped it often.
+- First fix (e3cdebf): always gauge + "RAM NN%" at a fixed 107 pt. Vinnie then picked **icon only** (via the coordinator).
+- Now: gauge + a dot slot, never any text. Normal: template gauge, clear dot. Warn: amber dot. Critical: red gauge +
+  red dot (the "Out of RAM" pill is gone). `statusItem.length` is set once at launch from the real button
+  (`StatusIcon.fixedLength`) = **34 pt**, and never changed.
 - Updates only touch the button when the state changes (pressure is an Int now). Warn from swap has hysteresis:
   enters over 75%, leaves under 72%.
-- Trade-off: normal is no longer icon-only, so Vitals takes 107 pt all the time instead of 18 pt most of the time.
-- Checked: `--status-log --status-test` (cycles 8 test states every 2 s, including critical) for 3 min: 92 updates,
-  every one length 107.0 / button frame 107.0. Before (old code, same button): normal 18, warn 9% 90, 78% 97,
-  100% 104, critical 107.
+- Checked: `--status-log --status-test` (cycles 8 test states every 2 s, including critical) for 3 min: 98 updates,
+  every one length 34.0 / button frame 34.0.
+- **For the cloud thread:** help.html "Menu bar icon" (lines 84–91) still shows "RAM 78%" for Strained and the
+  "Out of RAM" pill for Critical. It should show the gauge + amber dot, and a red gauge + red dot.
 - `--status-log` prints length, button width and fitting width on each change; `--status-test` fakes the states.
   Run them with `open -n <app> --stdout <file> --args --status-log --status-test`, quit the installed copy first,
   and kill the test copy after (it shows in the real menu bar).
@@ -123,7 +124,7 @@ _Last updated 2026-10-19 by the Mac session._
   binary, other argv[0]) are folded into their session; orphaned ones show as "ugrep — left over
   from Claude Code".
 - Menu bar item (NSStatusItem): gauge template image with the needle at pressure. Warn state (level warn,
-  or swap > 75%) shows gauge + "RAM 78%" + an amber dot. Critical shows a red pill with "Out of RAM".
+  or swap > 75%) adds an amber dot. Critical is a red gauge + red dot. Fixed 34 pt (see "Fixed-width menu bar item").
   Left-click toggles the popover; right-click shows a small menu.
 - Popover: 356 wide, sized to the page's content (measured after load and on every update).
 - Main window 1280×880 (min 1100×760), frame remembered ("VitalsMain"), follows system light/dark.

@@ -9,3 +9,4 @@ See README.md, HANDOFF.md, BRIEF-mac.md and DATA.md.
 - In zsh, `log` is a shell builtin: `log show` / `log stream` silently do nothing useful. Use `/usr/bin/log`.
 - Walking ~/Library/Caches touches Apple Music's caches and makes macOS ask for Media & Apple Music access; skip Apple's caches. Ad hoc signing makes macOS forget privacy answers on every rebuild.
 - Never open windows on Vinnie's screen to test: use `--dump` and `--render` (borderless window parked at -40000,-40000, activation policy .prohibited).
+- A `variableLength` status item that changes width re-lays out the menu bar and slides icons in and out from behind the notch. Fixed `length`, set once.

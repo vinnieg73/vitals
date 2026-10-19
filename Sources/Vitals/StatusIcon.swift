@@ -2,9 +2,10 @@ import AppKit
 
 /// The menu bar item's look, from the snapshot. The item has one fixed width (`fixedLength`), so the
 /// menu bar never re-lays out and other icons don't slide in and out from behind the notch.
-///   normal:   gauge + "RAM 52%" (template, follows the menu bar's color); the dot slot stays empty
+/// Icon only, never any text:
+///   normal:   the gauge (template, follows the menu bar's color); the dot slot stays empty
 ///   warn:     the same + an amber dot
-///   critical: red rounded pill with a white gauge and "Out of RAM"
+///   critical: a red gauge + a red dot
 enum StatusIcon {
     enum State: Equatable {
         case normal(pressure: Int)
@@ -31,25 +32,12 @@ enum StatusIcon {
         return .normal(pressure: pressure)
     }
 
-    /// Tabular digits, padded to three with figure spaces, and a dot slot that's always there: every
-    /// value takes the same width.
-    private static let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+    private static let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
 
-    private static func title(pressure: Int, dot: NSColor) -> NSAttributedString {
-        let digits = String(min(100, max(0, pressure)))
-        let padded = String(repeating: "\u{2007}", count: 3 - digits.count) + digits
-        let t = NSMutableAttributedString(string: " RAM \(padded)%", attributes: [.font: font])
-        t.append(NSAttributedString(string: " ●", attributes: [
-            .font: NSFont.systemFont(ofSize: font.pointSize * 0.6), .foregroundColor: dot,
-            .baselineOffset: font.pointSize * 0.15,
-        ]))
-        return t
-    }
-
-    /// The widest the button gets (100% with the dot, or the critical pill), measured on the real button.
+    /// The widest the button gets (every state is the same, but measure them all), on the real button.
     static func fixedLength(for button: NSStatusBarButton) -> CGFloat {
         var widest: CGFloat = 0
-        for state in [State.warn(pressure: 100), .critical(pressure: 100)] {
+        for state in [State.normal(pressure: 100), .warn(pressure: 100), .critical(pressure: 100)] {
             apply(state, to: button)
             widest = max(widest, button.fittingSize.width)
         }
@@ -57,19 +45,27 @@ enum StatusIcon {
     }
 
     static func apply(_ state: State, to button: NSStatusBarButton) {
+        let dot: NSColor
         switch state {
-        case .normal(let p), .warn(let p):
-            let warn = state.isWarn
+        case .normal(let p):
             button.image = gauge(pressure: Double(p), color: .black, template: true)
-            button.attributedTitle = title(pressure: p, dot: warn ? amber : .clear)
-            button.imagePosition = .imageLeft
-            button.toolTip = warn ? "Vitals: your Mac is short on memory (pressure \(p)%)" : "Vitals: memory pressure \(p)%"
+            dot = .clear
+            button.toolTip = "Vitals: memory pressure \(p)%"
+        case .warn(let p):
+            button.image = gauge(pressure: Double(p), color: .black, template: true)
+            dot = amber
+            button.toolTip = "Vitals: your Mac is short on memory (pressure \(p)%)"
         case .critical(let p):
-            button.image = criticalPill(pressure: Double(p))
-            button.attributedTitle = NSAttributedString(string: "")
-            button.imagePosition = .imageOnly
-            button.toolTip = "Vitals: out of memory"
+            button.image = gauge(pressure: Double(p), color: red, template: false)
+            dot = red
+            button.toolTip = "Vitals: out of memory (pressure \(p)%)"
         }
+        // Icon only: the gauge and a dot slot that's always there (clear when all's well).
+        button.attributedTitle = NSAttributedString(string: " ●", attributes: [
+            .font: NSFont.systemFont(ofSize: font.pointSize * 0.6), .foregroundColor: dot,
+            .baselineOffset: font.pointSize * 0.15,
+        ])
+        button.imagePosition = .imageLeft
         button.setAccessibilityLabel(button.toolTip)
     }
 
@@ -102,19 +98,5 @@ enum StatusIcon {
         needle.lineCapStyle = .round
         needle.stroke()
         NSBezierPath(ovalIn: NSRect(x: c.x - 1.6, y: c.y - 1.6, width: 3.2, height: 3.2)).fill()
-    }
-
-    private static func criticalPill(pressure: Double) -> NSImage {
-        let font = NSFont.systemFont(ofSize: 12.5, weight: .semibold)
-        let text = NSAttributedString(string: "Out of RAM", attributes: [.font: font, .foregroundColor: NSColor.white])
-        let tw = ceil(text.size().width)
-        let size = NSSize(width: 7 + 18 + 4 + tw + 8, height: 18)
-        return NSImage(size: size, flipped: false) { rect in
-            red.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: 5, yRadius: 5).fill()
-            drawGauge(in: NSRect(x: 7, y: 2, width: 18, height: 14), pressure: pressure, color: .white)
-            text.draw(at: NSPoint(x: 7 + 18 + 4, y: (rect.height - text.size().height) / 2 + 0.5))
-            return true
-        }
     }
 }
