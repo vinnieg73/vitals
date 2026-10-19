@@ -1,43 +1,134 @@
 import AppKit
 
-/// The menu bar item's look, from the snapshot. The item has one fixed width (`fixedLength`), so the
-/// menu bar never re-lays out and other icons don't slide in and out from behind the notch.
-/// Icon only, never any text:
-///   normal:   the gauge (template, follows the menu bar's color); the dot slot stays empty
-///   warn:     the same + an amber dot
-///   critical: a red gauge + a red dot
+/// The menu bar item's look, from the snapshot. Icon only, never any text, at one fixed width
+/// (`fixedLength`), so the menu bar never re-lays out and other icons don't slide in and out from
+/// behind the notch.
+///   calm:     the memory gauge (template, follows the menu bar's color); the dot slot stays empty
+///   strained: the strained area's symbol (template) + an amber dot
+///   critical: the area's symbol in red + a red dot
+/// With several areas strained, the most severe wins; on a tie, the first in `Area`'s order.
 enum StatusIcon {
-    enum State: Equatable {
-        case normal(pressure: Int)
-        case warn(pressure: Int)
-        case critical(pressure: Int)
+    enum Area: Int, CaseIterable {
+        case memory, heat, battery, disk, cpu // tie order
 
-        var isWarn: Bool { if case .warn = self { return true } else { return false } }
+        var symbol: String {
+            switch self {
+            case .memory: "memorychip"
+            case .heat: "thermometer.medium"
+            case .battery: "battery.25"
+            case .disk: "internaldrive"
+            case .cpu: "cpu"
+            }
+        }
+
+        var name: String {
+            switch self {
+            case .memory: "memory"
+            case .heat: "heat"
+            case .battery: "battery"
+            case .disk: "disk space"
+            case .cpu: "CPU"
+            }
+        }
+    }
+
+    enum Severity: Int, Comparable {
+        case ok, warn, critical
+        static func < (a: Severity, b: Severity) -> Bool { a.rawValue < b.rawValue }
+    }
+
+    struct State: Equatable {
+        var area: Area? // nil: calm
+        var severity: Severity
+        var pressure: Int // for the calm gauge's needle
+
+        static func calm(_ pressure: Int) -> State { State(area: nil, severity: .ok, pressure: pressure) }
     }
 
     static let amber = NSColor(srgbRed: 0xE0 / 255, green: 0x9A / 255, blue: 0x1D / 255, alpha: 1)
     static let red = NSColor(srgbRed: 0xD0 / 255, green: 0x34 / 255, blue: 0x2C / 255, alpha: 1)
 
-    /// `wasWarn`: swap must drop under 72% to leave warn after going over 75%, so the dot doesn't flicker
-    /// while swap hovers at the line.
-    static func state(from snap: [String: Any], wasWarn: Bool) -> State {
-        let mem = snap["memory"] as? [String: Any] ?? [:]
-        let pressure = Int(((mem["pressurePct"] as? Double) ?? 0).rounded())
-        let level = mem["level"] as? String
-        let used = (mem["swapUsedBytes"] as? NSNumber)?.doubleValue ?? 0
-        let total = (mem["swapTotalBytes"] as? NSNumber)?.doubleValue ?? 0
-        let swapFull = total > 0 && used / total > (wasWarn ? 0.72 : 0.75)
-        if level == "critical" { return .critical(pressure: pressure) }
-        if level == "warn" || swapFull { return .warn(pressure: pressure) }
-        return .normal(pressure: pressure)
+    /// Turns snapshots into a state. Remembers each area's last severity so a value hovering at a line
+    /// doesn't flicker (each line is lower on the way out than on the way in), and how long CPU has been
+    /// busy. Used only from the sampler's queue.
+    final class Judge: @unchecked Sendable {
+        private var last: [Area: Severity] = [:]
+        private var cpuBusySince: Date?
+
+        func state(from snap: [String: Any], now: Date = Date()) -> State {
+            let mem = snap["memory"] as? [String: Any] ?? [:]
+            let pressure = num(mem["pressurePct"]) ?? 0
+            var current: [Area: Severity] = [:]
+            for area in Area.allCases { current[area] = judge(area, snap, was: last[area] ?? .ok, now: now) }
+            last = current
+            let worst = Area.allCases.max { a, b in
+                let sa = current[a] ?? .ok, sb = current[b] ?? .ok
+                return sa != sb ? sa < sb : a.rawValue > b.rawValue // ties go to the earlier area
+            }
+            guard let area = worst, let sev = current[area], sev > .ok else { return .calm(Int(pressure.rounded())) }
+            return State(area: area, severity: sev, pressure: Int(pressure.rounded()))
+        }
+
+        private func judge(_ area: Area, _ snap: [String: Any], was: Severity, now: Date) -> Severity {
+            switch area {
+            case .memory:
+                // As the pages' memState: critical when macOS says so, or swap nearly full under high
+                // pressure; strained from pressure 70 or swap 75%. Leaves strained under 65 / 72%.
+                let m = snap["memory"] as? [String: Any] ?? [:]
+                let level = m["level"] as? String
+                let p = num(m["pressurePct"]) ?? 0
+                let total = num(m["swapTotalBytes"]) ?? 0
+                let swap = total > 0 ? (num(m["swapUsedBytes"]) ?? 0) / total : 0
+                let held = was >= .warn
+                if level == "critical" || (swap >= (was == .critical ? 0.95 : 0.97) && p >= (was == .critical ? 80 : 85)) {
+                    return .critical
+                }
+                if level == "warn" || p >= (held ? 65 : 70) || swap >= (held ? 0.72 : 0.75) { return .warn }
+                return .ok
+            case .heat:
+                switch (snap["energy"] as? [String: Any])?["thermal"] as? String {
+                case "critical": return .critical
+                case "serious": return .warn
+                default: return .ok
+                }
+            case .battery:
+                let e = snap["energy"] as? [String: Any] ?? [:]
+                guard (e["pluggedIn"] as? Bool) == false, let pct = num(e["batteryPct"]) else { return .ok }
+                if pct < (was == .critical ? 12 : 10) { return .critical }
+                if pct < (was >= .warn ? 22 : 20) { return .warn }
+                return .ok
+            case .disk:
+                let d = snap["disk"] as? [String: Any] ?? [:]
+                guard let total = num(d["totalBytes"]), total > 0, let free = num(d["freeBytes"]) else { return .ok }
+                let frac = free / total
+                if frac < (was == .critical ? 0.04 : 0.03) { return .critical }
+                if frac < (was >= .warn ? 0.12 : 0.10) { return .warn }
+                return .ok
+            case .cpu:
+                // Strained once it has been at 85% or more for 30 s; leaves under 75%. Never critical.
+                let total = num((snap["cpu"] as? [String: Any])?["totalPct"]) ?? 0
+                if total >= 85 { cpuBusySince = cpuBusySince ?? now } else if total < 75 || was == .ok { cpuBusySince = nil }
+                if was >= .warn { return total >= 75 ? .warn : .ok }
+                if let since = cpuBusySince, now.timeIntervalSince(since) >= 30 { return .warn }
+                return .ok
+            }
+        }
+
+        private func num(_ v: Any?) -> Double? { (v as? NSNumber)?.doubleValue }
     }
 
     private static let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
 
-    /// The widest the button gets (every state is the same, but measure them all), on the real button.
+    /// Every state the item can show, for measuring and for previews.
+    static let allStates: [State] = [.calm(52)] + Area.allCases.flatMap { a in
+        (a == .cpu ? [Severity.warn] : [.warn, .critical]).map { State(area: a, severity: $0, pressure: 80) }
+    }
+
+    /// The widest the button gets (every state is drawn in the same canvas, but measure them all), on the
+    /// real button.
     static func fixedLength(for button: NSStatusBarButton) -> CGFloat {
         var widest: CGFloat = 0
-        for state in [State.normal(pressure: 100), .warn(pressure: 100), .critical(pressure: 100)] {
+        for state in allStates {
             apply(state, to: button)
             widest = max(widest, button.fittingSize.width)
         }
@@ -46,27 +137,42 @@ enum StatusIcon {
 
     static func apply(_ state: State, to button: NSStatusBarButton) {
         let dot: NSColor
-        switch state {
-        case .normal(let p):
-            button.image = gauge(pressure: Double(p), color: .black, template: true)
+        if let area = state.area {
+            let critical = state.severity == .critical
+            button.image = symbol(area, color: critical ? red : nil)
+            dot = critical ? red : amber
+            button.toolTip = critical ? "Vitals: \(area.name) is critical" : "Vitals: \(area.name) is strained"
+        } else {
+            button.image = gauge(pressure: Double(state.pressure), color: .black, template: true)
             dot = .clear
-            button.toolTip = "Vitals: memory pressure \(p)%"
-        case .warn(let p):
-            button.image = gauge(pressure: Double(p), color: .black, template: true)
-            dot = amber
-            button.toolTip = "Vitals: your Mac is short on memory (pressure \(p)%)"
-        case .critical(let p):
-            button.image = gauge(pressure: Double(p), color: red, template: false)
-            dot = red
-            button.toolTip = "Vitals: out of memory (pressure \(p)%)"
+            button.toolTip = "Vitals: all calm (memory pressure \(state.pressure)%)"
         }
-        // Icon only: the gauge and a dot slot that's always there (clear when all's well).
+        // The dot slot is always there (clear when all's calm), so the width never changes.
         button.attributedTitle = NSAttributedString(string: " ●", attributes: [
             .font: NSFont.systemFont(ofSize: font.pointSize * 0.6), .foregroundColor: dot,
             .baselineOffset: font.pointSize * 0.15,
         ])
         button.imagePosition = .imageLeft
         button.setAccessibilityLabel(button.toolTip)
+    }
+
+    /// The area's SF Symbol, fitted into a canvas as wide as the gauge (18 pt) so every state has the
+    /// same width. `color` nil: a template image that follows the menu bar.
+    static func symbol(_ area: Area, color: NSColor?) -> NSImage {
+        let canvas = NSSize(width: 18, height: 16)
+        var config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+        if let color { config = config.applying(NSImage.SymbolConfiguration(paletteColors: [color])) }
+        guard let sym = NSImage(systemSymbolName: area.symbol, accessibilityDescription: area.name)?
+            .withSymbolConfiguration(config) else { return gauge(pressure: 80, color: color ?? .black, template: color == nil) }
+        let img = NSImage(size: canvas, flipped: false) { rect in
+            let s = sym.size
+            let scale = min(1, rect.width / s.width, rect.height / s.height)
+            let w = s.width * scale, h = s.height * scale
+            sym.draw(in: NSRect(x: rect.midX - w / 2, y: rect.midY - h / 2, width: w, height: h))
+            return true
+        }
+        img.isTemplate = color == nil
+        return img
     }
 
     /// A half-circle gauge with the needle at `pressure` (0–100).

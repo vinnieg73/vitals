@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var lastJSON: String?
     private var lastState: StatusIcon.State?
     private var lastWindowOpen = false
-    private let warned = LockedFlag()
+    private let judge = StatusIcon.Judge()
     /// `--status-log`: print the item's length and button width on every change (for checking it never moves).
     /// `--status-test`: cycle through test states instead of the real one.
     private let statusLog = CommandLine.arguments.contains("--status-log")
@@ -40,15 +40,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             b.sendAction(on: [.leftMouseUp, .rightMouseUp])
             // One width for every state, so the menu bar never re-lays out.
             statusItem.length = StatusIcon.fixedLength(for: b)
-            StatusIcon.apply(.normal(pressure: 0), to: b)
+            StatusIcon.apply(.calm(0), to: b)
             logStatus("launch")
         }
         hotkey = Hotkey { [weak self] in MainActor.assumeIsolated { self?.toggleWindow() } }
 
-        sampler.onSnapshot = { [weak self, live, warned, statusTest] snap in
-            var state = StatusIcon.state(from: snap, wasWarn: warned.value)
+        sampler.onSnapshot = { [weak self, live, judge, statusTest] snap in
+            var state = judge.state(from: snap)
             if statusTest { state = Self.testState() }
-            warned.value = state.isWarn
             let json = live.value ? Self.encode(snap) : nil
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.deliver(state: state, json: json) } }
         }
@@ -74,10 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         fflush(stdout)
     }
 
-    private nonisolated static let testStates: [StatusIcon.State] = [
-        .normal(pressure: 3), .normal(pressure: 9), .normal(pressure: 52), .warn(pressure: 78), .warn(pressure: 100),
-        .critical(pressure: 97), .normal(pressure: 41), .warn(pressure: 66),
-    ]
+    private nonisolated static let testStates: [StatusIcon.State] = StatusIcon.allStates + [.calm(9), .calm(97)]
     private nonisolated(unsafe) static var testIndex = 0
     private nonisolated static func testState() -> StatusIcon.State {
         testIndex += 1

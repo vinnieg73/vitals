@@ -103,6 +103,28 @@ _Last updated 2026-10-19 ~01:15 UTC by the Mac session._
   Run them with `open -n <app> --stdout <file> --args --status-log --status-test`, quit the installed copy first,
   and kill the test copy after (it shows in the real menu bar).
 
+## Menu bar icon shows what's strained (2026-10-19)
+- Asked for by Vinnie (via the coordinator): the icon shows the area under pressure. `StatusIcon.Judge` (sampler queue)
+  rates each area every tick; the most severe wins, ties go Memory, Heat, Battery, Disk, CPU.
+  - Memory (`memorychip`): as app.js memState. Critical: level critical, or swap ≥ 97% with pressure ≥ 85. Strained:
+    level warn, pressure ≥ 70 or swap ≥ 75%. Leaves strained under 65 / 72%; critical's swap line drops to 95% / 80.
+  - Heat (`thermometer.medium`): thermal serious = strained, critical = critical.
+  - Battery (`battery.25`): only on battery. < 20% strained, < 10% critical; leaves at 22% / 12%.
+  - Disk (`internaldrive`): free < 10% strained, < 3% critical; leaves at 12% / 4%.
+  - CPU (`cpu`): ≥ 85% for 30 s straight (a dip under 75%, or under 85% before it's flagged, restarts the clock);
+    leaves under 75%. Never critical.
+- Calm is the gauge as before. Symbols are drawn into an 18×16 canvas (the gauge's width) at 14 pt medium, template when
+  strained (follows light/dark), red palette when critical; the dot slot is always there. Fixed 34 pt in every state.
+- Different from the spec: memory critical follows memState (adds the swap ≥ 97% + pressure ≥ 85 case) rather than
+  only macOS's level; the calm gauge still needs a valid pressure.
+- Checked: a scratch harness fed fake snapshots: every threshold, the hysteresis, the 30 s CPU rule (and its reset)
+  and the tie order behaved as above. `--status-log --status-test` cycled all 12 states in the real menu bar for
+  2.3 min: 70 updates, all length 34.0 / button 34.0 (window 50). After install Vitals sits at window x 1100, right of
+  Claude Meter. At install the real state was memory strained (swap 94%, level warn).
+- Previews: `Vitals --render menubar <out.png> [light|dark]` (`MenuBarPreview.swift`, real status bar buttons off
+  screen; its offscreen buttons measure 44 pt, the real one 34). Committed as `docs/shots/menubar-states-{light,dark}.png`.
+- Help's menu bar section is the cloud thread's to update.
+
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
   com.vinnie.vitals).
