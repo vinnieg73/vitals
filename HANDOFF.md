@@ -276,6 +276,21 @@ _Last updated 2026-10-19 ~18:05 UTC by the Mac session._
 3. ~~Install and launch.~~ Done 2026-10-17. Vinnie to confirm the gauge shows in the menu bar.
 4. ~~Treemap fixes, disk scan CPU, hotkey to ⌃⌥⌘V.~~ Done 2026-10-17.
 
+## Energy fix: icon redraw loop (2026-10-19 ~23:20Z found, fixed ~23:45Z, pushed on Vinnie's "ship that new fixed version")
+- Since 778a602 the `effectiveAppearance` KVO in AppDelegate re-applied the icon on every fire, and in the real menu bar
+  setting the image fires it again (logged: 271 fires in 4 min with the look unchanged, ~2 per icon update): an
+  endless loop. Measured before the fix: ~95% of one core with nothing open (29 s CPU in 30 s; 67 min CPU over
+  5 h 26 min), Vitals top of Energy Impact and in macOS's "Using Significant Energy". Probably started at the evening
+  switch to dark mode. Not the sampler, nettop (no children) or the disk scan.
+- Fix: remember the light/dark match (`barLook`); redraw only when it really changes, and not for the calm template
+  icon (`State.followsMenuBar`). `--status-log` logs each fire ("appearance …, (same), redrawn").
+  `Disk.volume()` (CacheDelete purgeable-space lookup) now runs once a minute instead of every 2 s tick, so the
+  window's free space can lag up to a minute.
+- Checked: off-screen harness with a real NSStatusBarButton flipped aqua/dark/aqua: strained icon redrawn on each flip,
+  calm icon never (couldn't reproduce the loop off screen; only the real menu bar re-fires). Installed; `--status-log`
+  run for 4 min: CPU after the launch scan **0.37% of one core** (0.68 s over 180 s), top 0.1%, 0 idle wakeups shown;
+  every fire "(same)", none redrawn. Not checked: a real light/dark switch in the menu bar (needs the system setting).
+
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?
 - Should Biggest space users include Downloads/Documents? It would ask for permission once.

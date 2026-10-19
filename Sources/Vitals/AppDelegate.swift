@@ -22,6 +22,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var lastWindowOpen = false
     private let judge = StatusIcon.Judge()
     private var appearanceWatch: NSKeyValueObservation?
+    private var barLook: NSAppearance.Name?
+
+    /// Light or dark, as the status item's button sees the menu bar.
+    private static func look(_ b: NSStatusBarButton) -> NSAppearance.Name? {
+        b.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])
+    }
     /// `--status-log`: print the item's length and button width on every change (for checking it never moves).
     /// `--status-test`: cycle through test states instead of the real one.
     private let statusLog = CommandLine.arguments.contains("--status-log")
@@ -44,11 +50,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             StatusIcon.apply(StatusIcon.State(cpu: 0, gpu: 0, ram: 0), to: b)
             logStatus("launch")
             // A strained icon isn't a template, so its colors are drawn for one appearance: redraw when the
-            // menu bar flips between light and dark.
+            // menu bar flips between light and dark. Only on a real flip: setting the image re-fires this
+            // observer, and redrawing on every call looped forever (~95% of a core, 2026-10-19).
+            barLook = Self.look(b)
             appearanceWatch = b.observe(\.effectiveAppearance) { [weak self] _, _ in
                 DispatchQueue.main.async { MainActor.assumeIsolated {
-                    guard let self, let state = self.lastState, let b = self.statusItem.button else { return }
-                    StatusIcon.apply(state, to: b)
+                    guard let self, let b = self.statusItem.button else { return }
+                    let look = Self.look(b)
+                    let redraw = look != self.barLook && self.lastState.map { !$0.followsMenuBar } == true
+                    self.logStatus("appearance \(look?.rawValue ?? "?")\(look == self.barLook ? " (same)" : "")\(redraw ? ", redrawn" : "")")
+                    guard look != self.barLook else { return }
+                    self.barLook = look
+                    if redraw, let state = self.lastState { StatusIcon.apply(state, to: b) }
                 } }
             }
         }

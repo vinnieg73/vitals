@@ -30,6 +30,9 @@ final class Sampler: @unchecked Sendable {
 
     private var iface: (bsd: String, name: String)?
     private var ifaceCheckedAt = Date.distantPast
+    // Free space asks CacheDelete for purgeable space, which is slow-ish: once a minute is plenty.
+    private var vol: (name: String?, total: UInt64?, free: UInt64?) = (nil, nil, nil)
+    private var volCheckedAt = Date.distantPast
 
     /// Latest snapshot, set on the sampler queue.
     private var latest: [String: Any]? {
@@ -104,7 +107,10 @@ final class Sampler: @unchecked Sendable {
         cpuOut["history"] = hist("cpu", 1)
 
         // Disk
-        let vol = Disk.volume()
+        if Date().timeIntervalSince(volCheckedAt) >= 60 {
+            vol = Disk.volume()
+            volCheckedAt = Date()
+        }
         let diskNow = Disk.counters()
         var readBps: Any = NSNull(), writeBps: Any = NSNull()
         if let d = diskNow, let p = prevDisk, dt > 0 {

@@ -44,6 +44,9 @@ enum StatusIcon {
 
         func level(_ a: Area) -> Severity { levels[a] ?? .ok }
 
+        /// Drawn as a template image (calm dials): the menu bar recolors it for light and dark by itself.
+        var followsMenuBar: Bool { takeover == nil && StatusIcon.labels.allSatisfy { level($0.0) == .ok } }
+
         /// Heat or disk, whichever is worse (heat on a tie), when either is strained: shown instead of the dials.
         var takeover: Area? {
             let h = level(.heat), d = level(.disk)
@@ -121,7 +124,7 @@ enum StatusIcon {
         private func num(_ v: Any?) -> Double? { (v as? NSNumber)?.doubleValue }
     }
 
-    private static let labels: [(Area, String)] = [(.cpu, "CPU"), (.gpu, "GPU"), (.memory, "RAM")]
+    fileprivate static let labels: [(Area, String)] = [(.cpu, "CPU"), (.gpu, "GPU"), (.memory, "RAM")]
 
     /// Every kind of state the item can show, for measuring and for previews.
     static let allStates: [State] = {
@@ -173,7 +176,7 @@ enum StatusIcon {
 
     /// The three dials with their names under them. Template (follows the menu bar) when nothing is strained.
     static func dials(_ state: State, appearance: NSAppearance) -> NSImage {
-        let calm = labels.allSatisfy { state.level($0.0) == .ok }
+        let calm = state.followsMenuBar
         let pcts = [state.cpu, state.gpu, state.ram]
         let img = NSImage(size: NSSize(width: 58, height: 22), flipped: true) { _ in
             appearance.performAsCurrentDrawingAppearance {
