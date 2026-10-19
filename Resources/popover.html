@@ -62,7 +62,7 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
   var V = Vitals, F = V.F, isNum = V.isNum, $ = function (id) { return document.getElementById(id); };
   var mini = { pad: 4, padTop: 19, mini: true };
   var specs = [
-    Object.assign({ type: "level", max: 100, thr: 70, crit: 90 }, mini), Object.assign({ type: "stack", max: 100 }, mini),
+    Object.assign({ type: "level", max: 100 }, mini), Object.assign({ type: "stack", max: 100 }, mini),
     Object.assign({ type: "single", max: 100 }, mini), Object.assign({ type: "mirror", floor: 1e6 }, mini),
     Object.assign({ type: "mirror", floor: 1e5 }, mini), Object.assign({ type: "single", floor: 10 }, mini)
   ];
@@ -83,15 +83,15 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     var m = s.memory || {}, c = s.cpu || {}, g = s.gpu || {}, d = s.disk || {}, n = s.network || {}, e = s.energy || {}, h = s.host || {};
     var L = V.liveOf(s), ms = V.memState(s);
     var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
-    var data = [[L.pressurePct], [L.cpuSystemPct, L.cpuUserPct], [L.gpuPct], [L.diskReadBps, L.diskWriteBps], [L.netInBps, L.netOutBps], [L.energyImpact]];
+    var MS = V.memSev(s, L), data = [[L.memUsedPct], [L.cpuSystemPct, L.cpuUserPct], [L.gpuPct], [L.diskReadBps, L.diskWriteBps], [L.netInBps, L.netOutBps], [L.energyImpact]];
     strips.forEach(function (st, i) {
       st.size(plots[i].clientWidth, plots[i].clientHeight);
-      st.draw(data[i][0], data[i][1], i === 0 && ms !== "ok" ? ms : "");
+      st.draw(data[i][0], data[i][1], i === 0 && ms !== "ok" ? ms : "", i === 0 ? MS : null);
     });
 
     var mc = ms === "crit" ? "c" : ms === "warn" ? "w" : "";
     var sc = ms === "crit" && swapFrac >= 0.97 ? "c" : swapFrac >= 0.75 ? "w" : "";
-    set("r-mem", '<b class="' + mc + '">' + F.pct(V.now(m.pressurePct, L.pressurePct)) + "<small>%</small></b>" +
+    set("r-mem", '<b class="' + mc + '">' + F.pct(V.now(m.totalBytes && isNum(m.usedBytes) ? m.usedBytes / m.totalBytes * 100 : null, L.memUsedPct)) + "<small>% used</small></b>" +
       '<span class="' + sc + '">Swap ' + F.gb(m.swapUsedBytes) + " / " + F.gb(m.swapTotalBytes) + " GB</span>");
     var user = V.now(c.userPct, L.cpuUserPct), sys = V.now(c.systemPct, L.cpuSystemPct);
     var tot = isNum(c.totalPct) ? c.totalPct : isNum(user) && isNum(sys) ? user + sys : null;

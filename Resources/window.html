@@ -150,7 +150,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   "use strict";
   var V = Vitals, F = V.F, $ = function (id) { return document.getElementById(id); };
   var GiB = V.GiB, isNum = V.isNum, CAP = V.CAP;
-  var snap = null, L = null;
+  var snap = null, L = null, MS = [];
 
   /* ================= strip charts ================= */
   function u(v, unit) { return v + "<small> " + unit + "</small>"; }
@@ -176,10 +176,10 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 
   // each channel: chart spec, live series, readout, hover tag
   var CH = [
-    { id: "mem", opt: { type: "level", max: 100, thr: 70, crit: 90, pad: 8 }, unit: "%",
-      data: function () { return [L.pressurePct]; },
-      tag: function (i) { return pctTag(L.pressurePct[i]); },
-      tagCls: function (i) { var v = L.pressurePct[i]; return v >= 90 ? "c" : v >= 70 ? "w" : ""; } },
+    { id: "mem", opt: { type: "level", max: 100, pad: 8 }, unit: "%",
+      data: function () { return [L.memUsedPct]; },
+      tag: function (i) { return pctTag(L.memUsedPct[i]); },
+      tagCls: function (i) { return sevCls(MS[i]); } },
     { id: "cpu", opt: { type: "stack", max: 100, pad: 8 }, unit: "%",
       data: function () { return [L.cpuSystemPct, L.cpuUserPct]; },
       tag: function (i) { var a = L.cpuSystemPct[i], b = L.cpuUserPct[i]; return isNum(a) && isNum(b) ? pctTag(a + b) : "–"; } },
@@ -219,12 +219,12 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   }
 
   function drawCharts(s) {
-    L = V.liveOf(s);
+    L = V.liveOf(s); MS = V.memSev(s, L);
     var ms = V.memState(s);
     layout();
     CH.forEach(function (c) {
       var d = c.data(), st = c.strip;
-      st.draw(d[0], d[1], c.id === "mem" ? (ms === "ok" ? "" : ms) : "");
+      st.draw(d[0], d[1], c.id === "mem" ? (ms === "ok" ? "" : ms) : "", c.id === "mem" ? MS : null);
       var lab = scaleLabel(st.max, c.unit);
       if (c.scTop.textContent !== lab) c.scTop.textContent = lab;
       var bl = c.opt.type === "mirror" ? lab : "0";
@@ -274,9 +274,9 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var swapCls = ms === "crit" && swapFrac >= 0.97 ? "c" : swapFrac >= 0.75 ? "w" : "";
 
     $("sub-mem").textContent = F.gbShort(m.totalBytes || h.memBytes);
-    var press = V.now(m.pressurePct, L.pressurePct);
-    CH[0].ro.innerHTML = bigOne(F.pct(press), "%", "Pressure", sevCls(ms)) +
-      kv([["Used", u(F.gb(m.usedBytes), "GB")], ["Cached", u(F.gb(m.cachedBytes), "GB")],
+    var used = V.now(m.totalBytes && isNum(m.usedBytes) ? m.usedBytes / m.totalBytes * 100 : null, L.memUsedPct);
+    CH[0].ro.innerHTML = bigOne(F.pct(used), "%", "Used · " + F.gb(m.usedBytes) + " GB", sevCls(ms)) +
+      kv([["Pressure", u(F.pct(V.now(m.pressurePct, L.pressurePct)), "%"), sevCls(ms)], ["Cached", u(F.gb(m.cachedBytes), "GB")],
         ["Swap", u(F.gb(m.swapUsedBytes), "GB") + "<small> / " + F.gb(m.swapTotalBytes) + "</small>", swapCls]]) +
       kv([["App", u(F.gb(m.appBytes), "GB")], ["Wired", u(F.gb(m.wiredBytes), "GB")], ["Compressed", u(F.gb(m.compressedBytes), "GB")]]);
 

@@ -90,6 +90,7 @@
   snap.live = {
     stepSec: 2,
     pressurePct: live(7, function (t, r) { return 63 + 15 * (1 - Math.exp(-t * 3.2)) / (1 - Math.exp(-3.2)) - 7 * bump(t, .5, .035) + (r() - .5) * 1.4; }, 78, 10),
+    memUsedPct: live(29, function (t, r) { return 84 + 8 * (1 - Math.exp(-t * 3)) / (1 - Math.exp(-3)) - 4 * bump(t, .5, .035) + (r() - .5) * 1; }, Math.round(snap.memory.usedBytes / snap.memory.totalBytes * 1000) / 10, 10),
     swapUsedBytes: live(11, function (t, r) { return (5.94 + .08 * t + (r() - .5) * .01) * G; }, snap.memory.swapUsedBytes),
     cpuUserPct: live(4, function (t, r) { return 21 + Math.sin(t * 13) * 3 + (r() - .5) * 8 + 22 * bump(t, .7, .025) + 9 * bump(t, .22, .02); }, snap.cpu.userPct, 10),
     cpuSystemPct: live(3, function (t, r) { return 10.5 + (r() - .5) * 4 + 6 * bump(t, .7, .025) + 3 * bump(t, .22, .02); }, snap.cpu.systemPct, 10),
@@ -148,7 +149,8 @@
       n.inBps = (1.4 + r() * 1.6 + (r() < .1 ? 2 + r() * 3.5 : 0)) * 1e6;
       n.outBps = (.18 + r() * .25 + (r() < .06 ? .5 + r() * .8 : 0)) * 1e6;
       if (e.impact != null || r() < .3) e.impact = Math.round((84 + (r() - .5) * 10) * 10) / 10;
-      push("pressurePct", m.pressurePct); push("swapUsedBytes", m.swapUsedBytes);
+      m.usedBytes = Math.max(15.6, Math.min(17.2, m.usedBytes / G + (r() - .5) * .12)) * G;
+      push("pressurePct", m.pressurePct); push("memUsedPct", Math.round(m.usedBytes / m.totalBytes * 1000) / 10); push("swapUsedBytes", m.swapUsedBytes);
       push("cpuUserPct", c.userPct); push("cpuSystemPct", c.systemPct); push("gpuPct", snap.gpu.pct);
       push("diskReadBps", d.readBps); push("diskWriteBps", d.writeBps); push("netInBps", n.inBps); push("netOutBps", n.outBps);
       push("energyImpact", e.impact);

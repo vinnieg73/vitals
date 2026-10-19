@@ -142,12 +142,23 @@
     return p.name;
   }
 
+  function memStateAt(pressure, swapFrac, level) {
+    if (level === "critical" || (swapFrac >= 0.97 && pressure >= 85)) return "crit";
+    if (level === "warn" || pressure >= 70 || swapFrac >= 0.75) return "warn";
+    return "ok";
+  }
   function memState(s) {
     var m = s.memory || {};
-    var swapFrac = m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0;
-    if (m.level === "critical" || (swapFrac >= 0.97 && m.pressurePct >= 85)) return "crit";
-    if (m.level === "warn" || m.pressurePct >= 70 || swapFrac >= 0.75) return "warn";
-    return "ok";
+    return memStateAt(m.pressurePct, m.swapTotalBytes ? m.swapUsedBytes / m.swapTotalBytes : 0, m.level);
+  }
+  // memory strain per live point (pressure and swap), for coloring the used-% line; the last point uses the current level too
+  function memSev(s, L) {
+    var m = s.memory || {}, P = L.pressurePct || [], S = L.swapUsedBytes || [], n = (L.memUsedPct || []).length, out = [];
+    for (var i = 0; i < n; i++) {
+      var k = P.length - n + i, p = P[k], sw = S[S.length - n + i];
+      out.push(!isNum(p) && !isNum(sw) ? null : memStateAt(p, m.swapTotalBytes && isNum(sw) ? sw / m.swapTotalBytes : 0, i === n - 1 ? m.level : null));
+    }
+    return out;
   }
   function cpuState(s) { var c = s.cpu || {}; return c.totalPct >= 90 ? "busy" : c.totalPct >= 60 ? "working" : "calm"; }
   function hot(s) { var t = (s.energy || {}).thermal; return t === "serious" || t === "critical"; }
@@ -343,7 +354,7 @@
   }
 
   // opt: { type: "level" | "stack" | "single" | "mirror", max, floor, thr, crit, pad, padTop, mini }
-  //  level:  a = pressure %, colored per point gray / amber (>= thr) / red (>= crit)
+  //  level:  a = a %, colored per point gray / amber / red, from sev[] when given, else by value (>= thr, >= crit)
   //  stack:  a = system % (bottom), b = user % (on top)
   //  single: a
   //  mirror: a above the midline (read, in), b below (write, out), one shared scale
@@ -393,8 +404,8 @@
     return i >= 0 && i < n ? i : -1;
   };
   Strip.prototype.xOf = function (i, n) { return (CAP - n + i) / (CAP - 1) * this.w; };
-  // nowState: "", "warn" or "crit" for the end dot of a level chart
-  Strip.prototype.draw = function (a, b, nowState) {
+  // nowState: "", "warn" or "crit" for the end dot of a level chart; sev: per-point states for a level chart
+  Strip.prototype.draw = function (a, b, nowState, sev) {
     var o = this.opt, t = o.type;
     a = this.a = tail(a); b = this.b = tail(b);
     if (!this.w) return;
@@ -433,13 +444,14 @@
         this.fa.setAttribute("d", areaPath(X, Ya, Ybase));
         this.la.setAttribute("d", linePath(X, Ya));
       }
-      var ry = t === "level" ? sy(o.thr) : sy(max / 2);
+      var ry = t === "level" ? (o.thr ? sy(o.thr) : 0) : sy(max / 2);
+      if (t === "level" && !o.thr) this.ref.style.display = "none";
       setLine(this.ref, 0, ry.toFixed(1), w, ry.toFixed(1));
       this.ref.classList.toggle("on", t === "level" && !!nowState);
       setLine(this.base, 0, bot, w, bot);
       this.top = top; this.bot = bot;
     }
-    if (t === "level") this.colorStops(a, X, w, o);
+    if (t === "level") this.colorStops(a, X, w, o, sev ? tail(sev) : null);
     this.max = max;
     // "now" dots: where each trace ends (its last real point)
     function dot(c, Y, state) {
@@ -454,11 +466,11 @@
     dot(this.db, Yb || [], "");
     return self;
   };
-  Strip.prototype.colorStops = function (a, X, w, o) {
+  Strip.prototype.colorStops = function (a, X, w, o, sev) {
     var want = [], prev = null;
-    function state(v) { return !isNum(v) ? null : v >= (o.crit || 101) ? "crit" : v >= o.thr ? "warn" : "ok"; }
+    function state(v, i) { return !isNum(v) ? null : sev ? sev[sev.length - a.length + i] || "ok" : v >= (o.crit || 101) ? "crit" : v >= o.thr ? "warn" : "ok"; }
     for (var i = 0; i < a.length; i++) {
-      var c = state(a[i]); if (!c) continue;
+      var c = state(a[i], i); if (!c) continue;
       if (c !== prev) {
         var off = Math.max(0, Math.min(1, (X[i] - (i ? (X[i] - X[i - 1]) / 2 : 0)) / w));
         if (prev) want.push([off, prev]);
@@ -478,9 +490,14 @@
   // the live block, or one point made from the current numbers when the feed has none
   function liveOf(s) {
     var L = s.live;
-    if (L && L.pressurePct) return L;
-    var m = s.memory || {}, c = s.cpu || {}, d = s.disk || {}, n = s.network || {}, e = s.energy || {};
-    return { stepSec: 2, pressurePct: [m.pressurePct], swapUsedBytes: [m.swapUsedBytes], cpuUserPct: [c.userPct], cpuSystemPct: [c.systemPct],
+    var m = s.memory || {}, used = m.totalBytes && isNum(m.usedBytes) ? m.usedBytes / m.totalBytes * 100 : null;
+    if (L && L.pressurePct) {
+      // feeds from before memUsedPct existed: one point made from the current numbers, aligned to the end
+      if (!L.memUsedPct) { L.memUsedPct = L.pressurePct.map(function () { return null; }); L.memUsedPct[L.memUsedPct.length - 1] = used; }
+      return L;
+    }
+    var c = s.cpu || {}, d = s.disk || {}, n = s.network || {}, e = s.energy || {};
+    return { stepSec: 2, pressurePct: [m.pressurePct], memUsedPct: [used], swapUsedBytes: [m.swapUsedBytes], cpuUserPct: [c.userPct], cpuSystemPct: [c.systemPct],
       gpuPct: [(s.gpu || {}).pct], diskReadBps: [d.readBps], diskWriteBps: [d.writeBps], netInBps: [n.inBps], netOutBps: [n.outBps], energyImpact: [e.impact] };
   }
   // current value, or the last real point of its live series when the current one is null
@@ -488,7 +505,7 @@
 
   /* ---------- wiring ---------- */
   var Vitals = window.Vitals = {
-    F: F, note: note, flat: flat, items: items, biggest: biggest, friendly: friendly, memState: memState, cpuState: cpuState,
+    F: F, note: note, flat: flat, items: items, biggest: biggest, friendly: friendly, memState: memState, memSev: memSev, cpuState: cpuState,
     summary: summary, fix: fix, spark: spark, trend: trend, treemap: treemap, post: post, native: native,
     Strip: Strip, niceMax: niceMax, liveOf: liveOf, now: now, lastNum: lastNum, CAP: CAP,
     GiB: GiB, MiB: MiB, isNum: isNum,
