@@ -185,6 +185,8 @@ _Last updated 2026-10-19 ~18:05 UTC by the Mac session._
 - Room for Claude Meter (Vinnie chose to shorten it, 2026-10-19 ~17:40Z): Claude Meter v0.9.24 drops the 5-hour % from
   its title when the week is in it; its widest form is now 169 pt. With every test title cycling, Claude Meter's left
   edge stayed at x 874+ (notch edge 848.5) and Vitals at window x 1043 (74 wide). Details in Claude Meter's HANDOFF.
+- Committed and pushed to `main` as 778a602 on 2026-10-19 ~19:35Z (Vinnie typed "Save commit and push"); Claude
+  Meter as 485a009.
 
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
