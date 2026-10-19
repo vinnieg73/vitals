@@ -40,7 +40,8 @@ ol.steps b{color:var(--ink);font-weight:600}
 .strip{height:28px;border-radius:7px;background:var(--panel);display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 10px;box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px}
 .vi{display:flex;align-items:center;gap:5px;height:22px;padding:0 7px;border-radius:5px;font-weight:600}
 .vi .wd{width:6px;height:6px;border-radius:50%;background:var(--warn-fill)}
-.vi.crit{background:var(--crit-fill);color:#fff}
+.vi .wd.off{background:none}
+.vi.crit{color:var(--crit-fill)}.vi.crit .wd{background:var(--crit-fill)}
 .st .k{font-size:14px;font-weight:600}
 .st .x{font-size:13px;color:var(--ink-2);margin-top:2px;line-height:1.4}
 p.body{font-size:13px;line-height:1.5;color:var(--ink-2);max-width:720px;margin:0 0 8px}
@@ -82,13 +83,13 @@ p.body b{color:var(--ink);font-weight:600}
   </div>
 
   <h2 id="icon">Menu bar icon</h2>
-  <p class="body">Most days it is a quiet gauge. When memory gets tight it says so, and when it is critical it turns red. Click it for the short version and the top memory users.</p>
-  <div class="st"><div class="strip"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".25"></svg><span>6:17 PM</span></div>
-    <div><div class="k">Calm</div><div class="x">Just the gauge. Nothing needs you.</div></div></div>
-  <div class="st"><div class="strip"><span class="vi"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".78"></svg>RAM 78%<span class="wd"></span></span><span>6:17 PM</span></div>
-    <div><div class="k">Strained</div><div class="x">Memory or swap is getting tight. Shows the pressure and one amber dot.</div></div></div>
-  <div class="st"><div class="strip"><span class="vi crit"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".97"></svg>Out of RAM</span><span>6:17 PM</span></div>
-    <div><div class="k">Critical</div><div class="x">Swap is full and apps may freeze. Red, so you can't miss it.</div></div></div>
+  <p class="body">A small gauge that always keeps the same width, so it never pushes your other icons around. Click it for the numbers and the top memory users.</p>
+  <div class="st"><div class="strip"><span class="vi"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".25"></svg><span class="wd off"></span></span><span>6:17 PM</span></div>
+    <div><div class="k">Calm</div><div class="x">Just the gauge.</div></div></div>
+  <div class="st"><div class="strip"><span class="vi"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".78"></svg><span class="wd"></span></span><span>6:17 PM</span></div>
+    <div><div class="k">Strained</div><div class="x">Gauge plus an amber dot: memory pressure is 70% or more, or swap is over 75% full.</div></div></div>
+  <div class="st"><div class="strip"><span class="vi crit"><svg width="16" height="16" viewBox="0 0 16 16" class="gauge" data-lvl=".97"></svg><span class="wd"></span></span><span>6:17 PM</span></div>
+    <div><div class="k">Critical</div><div class="x">Red gauge and red dot: swap is full and apps may freeze.</div></div></div>
 
   <h2 id="about">What Vitals shows</h2>
   <p class="body">Vitals reads the same counters Activity Monitor does, every 2 seconds, and puts all five of its tabs on one screen: <b>CPU, Memory, Energy, Disk and Network</b>. The list at the bottom has every Activity Monitor column at once. Helper processes sit under the app they belong to, and your Claude Code sessions are grouped together with a dot in their model's color.</p>
