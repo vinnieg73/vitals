@@ -129,6 +129,12 @@ _Last updated 2026-10-19 ~01:15 UTC by the Mac session._
   `Resources/menubar-states-{light,dark}.png` (the coordinator asked; Help shows them).
 - Help's menu bar section is the cloud thread's to update.
 
+## Memory used % for the pages (2026-10-19)
+- Vinnie found the memory number read differently from the others (pressure, not how full) and picked "used %" for the
+  big number. Swift adds `live.memUsedPct` (memory.usedBytes / totalBytes × 100, one decimal, same 150 × 2 s ring as
+  the rest); DATA.md's live block has it. The pages are the cloud thread's. The menu bar icon still goes by pressure/swap.
+- Checked: `--dump` gave memUsedPct [78.8, 78.9] with 2 points, matching usedBytes / totalBytes = 78.9%.
+
 ## Done
 - `Package.swift` (SwiftPM, macOS 14, executable "Vitals"), `Support/Info.plist` (LSUIElement,
   com.vinnie.vitals).

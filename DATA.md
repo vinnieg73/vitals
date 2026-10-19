@@ -74,6 +74,7 @@ unknown; the page shows "–".
   live: {                                    // the strip charts: last 5 minutes, one point every 2 s
     stepSec: 2,                              // up to 150 points each, oldest first; starts with 1 point at launch
     pressurePct: [..], swapUsedBytes: [..],
+    memUsedPct: [..],                        // memory.usedBytes / totalBytes × 100, one decimal (Activity Monitor's Memory Used)
     cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
     diskReadBps: [..], diskWriteBps: [..],
     netInBps: [..], netOutBps: [..],

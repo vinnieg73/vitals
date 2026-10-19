@@ -158,8 +158,15 @@ final class Sampler: @unchecked Sendable {
             "impact": impact,
         ]
 
+        // Memory Used (app + wired + compressed, as Activity Monitor) as a % of RAM, one decimal.
+        let memUsedPct: Any = {
+            guard let used = (memory["usedBytes"] as? NSNumber)?.doubleValue,
+                  let total = (memory["totalBytes"] as? NSNumber)?.doubleValue, total > 0 else { return NSNull() }
+            return (used / total * 1000).rounded() / 10
+        }()
         addLive([
-            "pressurePct": memory["pressurePct"] ?? NSNull(), "swapUsedBytes": memory["swapUsedBytes"] ?? NSNull(),
+            "pressurePct": memory["pressurePct"] ?? NSNull(), "memUsedPct": memUsedPct,
+            "swapUsedBytes": memory["swapUsedBytes"] ?? NSNull(),
             "cpuUserPct": cpu["userPct"] ?? NSNull(), "cpuSystemPct": cpu["systemPct"] ?? NSNull(),
             "gpuPct": num(gpuPct, 0), "diskReadBps": readBps, "diskWriteBps": writeBps,
             "netInBps": net["inBps"] ?? NSNull(), "netOutBps": net["outBps"] ?? NSNull(), "energyImpact": impact,
