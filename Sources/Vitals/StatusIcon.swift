@@ -9,13 +9,12 @@ import AppKit
 /// With several areas strained, the most severe wins; on a tie, the first in `Area`'s order.
 enum StatusIcon {
     enum Area: Int, CaseIterable {
-        case memory, heat, battery, disk, cpu // tie order
+        case memory, heat, disk, cpu // tie order (no battery: the system's own battery icon covers it)
 
         var symbol: String {
             switch self {
             case .memory: "memorychip"
             case .heat: "thermometer.medium"
-            case .battery: "battery.25"
             case .disk: "internaldrive"
             case .cpu: "cpu"
             }
@@ -25,7 +24,6 @@ enum StatusIcon {
             switch self {
             case .memory: "memory"
             case .heat: "heat"
-            case .battery: "battery"
             case .disk: "disk space"
             case .cpu: "CPU"
             }
@@ -91,12 +89,6 @@ enum StatusIcon {
                 case "serious": return .warn
                 default: return .ok
                 }
-            case .battery:
-                let e = snap["energy"] as? [String: Any] ?? [:]
-                guard (e["pluggedIn"] as? Bool) == false, let pct = num(e["batteryPct"]) else { return .ok }
-                if pct < (was == .critical ? 12 : 10) { return .critical }
-                if pct < (was >= .warn ? 22 : 20) { return .warn }
-                return .ok
             case .disk:
                 let d = snap["disk"] as? [String: Any] ?? [:]
                 guard let total = num(d["totalBytes"]), total > 0, let free = num(d["freeBytes"]) else { return .ok }

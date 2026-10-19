@@ -105,11 +105,12 @@ _Last updated 2026-10-19 ~01:15 UTC by the Mac session._
 
 ## Menu bar icon shows what's strained (2026-10-19)
 - Asked for by Vinnie (via the coordinator): the icon shows the area under pressure. `StatusIcon.Judge` (sampler queue)
-  rates each area every tick; the most severe wins, ties go Memory, Heat, Battery, Disk, CPU.
+  rates each area every tick; the most severe wins, ties go Memory, Heat, Disk, CPU.
   - Memory (`memorychip`): as app.js memState. Critical: level critical, or swap ≥ 97% with pressure ≥ 85. Strained:
     level warn, pressure ≥ 70 or swap ≥ 75%. Leaves strained under 65 / 72%; critical's swap line drops to 95% / 80.
   - Heat (`thermometer.medium`): thermal serious = strained, critical = critical.
-  - Battery (`battery.25`): only on battery. < 20% strained, < 10% critical; leaves at 22% / 12%.
+  - No battery state: removed the same day at Vinnie's ask, since macOS's own battery icon already shows the charge.
+    The window and popover keep their battery numbers.
   - Disk (`internaldrive`): free < 10% strained, < 3% critical; leaves at 12% / 4%.
   - CPU (`cpu`): ≥ 85% for 30 s straight (a dip under 75%, or under 85% before it's flagged, restarts the clock);
     leaves under 75%. Never critical.
@@ -118,11 +119,14 @@ _Last updated 2026-10-19 ~01:15 UTC by the Mac session._
 - Different from the spec: memory critical follows memState (adds the swap ≥ 97% + pressure ≥ 85 case) rather than
   only macOS's level; the calm gauge still needs a valid pressure.
 - Checked: a scratch harness fed fake snapshots: every threshold, the hysteresis, the 30 s CPU rule (and its reset)
-  and the tie order behaved as above. `--status-log --status-test` cycled all 12 states in the real menu bar for
+  and the tie order behaved as above. `--status-log --status-test` cycled all 12 states (before battery came out) in the real menu bar for
   2.3 min: 70 updates, all length 34.0 / button 34.0 (window 50). After install Vitals sits at window x 1100, right of
   Claude Meter. At install the real state was memory strained (swap 94%, level warn).
 - Previews: `Vitals --render menubar <out.png> [light|dark]` (`MenuBarPreview.swift`, real status bar buttons off
   screen; its offscreen buttons measure 44 pt, the real one 34). Committed as `docs/shots/menubar-states-{light,dark}.png`.
+- After battery came out: the harness again (battery at 5% unplugged now stays calm; heat beats disk on a tie), 8 states,
+  `--status-test` 24 updates all 34.0 at window x 1100. Previews re-rendered and copied over
+  `Resources/menubar-states-{light,dark}.png` (the coordinator asked; Help shows them).
 - Help's menu bar section is the cloud thread's to update.
 
 ## Done

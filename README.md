@@ -3,7 +3,7 @@
 A menu bar app that shows what Activity Monitor shows, with every stat up front instead of behind tabs.
 
 - **Menu bar**: icon only, always the same width. Calm: a small gauge with its needle at memory pressure. When
-  something is strained the gauge becomes that thing's symbol (memory chip, thermometer, battery, drive or CPU)
+  something is strained the gauge becomes that thing's symbol (memory chip, thermometer, drive or CPU; battery is left to the system's own icon)
   with an amber dot; critical turns symbol and dot red. Preview: `docs/shots/menubar-states-{light,dark}.png`
   (`Vitals --render menubar <out.png> [light|dark]`).
 - **Click it** to open a popover with the short version. **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window.
