@@ -3,7 +3,7 @@ import AppKit
 /// The menu bar item's look, from the snapshot. Icon only, never any text, at one fixed width
 /// (`fixedLength`), so the menu bar never re-lays out and other icons don't slide in and out from
 /// behind the notch.
-///   calm:     the memory gauge (template, follows the menu bar's color); the dot slot stays empty
+///   calm:     a gauge, needle at memory used % (template, follows the menu bar's color); the dot slot stays empty
 ///   strained: the strained area's symbol (template) + an amber dot
 ///   critical: the area's symbol in red + a red dot
 /// With several areas strained, the most severe wins; on a tie, the first in `Area`'s order.
@@ -38,9 +38,9 @@ enum StatusIcon {
     struct State: Equatable {
         var area: Area? // nil: calm
         var severity: Severity
-        var pressure: Int // for the calm gauge's needle
+        var used: Int // the calm gauge's needle: memory used %, as the window's big number (0 when strained)
 
-        static func calm(_ pressure: Int) -> State { State(area: nil, severity: .ok, pressure: pressure) }
+        static func calm(_ used: Int) -> State { State(area: nil, severity: .ok, used: used) }
     }
 
     static let amber = NSColor(srgbRed: 0xE0 / 255, green: 0x9A / 255, blue: 0x1D / 255, alpha: 1)
@@ -55,7 +55,8 @@ enum StatusIcon {
 
         func state(from snap: [String: Any], now: Date = Date()) -> State {
             let mem = snap["memory"] as? [String: Any] ?? [:]
-            let pressure = num(mem["pressurePct"]) ?? 0
+            let total = num(mem["totalBytes"]) ?? 0
+            let used = total > 0 ? (num(mem["usedBytes"]) ?? 0) / total * 100 : 0
             var current: [Area: Severity] = [:]
             for area in Area.allCases { current[area] = judge(area, snap, was: last[area] ?? .ok, now: now) }
             last = current
@@ -63,8 +64,8 @@ enum StatusIcon {
                 let sa = current[a] ?? .ok, sb = current[b] ?? .ok
                 return sa != sb ? sa < sb : a.rawValue > b.rawValue // ties go to the earlier area
             }
-            guard let area = worst, let sev = current[area], sev > .ok else { return .calm(Int(pressure.rounded())) }
-            return State(area: area, severity: sev, pressure: Int(pressure.rounded()))
+            guard let area = worst, let sev = current[area], sev > .ok else { return .calm(Int(used.rounded())) }
+            return State(area: area, severity: sev, used: 0) // no needle shown, so no redraws for it
         }
 
         private func judge(_ area: Area, _ snap: [String: Any], was: Severity, now: Date) -> Severity {
@@ -116,7 +117,7 @@ enum StatusIcon {
 
     /// Every state the item can show, for measuring and for previews.
     static let allStates: [State] = [.calm(52)] + Area.allCases.flatMap { a in
-        (a == .cpu ? [Severity.warn] : [.warn, .critical]).map { State(area: a, severity: $0, pressure: 80) }
+        (a == .cpu ? [Severity.warn] : [.warn, .critical]).map { State(area: a, severity: $0, used: 0) }
     }
 
     /// The widest the button gets (every state is drawn in the same canvas, but measure them all), on the
@@ -138,9 +139,9 @@ enum StatusIcon {
             dot = critical ? red : amber
             button.toolTip = critical ? "Vitals: \(area.name) is critical" : "Vitals: \(area.name) is strained"
         } else {
-            button.image = gauge(pressure: Double(state.pressure), color: .black, template: true)
+            button.image = gauge(pct: Double(state.used), color: .black, template: true)
             dot = .clear
-            button.toolTip = "Vitals: all calm (memory pressure \(state.pressure)%)"
+            button.toolTip = "Vitals: all calm (memory \(state.used)% used)"
         }
         // The dot slot is always there (clear when all's calm), so the width never changes.
         button.attributedTitle = NSAttributedString(string: " ●", attributes: [
@@ -158,7 +159,7 @@ enum StatusIcon {
         var config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
         if let color { config = config.applying(NSImage.SymbolConfiguration(paletteColors: [color])) }
         guard let sym = NSImage(systemSymbolName: area.symbol, accessibilityDescription: area.name)?
-            .withSymbolConfiguration(config) else { return gauge(pressure: 80, color: color ?? .black, template: color == nil) }
+            .withSymbolConfiguration(config) else { return gauge(pct: 80, color: color ?? .black, template: color == nil) }
         let img = NSImage(size: canvas, flipped: false) { rect in
             let s = sym.size
             let scale = min(1, rect.width / s.width, rect.height / s.height)
@@ -170,18 +171,18 @@ enum StatusIcon {
         return img
     }
 
-    /// A half-circle gauge with the needle at `pressure` (0–100).
-    static func gauge(pressure: Double, color: NSColor, template: Bool) -> NSImage {
+    /// A half-circle gauge with the needle at `pct` (0–100).
+    static func gauge(pct: Double, color: NSColor, template: Bool) -> NSImage {
         let size = NSSize(width: 18, height: 14)
         let img = NSImage(size: size, flipped: false) { _ in
-            drawGauge(in: NSRect(origin: .zero, size: size), pressure: pressure, color: color)
+            drawGauge(in: NSRect(origin: .zero, size: size), pct: pct, color: color)
             return true
         }
         img.isTemplate = template
         return img
     }
 
-    private static func drawGauge(in r: NSRect, pressure: Double, color: NSColor) {
+    private static func drawGauge(in r: NSRect, pct: Double, color: NSColor) {
         let c = NSPoint(x: r.midX, y: r.minY + 3.5)
         let radius: CGFloat = 7.2
         color.setStroke()
@@ -191,7 +192,7 @@ enum StatusIcon {
         arc.lineWidth = 1.7
         arc.lineCapStyle = .round
         arc.stroke()
-        let angle = (195 - 210 * min(100, max(0, pressure)) / 100) * .pi / 180
+        let angle = (195 - 210 * min(100, max(0, pct)) / 100) * .pi / 180
         let needle = NSBezierPath()
         needle.move(to: c)
         needle.line(to: NSPoint(x: c.x + cos(angle) * (radius - 2.2), y: c.y + sin(angle) * (radius - 2.2)))

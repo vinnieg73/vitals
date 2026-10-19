@@ -117,7 +117,10 @@ _Last updated 2026-10-19 ~01:15 UTC by the Mac session._
   - Disk (`internaldrive`): free < 10% strained, < 3% critical; leaves at 12% / 4%.
   - CPU (`cpu`): ≥ 85% for 30 s straight (a dip under 75%, or under 85% before it's flagged, restarts the clock);
     leaves under 75%. Never critical.
-- Calm is the gauge as before. Symbols are drawn into an 18×16 canvas (the gauge's width) at 14 pt medium, template when
+- Calm is the gauge; since 2026-10-19 ~03:42Z its needle is memory used % (usedBytes / totalBytes, the same as
+  `live.memUsedPct` and the window's big number), not pressure; Vinnie wanted them to match. Strain logic still goes
+  by pressure / swap size / level. Strained states carry no needle value, so they don't redraw as memory moves.
+  After install the needle was at 79 (dump: 78.5%). Symbols are drawn into an 18×16 canvas (the gauge's width) at 14 pt medium, template when
   strained (follows light/dark), red palette when critical; the dot slot is always there. Fixed 34 pt in every state.
 - Different from the spec: memory critical follows memState (adds the swap ≥ 97% + pressure ≥ 85 case) rather than
   only macOS's level; the calm gauge still needs a valid pressure.
