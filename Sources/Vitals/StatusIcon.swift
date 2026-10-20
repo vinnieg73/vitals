@@ -63,8 +63,12 @@ enum StatusIcon {
     final class Judge: @unchecked Sendable {
         private var last: [Area: Severity] = [:]
         private var busySince: [Area: Date] = [:]
+        private var lastAt: Date?
 
         func state(from snap: [String: Any], now: Date = Date()) -> State {
+            // After a sleep or a resting stretch the "busy for 30 s" clocks start over: time asleep isn't busy time.
+            if let lastAt, now.timeIntervalSince(lastAt) > 10 { busySince = [:] }
+            lastAt = now
             let mem = snap["memory"] as? [String: Any] ?? [:]
             let total = num(mem["totalBytes"]) ?? 0
             let used = total > 0 ? (num(mem["usedBytes"]) ?? 0) / total * 100 : 0

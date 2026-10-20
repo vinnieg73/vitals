@@ -1,6 +1,6 @@
 # Vitals — handoff
 
-_Last updated 2026-10-19 ~18:05 UTC by the Mac session._
+_Last updated 2026-10-20 ~00:45 UTC by the cloud audit thread (top-4 fixes, branch fix/audit-top4)._
 
 ## Status
 - The Swift side is built and green (`scripts/build.sh`). `--dump` matches vm_stat, sysctl,
@@ -290,6 +290,21 @@ _Last updated 2026-10-19 ~18:05 UTC by the Mac session._
   calm icon never (couldn't reproduce the loop off screen; only the real menu bar re-fires). Installed; `--status-log`
   run for 4 min: CPU after the launch scan **0.37% of one core** (0.68 s over 180 s), top 0.1%, 0 idle wakeups shown;
   every fire "(same)", none redrawn. Not checked: a real light/dark switch in the menu bar (needs the system setting).
+
+## Audit top-4 fixes (2026-10-20, branch fix/audit-top4)
+- Audit + Fable review: /mnt/project-files/tool-reviews/vitals-2026-10-19/REPORT.md (0 high, 4 medium, 23 low).
+  Vinnie asked for the 4 mediums, then a test run.
+- 1 Folder scan removed (DiskScan.swift deleted, `bigUsers` and `--scan` gone): no page showed it since the
+  stats-only cleanup, and it cost ~45 s of CPU per launch plus every 30 min with the window open.
+- 2 "Today" totals: a boot time within 60 s of the stored one is not a reboot (macOS moves kern.boottime when it
+  corrects the clock). A counter below its last value restarts from zero; `lastSeen` merges, so an interface down at
+  midnight keeps its baseline.
+- 3 Popover page released 60 s after the popover closes (reopen inside the minute stays instant).
+- 4 Resting: screens asleep, screen locked (com.apple.screenIsLocked) or session inactive → one sample a minute;
+  back to 2 s with a sample at once on wake. More than 10 s between samples = a gap: null chart points, no disk/net
+  rates, and the CPU/GPU 30 s busy clocks restart.
+- `--selftest` (SelfTest.swift, ~25 s, no windows): baseline cases, busy clock across a sleep, and a real Sampler
+  resting/waking with the gap.
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?

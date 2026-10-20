@@ -172,9 +172,11 @@ final class DailyBaseline {
     private var base: [String: UInt64]
     private var lastSeen: [String: UInt64]
     private var lastSaved = Date.distantPast
+    private let store: UserDefaults
 
-    init() {
-        let d = UserDefaults.standard.dictionary(forKey: key) ?? [:]
+    init(store: UserDefaults = .standard) {
+        self.store = store
+        let d = store.dictionary(forKey: key) ?? [:]
         day = d["day"] as? String ?? ""
         boot = d["boot"] as? Int ?? 0
         base = (d["base"] as? [String: NSNumber])?.mapValues(\.uint64Value) ?? [:]
@@ -188,18 +190,24 @@ final class DailyBaseline {
         return f.string(from: Date())
     }
 
-    /// Returns counter - baseline for each value, and records the values.
-    func today(_ current: [String: UInt64]) -> [String: UInt64] {
-        let now = Self.today()
-        let bootNow = Int(Sysctl.bootTime()?.timeIntervalSince1970 ?? 0)
-        if bootNow != boot {
+    /// Returns counter - baseline for each value, and records the values. `day` and `boot` are for --selftest.
+    func today(_ current: [String: UInt64], day dayNow: String? = nil, boot bootIn: Int? = nil) -> [String: UInt64] {
+        let now = dayNow ?? Self.today()
+        let bootNow = bootIn ?? Int(Sysctl.bootTime()?.timeIntervalSince1970 ?? 0)
+        // macOS moves kern.boottime a little when it corrects the clock (often right after a wake), so only a
+        // big move is a reboot. Follow the small moves so they can't add up.
+        if abs(bootNow - boot) > 60 {
             // Rebooted (or first run): counters restarted at zero.
-            base = [:]; lastSeen = [:]; boot = bootNow; day = now
+            base = [:]; lastSeen = [:]; day = now
         } else if day != now {
             // A new day with the same boot: the last values seen before midnight are the baseline.
             base = lastSeen; day = now
         }
-        lastSeen = current
+        boot = bootNow
+        // A counter below its last value restarted (an interface that went away and came back): count from zero.
+        for (k, v) in current where v < (lastSeen[k] ?? 0) { base[k] = 0 }
+        // Merge, so an interface that's down at midnight still has a baseline when it comes back.
+        lastSeen.merge(current) { $1 }
         if Date().timeIntervalSince(lastSaved) > 30 { save() }
         var out: [String: UInt64] = [:]
         for (k, v) in current {
@@ -211,7 +219,7 @@ final class DailyBaseline {
 
     func save() {
         lastSaved = Date()
-        UserDefaults.standard.set([
+        store.set([
             "day": day, "boot": boot,
             "base": base.mapValues { NSNumber(value: $0) },
             "lastSeen": lastSeen.mapValues { NSNumber(value: $0) },

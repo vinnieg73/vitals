@@ -1,18 +1,12 @@
 import Foundation
 
-/// `Vitals --dump [--scan]`: prints one snapshot as JSON after two samples (so rates are real) and exits.
-/// With --scan it also waits for the first "biggest space users" scan.
+/// `Vitals --dump [--bench]`: prints one snapshot as JSON after two samples (so rates are real) and exits.
 enum Dump {
-    static func run(waitForScan: Bool) -> Never {
+    static func run() -> Never {
         let s = Sampler()
         _ = s.sampleNow()
         // nettop runs twice, 2 s apart, for per-process network rates.
         s.processes.primeNetwork(interval: 2)
-        if waitForScan {
-            s.diskScan.start()
-            let deadline = Date().addingTimeInterval(300)
-            while s.diskScan.bigUsers == nil, Date() < deadline { Thread.sleep(forTimeInterval: 0.5) }
-        }
         let snap = s.sampleNow()
         if CommandLine.arguments.contains("--bench") { bench(s) }
         let data = (try? JSONSerialization.data(withJSONObject: snap, options: [.prettyPrinted, .sortedKeys])) ?? Data()

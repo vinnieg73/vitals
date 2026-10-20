@@ -11,6 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var statusItem: NSStatusItem!
     private var popover: NSPopover?
     private var popoverWeb: WKWebView?
+    private var popoverDrop: DispatchWorkItem?
+    private var restReasons: Set<String> = []
     private var window: NSWindow?
     private var windowWeb: WKWebView?
     private var helpWindow: NSWindow?
@@ -75,6 +77,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         }
         sampler.setWantProcesses(false)
         sampler.start()
+        watchForRest()
+    }
+
+    /// Nobody can see the menu bar while the screens sleep (also lid closed with the Mac kept awake), the screen
+    /// is locked, or another user's session is in front: the sampler slows to once a minute until all of that ends.
+    private func watchForRest() {
+        let ws = NSWorkspace.shared.notificationCenter
+        let rules: [(NSNotification.Name, String, Bool)] = [
+            (NSWorkspace.screensDidSleepNotification, "screens", true), (NSWorkspace.screensDidWakeNotification, "screens", false),
+            (NSWorkspace.sessionDidResignActiveNotification, "session", true), (NSWorkspace.sessionDidBecomeActiveNotification, "session", false),
+        ]
+        for (name, reason, on) in rules {
+            ws.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.setRest(reason, on) }
+            }
+        }
+        let dist = DistributedNotificationCenter.default()
+        for (name, on) in [("com.apple.screenIsLocked", true), ("com.apple.screenIsUnlocked", false)] {
+            dist.addObserver(forName: .init(name), object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.setRest("locked", on) }
+            }
+        }
+    }
+
+    private func setRest(_ reason: String, _ on: Bool) {
+        if on { restReasons.insert(reason) } else { restReasons.remove(reason) }
+        logStatus("rest \(reason) \(on ? "on" : "off") → \(restReasons.isEmpty ? "every 2 s" : "once a minute")")
+        sampler.setResting(!restReasons.isEmpty)
     }
 
     func applicationWillTerminate(_ note: Notification) { sampler.saveState() }
@@ -170,6 +200,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
     private func togglePopover() {
         if let p = popover, p.isShown { p.performClose(nil); return }
+        popoverDrop?.cancel()
+        popoverDrop = nil
         if popover == nil {
             let web = makePageView("popover", bridge: bridge, navigation: self)
             let vc = NSViewController()
@@ -194,7 +226,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         }
     }
 
-    func popoverDidClose(_ notification: Notification) { updateLive() }
+    func popoverDidClose(_ notification: Notification) {
+        updateLive()
+        // Like the windows, don't keep the page's web process in memory while only the menu bar is used.
+        // A minute's grace keeps a quick reopen instant.
+        popoverDrop?.cancel()
+        let drop = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.dropPopover() } }
+        popoverDrop = drop
+        DispatchQueue.main.asyncAfter(deadline: .now() + 60, execute: drop)
+    }
+
+    private func dropPopover() {
+        popoverDrop = nil
+        guard let p = popover, !p.isShown else { return }
+        p.contentViewController = nil
+        popover = nil
+        popoverWeb = nil
+        logStatus("popover page released")
+    }
 
     /// The page posts no size, so measure where its content ends.
     private func fitPopover() {

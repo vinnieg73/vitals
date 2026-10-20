@@ -5,10 +5,10 @@ import Foundation
 final class Sampler: @unchecked Sendable {
     let host = HostInfo.read()
     let processes = ProcessSampler()
-    let diskScan = DiskScan()
     private let daily = DailyBaseline()
     private let queue = DispatchQueue(label: "vitals.sampler", qos: .utility)
     private var timer: DispatchSourceTimer?
+    private var resting = false     // queue only
 
     // Previous counters, for rates.
     private var prevTicks: [[UInt64]] = []
@@ -50,7 +50,6 @@ final class Sampler: @unchecked Sendable {
     func latestSnapshot() -> [String: Any]? { latest }
 
     func start() {
-        diskScan.start()
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now(), repeating: 2, leeway: .milliseconds(200))
         t.setEventHandler { [weak self] in
@@ -64,16 +63,25 @@ final class Sampler: @unchecked Sendable {
     }
 
     func setWantNetwork(_ on: Bool) { queue.async { self.processes.wantNetwork = on } }
-    func setWindowOpen(_ on: Bool) {
-        setWantNetwork(on)
-        diskScan.setRepeating(on)
-    }
+    func setWindowOpen(_ on: Bool) { setWantNetwork(on) }
     func setWantProcesses(_ on: Bool) { queue.async { self.wantProcesses = on } }
     /// One extra sample right away, delivered like a timer tick.
     func kick() {
         queue.async { let s = self.sample(); self.latest = s; self.onSnapshot?(s) }
     }
     func saveState() { queue.sync { daily.save() } }
+
+    /// Screens asleep, screen locked or another user's session: nobody can see the menu bar, so sample once a
+    /// minute (enough for the midnight baseline and the strain levels) instead of every 2 s. Waking takes a
+    /// fresh sample at once and goes back to every 2 s.
+    func setResting(_ on: Bool) {
+        queue.async {
+            guard on != self.resting, let t = self.timer else { return }
+            self.resting = on
+            t.schedule(deadline: .now() + (on ? 60 : 0), repeating: on ? 60 : 2,
+                       leeway: on ? .seconds(5) : .milliseconds(200))
+        }
+    }
 
     /// Takes one sample synchronously (used by --dump; call twice for real rates).
     func sampleNow() -> [String: Any] { queue.sync { let s = sample(); latest = s; return s } }
@@ -84,6 +92,9 @@ final class Sampler: @unchecked Sendable {
         let now = Date()
         let dt = prevAt.map { now.timeIntervalSince($0) } ?? 0
         prevAt = now
+        // More than 10 s since the last sample (the Mac slept, or Vitals was resting at one sample a minute):
+        // no disk / network rates across it, and a gap in the 5-minute charts rather than a fake dip.
+        let gap = dt > 10
 
         let memory = memorySection()
         let cpu = cpuSection()
@@ -113,7 +124,7 @@ final class Sampler: @unchecked Sendable {
         }
         let diskNow = Disk.counters()
         var readBps: Any = NSNull(), writeBps: Any = NSNull()
-        if let d = diskNow, let p = prevDisk, dt > 0 {
+        if let d = diskNow, let p = prevDisk, dt > 0, !gap {
             readBps = num(Double(d.read &- p.read) / dt, 0)
             writeBps = num(Double(d.written &- p.written) / dt, 0)
         }
@@ -129,7 +140,7 @@ final class Sampler: @unchecked Sendable {
         let netNow = iface.flatMap { Network.counters(bsd: $0.bsd) }
         var net: [String: Any] = ["iface": iface?.name ?? NSNull(), "inBps": NSNull(), "outBps": NSNull(),
                                   "packetsInPs": NSNull(), "packetsOutPs": NSNull()]
-        if let n = netNow, let p = prevNet, prevNetIface == iface?.bsd, dt > 0 {
+        if let n = netNow, let p = prevNet, prevNetIface == iface?.bsd, dt > 0, !gap {
             net["inBps"] = num(Double(n.inBytes &- p.inBytes) / dt, 0)
             net["outBps"] = num(Double(n.outBytes &- p.outBytes) / dt, 0)
             net["packetsInPs"] = num(Double(n.inPackets &- p.inPackets) / dt, 0)
@@ -150,7 +161,6 @@ final class Sampler: @unchecked Sendable {
             "volume": vol.name ?? NSNull(), "totalBytes": vol.total ?? NSNull(), "usedBytes": used,
             "freeBytes": vol.free ?? NSNull(), "readBps": readBps, "writeBps": writeBps,
             "readTodayBytes": today["diskR"] ?? NSNull(), "writtenTodayBytes": today["diskW"] ?? NSNull(),
-            "bigUsers": diskScan.bigUsers ?? NSNull(),
         ]
 
         // Energy
@@ -170,13 +180,14 @@ final class Sampler: @unchecked Sendable {
                   let total = (memory["totalBytes"] as? NSNumber)?.doubleValue, total > 0 else { return NSNull() }
             return (used / total * 1000).rounded() / 10
         }()
-        addLive([
+        let point: [String: Any] = [
             "pressurePct": memory["pressurePct"] ?? NSNull(), "memUsedPct": memUsedPct,
             "swapUsedBytes": memory["swapUsedBytes"] ?? NSNull(),
             "cpuUserPct": cpu["userPct"] ?? NSNull(), "cpuSystemPct": cpu["systemPct"] ?? NSNull(),
             "gpuPct": num(gpuPct, 0), "diskReadBps": readBps, "diskWriteBps": writeBps,
             "netInBps": net["inBps"] ?? NSNull(), "netOutBps": net["outBps"] ?? NSNull(), "energyImpact": impact,
-        ])
+        ]
+        addLive(gap ? point.mapValues { _ -> Any in NSNull() } : point)
         var liveOut: [String: Any] = live
         liveOut["stepSec"] = 2
 

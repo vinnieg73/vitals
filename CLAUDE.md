@@ -11,5 +11,6 @@ See README.md, HANDOFF.md, BRIEF-mac.md and DATA.md.
 - Never open windows on Vinnie's screen to test: use `--dump` and `--render` (borderless window parked at -40000,-40000, activation policy .prohibited).
 - A `variableLength` status item that changes width re-lays out the menu bar and slides icons in and out from behind the notch. Fixed `length`, set once.
 - NSStatusItem Preferred Position values on macOS 27 are not screen coordinates and can't be seeded reliably; only autosaveName plus a user ⌘-drag.
-- Measure Vitals' idle CPU only after the launch disk scan ends: it runs about a minute at 50–80% of a core (a first reading of 63% was the scan, not the change).
+- The "biggest space users" folder scan was removed 2026-10-20 (no page showed it; it cost ~45 s of CPU per launch). Don't bring it back without a page that shows it.
+- `kern.boottime` moves by a second or so when macOS corrects the clock (often after a wake): never treat an exact boot-time change as a reboot.
 - KVO on a status button's `effectiveAppearance` fires again when you set its image: redraw only when the light/dark match really changes, or it loops (~95% of a core, 2026-10-19). An off-screen button doesn't show this; only the real menu bar does.

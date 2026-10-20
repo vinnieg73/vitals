@@ -1,0 +1,122 @@
+import Foundation
+
+/// `Vitals --selftest`: checks the rules that can't be seen from a single `--dump`, without any window or
+/// menu bar item. About 25 s (it waits out a real resting stretch). Prints PASS / FAIL per check; exit 1 on any FAIL.
+enum SelfTest {
+    private static var failures = 0
+
+    private static func check(_ name: String, _ ok: Bool, _ detail: @autoclosure () -> String = "") {
+        if !ok { failures += 1 }
+        print("\(ok ? "PASS" : "FAIL")  \(name)\(ok ? "" : "  (\(detail()))")")
+        fflush(stdout)
+    }
+
+    static func run() -> Never {
+        baseline()
+        judge()
+        sampler()
+        print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
+        exit(failures == 0 ? 0 : 1)
+    }
+
+    /// "Today" totals: a boot time that moves a second is not a reboot; a real reboot, a new day, an interface
+    /// that's down at midnight, and a relaunch the same day.
+    private static func baseline() {
+        let suite = "com.vinnie.vitals.selftest"
+        guard let store = UserDefaults(suiteName: suite) else { check("baseline store", false, "no suite"); return }
+        store.removePersistentDomain(forName: suite)
+        defer { store.removePersistentDomain(forName: suite) }
+
+        let d = DailyBaseline(store: store)
+        check("baseline: first run counts since boot", d.today(["diskR": 1000], day: "2026-10-19", boot: 1000)["diskR"] == 1000)
+        _ = d.today(["diskR": 1500], day: "2026-10-19", boot: 1000)
+        check("baseline: new day starts from the last value", d.today(["diskR": 2000], day: "2026-10-20", boot: 1000)["diskR"] == 500)
+        let shifted = d.today(["diskR": 2600], day: "2026-10-20", boot: 1001)["diskR"]
+        check("baseline: boot time 1 s later is not a reboot", shifted == 1100, "got \(shifted.map(String.init) ?? "nil"), want 1100")
+        let shiftedBack = d.today(["diskR": 2700], day: "2026-10-20", boot: 1000)["diskR"]
+        check("baseline: boot time 1 s earlier is not a reboot", shiftedBack == 1200, "got \(shiftedBack.map(String.init) ?? "nil")")
+        check("baseline: a real reboot counts since boot", d.today(["diskR": 300], day: "2026-10-20", boot: 9000)["diskR"] == 300)
+
+        _ = d.today(["diskR": 400, "netI.en0": 5000], day: "2026-10-20", boot: 9000)
+        _ = d.today(["diskR": 700], day: "2026-10-20", boot: 9000)             // en0 down before midnight
+        _ = d.today(["diskR": 800], day: "2026-10-21", boot: 9000)             // midnight, en0 still down
+        let net = d.today(["diskR": 900, "netI.en0": 5050], day: "2026-10-21", boot: 9000)["netI.en0"]
+        check("baseline: interface down at midnight keeps its baseline", net == 50, "got \(net.map(String.init) ?? "nil"), want 50")
+        let restarted = d.today(["diskR": 950, "netI.en0": 20], day: "2026-10-21", boot: 9000)["netI.en0"]
+        let after = d.today(["diskR": 960, "netI.en0": 70], day: "2026-10-21", boot: 9000)["netI.en0"]
+        check("baseline: a restarted counter counts from zero", restarted == 20 && after == 70,
+              "got \(restarted.map(String.init) ?? "nil") then \(after.map(String.init) ?? "nil")")
+
+        d.save()
+        let again = DailyBaseline(store: store).today(["diskR": 1000], day: "2026-10-21", boot: 9000)["diskR"]
+        check("baseline: relaunch the same day keeps the baseline", again == 300, "got \(again.map(String.init) ?? "nil"), want 300")
+    }
+
+    /// CPU "busy for 30 s": still flags a steady 30 s, but time asleep doesn't count toward it.
+    private static func judge() {
+        func snap(_ cpu: Double) -> [String: Any] {
+            ["cpu": ["totalPct": cpu], "gpu": ["pct": 0.0],
+             "memory": ["totalBytes": 16 * 1_073_741_824.0, "usedBytes": 8 * 1_073_741_824.0, "pressurePct": 30.0, "level": "normal"]]
+        }
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        var j = StatusIcon.Judge()
+        var s = StatusIcon.State(cpu: 0, gpu: 0, ram: 0)
+        for t in stride(from: 0.0, through: 28, by: 2) { s = j.state(from: snap(90), now: t0 + t) }
+        check("judge: 28 s busy is still calm", s.level(.cpu) == .ok)
+        s = j.state(from: snap(90), now: t0 + 32)
+        check("judge: 32 s busy turns the CPU dial amber", s.level(.cpu) == .warn)
+
+        j = StatusIcon.Judge()
+        for t in stride(from: 0.0, through: 20, by: 2) { s = j.state(from: snap(90), now: t0 + t) }
+        // 60 s asleep, then busy again right after waking
+        for t in stride(from: 80.0, through: 104, by: 2) { s = j.state(from: snap(90), now: t0 + t) }
+        check("judge: time asleep doesn't count as busy", s.level(.cpu) == .ok)
+        for t in stride(from: 106.0, through: 112, by: 2) { s = j.state(from: snap(90), now: t0 + t) }
+        check("judge: 30 s busy after waking turns amber", s.level(.cpu) == .warn)
+    }
+
+    /// The real sampler: ticks every 2 s, goes quiet while resting, takes a fresh sample on waking, and leaves a
+    /// gap (nulls, no disk / network rates) across a stretch over 10 s. No folder scan in the snapshot.
+    private static func sampler() {
+        let lock = NSLock()
+        var got: [(Date, [String: Any])] = []
+        let s = Sampler()
+        s.setWantProcesses(false)
+        s.onSnapshot = { snap in lock.lock(); got.append((Date(), snap)); lock.unlock() }
+        func count() -> Int { lock.lock(); defer { lock.unlock() }; return got.count }
+        func last() -> [String: Any] { lock.lock(); defer { lock.unlock() }; return got.last?.1 ?? [:] }
+
+        s.start()
+        Thread.sleep(forTimeInterval: 4.6)
+        let awake = count()
+        check("sampler: samples every 2 s", awake >= 3, "\(awake) samples in 4.6 s")
+        check("sampler: no folder scan in the snapshot", (last()["disk"] as? [String: Any])?["bigUsers"] == nil)
+
+        s.setResting(true)
+        Thread.sleep(forTimeInterval: 0.3)
+        let before = count()
+        Thread.sleep(forTimeInterval: 11)
+        check("sampler: resting takes no samples for 11 s", count() == before, "\(count() - before) samples while resting")
+
+        let woke = Date()
+        s.setResting(false)
+        Thread.sleep(forTimeInterval: 1)
+        let fresh: (Date, [String: Any])? = { lock.lock(); defer { lock.unlock() }; return got.last }()
+        let first = count() > before && fresh.map { $0.0 >= woke } == true
+        check("sampler: waking takes a sample at once", first, "\(count() - before) samples within 1 s of waking")
+        let snap = fresh?.1 ?? [:]
+        let live = snap["live"] as? [String: Any] ?? [:]
+        let lastPoints = live.filter { $0.key != "stepSec" }.compactMap { ($0.value as? [Any])?.last }
+        check("sampler: the stretch shows as a gap in the charts",
+              !lastPoints.isEmpty && lastPoints.allSatisfy { $0 is NSNull }, "\(lastPoints.count) series")
+        check("sampler: no disk rate across the stretch", (snap["disk"] as? [String: Any])?["readBps"] is NSNull)
+        check("sampler: the needles still have values", ((snap["cpu"] as? [String: Any])?["totalPct"] as? NSNumber) != nil)
+
+        Thread.sleep(forTimeInterval: 2.5)
+        let next = last()
+        let rate = (next["disk"] as? [String: Any])?["readBps"]
+        check("sampler: rates come back on the next tick", rate is NSNumber, "readBps \(String(describing: rate))")
+        let mem = ((next["live"] as? [String: Any])?["memUsedPct"] as? [Any])?.last
+        check("sampler: chart points come back on the next tick", mem is NSNumber, "memUsedPct \(String(describing: mem))")
+    }
+}

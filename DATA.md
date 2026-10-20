@@ -62,8 +62,7 @@ unknown; the page shows "–".
   disk: {
     volume: "Macintosh HD", totalBytes, usedBytes, freeBytes,
     readBps, writeBps,                       // IOBlockStorageDriver Statistics deltas
-    readTodayBytes, writtenTodayBytes,       // since local midnight (persist the midnight baseline; since boot if unknown)
-    bigUsers: [ { name, bytes } ] | null     // background scan every 30 min; null while the first scan runs
+    readTodayBytes, writtenTodayBytes        // since local midnight (persist the midnight baseline; since boot if unknown)
   },
 
   network: {
@@ -73,6 +72,7 @@ unknown; the page shows "–".
 
   live: {                                    // the strip charts: last 5 minutes, one point every 2 s
     stepSec: 2,                              // up to 150 points each, oldest first; starts with 1 point at launch
+                                             // a null point in every series = a gap (Mac asleep, or resting while the screens sleep)
     pressurePct: [..], swapUsedBytes: [..],
     memUsedPct: [..],                        // memory.usedBytes / totalBytes × 100, one decimal (Activity Monitor's Memory Used)
     cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
