@@ -19,6 +19,7 @@ enum SelfTest {
         judge()
         deadband()
         menus()
+        tidy()
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
@@ -117,6 +118,32 @@ enum SelfTest {
         let b = Hotkey(keyCode: UInt32(kVK_F19), modifiers: mods) {}
         check("hotkey: a free shortcut registers", a.registered)
         check("hotkey: a shortcut that's already taken says so", !b.registered)
+    }
+
+    /// Small guards: page data survives a NaN, same-named apps get their own row ids, and reading the CPU and
+    /// memory counters doesn't pile up port references.
+    private static func tidy() {
+        let bad: [String: Any] = ["cpu": ["totalPct": Double.nan, "ok": 5.0], "list": [Double.infinity, 1, "a", true]]
+        let json = AppDelegate.encode(bad)
+        check("page data: a NaN becomes null instead of a crash", json?.contains("null") == true && json?.contains("\"ok\":5") == true, json ?? "nil")
+        check("page data: normal numbers and true/false survive", json?.contains("true") == true && json?.contains("\"a\"") == true, json ?? "nil")
+
+        var taken: Set<String> = []
+        let ids = ["group:safari", "group:safari", "group:safari", "group:claude-code"].map { ProcessSampler.uniqueID($0, taken: &taken) }
+        check("rows: same-named apps get their own ids", ids == ["group:safari", "group:safari-2", "group:safari-3", "group:claude-code-2"], ids.joined(separator: ", "))
+
+        func refs() -> mach_port_urefs_t {
+            var r: mach_port_urefs_t = 0
+            let host = mach_host_self()
+            _ = mach_port_get_refs(mach_task_self_, host, MACH_PORT_RIGHT_SEND, &r)
+            mach_port_deallocate(mach_task_self_, host)
+            return r
+        }
+        let before = refs()
+        for _ in 0..<50 { _ = VMCounters.read(); _ = CPUTicks.read() }
+        let after = refs()
+        check("counters: reading CPU and memory 50 times keeps no port references", after <= before + 1, "\(before) -> \(after)")
+        check("counters: CPU and memory still read", VMCounters.read() != nil && !CPUTicks.read().isEmpty)
     }
 
     /// The real sampler: ticks every 2 s, goes quiet while resting, takes a fresh sample on waking, and leaves a

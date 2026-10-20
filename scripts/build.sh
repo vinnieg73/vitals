@@ -23,6 +23,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/web"
 cp "$BIN/Vitals" "$APP/Contents/MacOS/"
 cp Support/Info.plist "$APP/Contents/"
+# Build number = commit count, so About tells builds apart ("Version 0.1.0 (123)").
+BUILD="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" "$APP/Contents/Info.plist"
 cp "$SCRATCH/AppIcon.icns" "$APP/Contents/Resources/"
 
 # The pages (written by the cloud thread). Until they exist, a placeholder stands in for each.

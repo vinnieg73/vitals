@@ -250,14 +250,16 @@ final class ProcessSampler {
         let sessionRows = Array(sessions.values)
 
         // Apps with helpers become a summed row; the app's own process is listed as one of its children.
-        for row in top where row.kind == "app" {
+        // Two apps with the same name get "group:name" and "group:name-2" (oldest pid first, so it stays put).
+        var groupIDs: Set<String> = []
+        for row in top.sorted(by: { ($0.pid ?? 0) < ($1.pid ?? 0) }) where row.kind == "app" {
             guard let pid = row.pid, var children = kids[pid], !children.isEmpty else { continue }
             let own = row.copy(id: "pid:\(pid)")
             own.kind = "app"
             own.note = "the app itself"
             children.append(own)
             children.sort(by: Self.byMemory)
-            row.id = "group:" + Self.slug(row.name)
+            row.id = Self.uniqueID("group:" + Self.slug(row.name), taken: &groupIDs)
             row.children = children
             row.sum(of: children)
         }
@@ -273,6 +275,14 @@ final class ProcessSampler {
     }
 
     private static func byMemory(_ a: Row, _ b: Row) -> Bool { (a.mem ?? 0) > (b.mem ?? 0) }
+
+    /// `base`, or `base-2`, `base-3`… if that id is already taken (or is the Claude Code group's).
+    static func uniqueID(_ base: String, taken: inout Set<String>) -> String {
+        var id = base, n = 2
+        while taken.contains(id) || id == "group:claude-code" { id = "\(base)-\(n)"; n += 1 }
+        taken.insert(id)
+        return id
+    }
 
     private static func slug(_ s: String) -> String {
         s.lowercased().map { $0.isLetter || $0.isNumber ? String($0) : "-" }.joined()

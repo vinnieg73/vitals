@@ -114,27 +114,6 @@
     (list || []).forEach(function (p) { out.push(p); if (p.children) flat(p.children, out); });
     return out;
   }
-  // biggest single memory user, looking inside groups (so "Claude's sandbox" beats "Claude")
-  function biggest(s) {
-    var best = null;
-    (s.processes || []).forEach(function (p) {
-      var cand = p;
-      if (p.kind !== "group" && p.children && p.children.length) {
-        var kid = p.children.slice().sort(function (a, b) { return (b.memBytes || 0) - (a.memBytes || 0); })[0];
-        if (kid && kid.memBytes > p.memBytes * 0.6) cand = kid;
-      }
-      if (!best || (cand.memBytes || 0) > (best.memBytes || 0)) best = cand;
-    });
-    return best;
-  }
-  // the top-level row that frees the most if quit (an app with its helpers)
-  function topApp(s) {
-    var list = (s.processes || []).filter(function (p) {
-      return p.id !== "group:claude-code" && p.pid != null && (p.kind === "app" || /^group:/.test(p.id));
-    });
-    list.sort(function (a, b) { return (b.memBytes || 0) - (a.memBytes || 0); });
-    return list[0] || null;
-  }
   function friendly(p) {
     if (!p) return "";
     if (p.name === "Sandbox virtual machine" || /Virtualization/.test(p.name)) return "Claude's sandbox";
@@ -170,55 +149,6 @@
     }
     return out;
   }
-  function cpuState(s) { var c = s.cpu || {}; return c.totalPct >= 90 ? "busy" : c.totalPct >= 60 ? "working" : "calm"; }
-  function hot(s) { var t = (s.energy || {}).thermal; return t === "serious" || t === "critical"; }
-  function batteryLow(s) { var e = s.energy || {}; return !e.pluggedIn && isNum(e.batteryPct) && e.batteryPct <= 15; }
-  function diskLow(s) { var d = s.disk || {}; return d.totalBytes && d.freeBytes / d.totalBytes < 0.07; }
-
-  // the sentence at the top of the window and popover
-  function summary(s) {
-    var m = s.memory || {}, ms = memState(s);
-    var swapBig = (m.swapUsedBytes || 0) >= swapWarnAt(ramOf(s));
-    var big = biggest(s), totalGB = F.gbShort(m.totalBytes || (s.host || {}).memBytes);
-    var others = [];
-    if (hot(s)) others.push("hot");
-    if (cpuState(s) === "busy") others.push("busy");
-    if (batteryLow(s)) others.push("battery");
-    if (diskLow(s)) others.push("disk");
-    var rest = others.length ? "" : " Everything else is calm.";
-
-    if (ms === "crit") return {
-      sev: "crit", head: "Your Mac is out of memory.",
-      sub: "Apps may freeze. " + friendly(big) + " is using <b>" + F.gbShort(big && big.memBytes) + " of your " + totalGB + "</b>, and swap is large.",
-      short: friendly(big) + " is using " + F.gbShort(big && big.memBytes) + " of your " + totalGB + "."
-    };
-    if (ms === "warn") return {
-      sev: "warn", head: "Your Mac is short on memory.",
-      sub: friendly(big) + " is using <b>" + F.gbShort(big && big.memBytes) + " of your " + totalGB + "</b>" +
-        (swapBig ? ", and " + F.gbShort(m.swapUsedBytes) + " is in swap." : ".") + rest,
-      short: friendly(big) + " is using " + F.gbShort(big && big.memBytes) + " of your " + totalGB + "."
-    };
-    if (hot(s)) return { sev: "warn", head: "Your Mac is running hot.", sub: "macOS is slowing things down to cool off. Busiest right now: <b>" + F.esc(busiest(s)) + "</b>.", short: "Busiest: " + busiest(s) + "." };
-    if (cpuState(s) === "busy") return { sev: "ok", head: "Your Mac is busy.", sub: "The CPU is at <b>" + F.pct(s.cpu.totalPct) + "%</b>. Busiest right now: <b>" + F.esc(busiest(s)) + "</b>.", short: "Busiest: " + busiest(s) + "." };
-    if (batteryLow(s)) return { sev: "warn", head: "Your battery is low.", sub: "<b>" + F.pct(s.energy.batteryPct) + "%</b> left, about " + F.hm(s.energy.minutesLeft) + ".", short: F.pct(s.energy.batteryPct) + "% left." };
-    if (diskLow(s)) return { sev: "warn", head: "Your disk is almost full.", sub: "Only <b>" + F.dgb(s.disk.freeBytes) + "</b> free.", short: "Only " + F.dgb(s.disk.freeBytes) + " free." };
-    return { sev: "ok", head: "Your Mac is doing fine.", sub: "Memory has room, the CPU is " + cpuState(s) + ", and nothing needs you.", short: "Nothing needs you." };
-  }
-  function busiest(s) {
-    var p = flat(s.processes).filter(function (x) { return x.kind !== "group"; })
-      .sort(function (a, b) { return (b.cpuPct || 0) - (a.cpuPct || 0); })[0];
-    return p ? friendly(p) : "nothing";
-  }
-  function fix(s) {
-    var ms = memState(s);
-    if (ms === "ok") return null;
-    var app = topApp(s);
-    if (!app) return null;
-    var name = app.name;
-    return { name: name, pid: app.pid, bytes: app.memBytes,
-      html: "Quit " + F.esc(name) + " while you're not using it. That frees about <b>" + F.gbShort(app.memBytes) + "</b>." };
-  }
-
   // one entry per app, except Claude, which splits into its sandbox VM and the rest of the app
   var SUM = ["memBytes", "cpuPct", "energy", "diskReadBps", "diskWriteBps", "netInBps", "netOutBps"];
   function items(s) {
@@ -238,80 +168,6 @@
       }
     });
     return out;
-  }
-
-  /* ---------- tiny charts ---------- */
-  function spark(svg, vals, min, max, opts) {
-    if (!svg) return;
-    opts = opts || {};
-    var W = 200, H = +(svg.getAttribute("data-h") || 40);
-    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-    svg.setAttribute("preserveAspectRatio", "none");
-    vals = (vals || []).filter(isNum);
-    if (vals.length < 2) {
-      // not enough history yet (first ~30 s after launch): a faint dashed line instead of a blank box
-      svg.innerHTML = '<line x1="0" x2="' + W + '" y1="' + (H - 1) + '" y2="' + (H - 1) + '" stroke="currentColor" stroke-opacity=".3" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>';
-      return;
-    }
-    var n = vals.length;
-    var pts = vals.map(function (v, i) {
-      var y = H - (Math.max(min, Math.min(max, v)) - min) / (max - min) * (H - 2) - 1;
-      return [(i / (n - 1) * W).toFixed(1), y.toFixed(1)];
-    });
-    var line = pts.map(function (p, i) { return (i ? "L" : "M") + p[0] + " " + p[1]; }).join(" ");
-    var ref = "";
-    if (isNum(opts.ref)) {
-      var ry = (H - (opts.ref - min) / (max - min) * (H - 2) - 1).toFixed(1);
-      ref = '<line x1="0" x2="' + W + '" y1="' + ry + '" y2="' + ry + '" stroke="currentColor" stroke-opacity=".4" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>';
-    }
-    svg.innerHTML = ref +
-      '<path d="' + line + " L" + W + " " + H + " L0 " + H + ' Z" fill="currentColor" fill-opacity=".14"/>' +
-      '<path d="' + line + '" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
-  }
-  function trend(vals) {
-    vals = (vals || []).filter(isNum);
-    if (vals.length < 6) return "";
-    var k = Math.max(3, Math.floor(vals.length / 6));
-    var a = avg(vals.slice(0, k)), b = avg(vals.slice(-k));
-    if (b - a > Math.max(2, a * 0.05)) return "rising";
-    if (a - b > Math.max(2, a * 0.05)) return "falling";
-    return "steady";
-  }
-  function avg(a) { return a.reduce(function (x, y) { return x + y; }, 0) / a.length; }
-
-  /* ---------- squarified treemap ---------- */
-  // items: [{value,...}] sorted desc; returns items with x,y,w,h in a W x H box
-  function treemap(items, W, H) {
-    var out = [], total = items.reduce(function (s, it) { return s + it.value; }, 0);
-    if (!total) return out;
-    var scale = W * H / total;
-    var rest = items.map(function (it) { return { it: it, a: it.value * scale }; });
-    var x = 0, y = 0, w = W, h = H;
-    while (rest.length) {
-      var side = Math.min(w, h), row = [], best = Infinity;
-      while (rest.length) {
-        var test = row.concat([rest[0]]);
-        var worst = worstRatio(test, side);
-        if (worst > best) break;
-        best = worst; row = test; rest.shift();
-      }
-      var sum = row.reduce(function (s, r) { return s + r.a; }, 0);
-      var thick = sum / side, off = 0;
-      row.forEach(function (r) {
-        var len = r.a / thick;
-        if (w >= h) out.push(Object.assign({}, r.it, { x: x, y: y + off, w: thick, h: len }));
-        else out.push(Object.assign({}, r.it, { x: x + off, y: y, w: len, h: thick }));
-        off += len;
-      });
-      if (w >= h) { x += thick; w -= thick; } else { y += thick; h -= thick; }
-    }
-    return out;
-  }
-  function worstRatio(row, side) {
-    var sum = row.reduce(function (s, r) { return s + r.a; }, 0), mx = 0, mn = Infinity;
-    row.forEach(function (r) { mx = Math.max(mx, r.a); mn = Math.min(mn, r.a); });
-    var s2 = side * side, sum2 = sum * sum;
-    return Math.max(s2 * mx / sum2, sum2 / (s2 * mn));
   }
 
   /* ---------- live strip charts (last 5 min, one point every 2 s) ---------- */
@@ -515,8 +371,8 @@
 
   /* ---------- wiring ---------- */
   var Vitals = window.Vitals = {
-    F: F, note: note, flat: flat, items: items, biggest: biggest, friendly: friendly, memState: memState, memSev: memSev, swapCls: swapCls, swapWarnAt: swapWarnAt, cpuState: cpuState,
-    summary: summary, fix: fix, spark: spark, trend: trend, treemap: treemap, post: post, native: native,
+    F: F, note: note, flat: flat, items: items, friendly: friendly, memState: memState, memSev: memSev, swapCls: swapCls, swapWarnAt: swapWarnAt,
+    post: post, native: native,
     Strip: Strip, niceMax: niceMax, liveOf: liveOf, now: now, lastNum: lastNum, CAP: CAP,
     GiB: GiB, MiB: MiB, isNum: isNum,
     get last() { return last; },

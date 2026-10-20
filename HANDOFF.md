@@ -362,9 +362,22 @@ _Last updated 2026-10-20 ~01:15 UTC by the cloud audit thread (efficiency chunk,
   memory 30 MB (old app, ~2 h up) → 20–21 MB (fresh). tccd: the same launch preflights (ListenEvent ×2, DeveloperTool),
   no prompts. No "shortcut not registered" line, so the installed app has ⌃⌥⌘V.
 
+## Audit tidy-ups (2026-10-20, branch fix/audit-tidy)
+- Vinnie: "do the last batch now then". REPORT.md items Low 9, 10, 11, 14 and Fable's C, D. All Mac work in the
+  background (his rule, 2026-10-20): no windows, no focus, install relaunches with `open -g`.
+- L9: core kinds no longer force-unwrap; odd CPU numbering falls back to "E cores first".
+- C: one host port for the app's life (`hostPort`), not a new reference every tick.
+- D: page data checks `isValidJSONObject` first (a NaN made JSONSerialization throw an uncatchable exception);
+  bad values go out as null (`jsonSafe`) and the log says so; an encode error is logged instead of silently freezing.
+- L10: app.js lost its unused helpers (summary, fix, busiest, biggest, topApp, cpuState, hot, batteryLow, diskLow,
+  spark, trend, avg, treemap, worstRatio), including the two that put unescaped names into HTML. Pages checked in
+  headless Chromium with sample.js: same text, no errors.
+- L11: build.sh stamps CFBundleVersion with the commit count, so About shows "Version 0.1.0 (N)".
+- L14: two apps with the same name get "group:name" and "group:name-2" (oldest pid keeps the plain id).
+- `--selftest` adds: NaN → null in page data, unique group ids, no port-reference pile-up, counters still read.
+
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?
-- Should Biggest space users include Downloads/Documents? It would ask for permission once.
 
 ## Gotchas
 - Privacy prompts: walking all of ~/Library/Caches made macOS ask "Allow Vitals to access … Apple Music?"

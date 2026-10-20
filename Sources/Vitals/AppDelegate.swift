@@ -139,8 +139,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
 
     nonisolated static func encode(_ snap: [String: Any]) -> String? {
-        guard let d = try? JSONSerialization.data(withJSONObject: snap) else { return nil }
-        return String(decoding: d, as: UTF8.self)
+        // A NaN or infinity anywhere makes JSONSerialization throw an exception Swift can't catch (a crash),
+        // so check first; if one slipped in, send it as null and say so in the log rather than freeze the pages.
+        var obj: Any = snap
+        if !JSONSerialization.isValidJSONObject(obj) {
+            obj = jsonSafe(obj)
+            NSLog("Vitals: snapshot had a value JSON can't hold (NaN, infinity or a non-JSON type); sent as null")
+        }
+        do {
+            return String(decoding: try JSONSerialization.data(withJSONObject: obj), as: UTF8.self)
+        } catch {
+            NSLog("Vitals: couldn't turn the snapshot into page data: \(error)")
+            return nil
+        }
+    }
+
+    /// `v` with every non-finite number and non-JSON value replaced by null.
+    nonisolated static func jsonSafe(_ v: Any) -> Any {
+        switch v {
+        case let d as [String: Any]: return d.mapValues { jsonSafe($0) }
+        case let a as [Any]: return a.map { jsonSafe($0) }
+        case is String, is NSNull: return v
+        case let n as NSNumber:
+            if CFGetTypeID(n) == CFBooleanGetTypeID() { return n }
+            return n.doubleValue.isFinite ? n : NSNull()
+        default: return NSNull()
+        }
     }
 
     // MARK: snapshots

@@ -153,11 +153,16 @@ struct HostInfo {
             IOObjectRelease(cpus)
         }
         let n = Int(Sysctl.number("hw.ncpu") ?? 0)
-        if kinds.count == n, n > 0 { return (0..<n).map { kinds[$0]! } }
+        // Only if the ids are exactly 0..<n; odd numbering falls through instead of crashing.
+        let ordered = (0..<max(n, 0)).compactMap { kinds[$0] }
+        if n > 0, ordered.count == n { return ordered }
         // Fallback: Apple Silicon lists efficiency cores first.
         return Array(repeating: "E", count: e ?? 0) + Array(repeating: "P", count: p ?? max(0, n - (e ?? 0)))
     }
 }
+
+/// The host port, taken once: each mach_host_self() call adds a port reference that's never given back.
+private let hostPort = mach_host_self()
 
 /// Mach VM counters, in pages unless noted.
 struct VMCounters {
@@ -170,7 +175,7 @@ struct VMCounters {
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
         let kr = withUnsafeMutablePointer(to: &stats) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
+                host_statistics64(hostPort, HOST_VM_INFO64, $0, &count)
             }
         }
         guard kr == KERN_SUCCESS else { return nil }
@@ -187,7 +192,7 @@ enum CPUTicks {
         var info: processor_info_array_t?
         var infoCount: mach_msg_type_number_t = 0
         var cpus: natural_t = 0
-        guard host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &cpus, &info, &infoCount) == KERN_SUCCESS,
+        guard host_processor_info(hostPort, PROCESSOR_CPU_LOAD_INFO, &cpus, &info, &infoCount) == KERN_SUCCESS,
               let info else { return [] }
         defer {
             vm_deallocate(mach_task_self_, vm_address_t(UInt(bitPattern: info)),
