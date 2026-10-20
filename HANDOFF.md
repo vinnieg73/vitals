@@ -330,6 +330,14 @@ _Last updated 2026-10-20 ~01:15 UTC by the cloud audit thread (efficiency chunk,
   thread hop at all. Tooltip / accessibility label set only when the words change.
 - Opening a page pushes only a snapshot taken while a page showed (no stale process rows); the kick fills it in.
 - `--selftest` adds: dial dead-band, no history in the snapshot, battery/fan present with no page.
+- Checked on the Mac (2026-10-20 ~00:55Z, 37b3a6e): builds; one new warning at Sampler.swift:53 (`[weak self]` inside
+  a `queue.async` holding self strongly), fixed right after by `queue.async { [weak self] in guard let self …`
+  (built clean on the Mac; same behavior). `--selftest` 26/26 PASS in 21.5 s. `--dump`: no history, compressedBytes
+  or bigUsers; energy has battery/fan/thermal; today totals sane. `--bench`: 12.2 ms per tick with rows, 1.1 ms
+  without (was 13.4 / 1.8), 31 MB. Renders clean (Net columns, battery, fan still show). `--soak 3 window` as before.
+- Installed 00:56Z (37b3a6e). 3 min of `top`: CPU avg 0.97% → 0.74% of a core (max 1.5 → 1.3), memory 20–21 →
+  19–20 MB, idle wakeups too few to compare. tccd: the same 4 launch preflights, no prompts.
+- Not checked (needs a real window on his screen): nettop totals kept across a brief cover-up, no stale rows on open.
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?

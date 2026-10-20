@@ -48,7 +48,8 @@ final class Sampler: @unchecked Sendable {
 
     func start() {
         // On the queue, so the timer and the settings it's scheduled from are only ever touched there.
-        queue.async {
+        queue.async { [weak self] in
+            guard let self else { return }
             let t = DispatchSource.makeTimerSource(queue: self.queue)
             t.setEventHandler { [weak self] in
                 guard let self else { return }
