@@ -170,7 +170,7 @@ final class Sampler: @unchecked Sendable {
         // Energy
         if wantProcesses || power == nil {
             power = Power.read()
-            fanRPM = Fan.rpm().flatMap { $0.isFinite && $0 < 100_000 ? Int($0.rounded()) : nil } ?? NSNull()
+            if let rpm = Fan.rpm(), rpm.isFinite, rpm < 100_000 { fanRPM = Int(rpm.rounded()) } else { fanRPM = NSNull() }
         }
         let p = power ?? Power.Reading()
         let energy: [String: Any] = [
