@@ -22,6 +22,8 @@ final class Row {
     var diskR: Double?, diskW: Double?, netIn: Double?, netOut: Double?
     var model: String?
     var note: String?
+    /// When the process started (mach ticks), so Quit can tell it apart from a later process with the same pid.
+    var started: UInt64?
     var children: [Row] = []
 
     init(id: String, pid: Int32?, name: String, kind: String, user: String?) {
@@ -34,6 +36,7 @@ final class Row {
         r.mem = mem; r.cpuPct = cpuPct; r.cpuTimeSec = cpuTimeSec; r.threads = threads; r.energy = energy
         r.idleWake = idleWake
         r.diskR = diskR; r.diskW = diskW; r.netIn = netIn; r.netOut = netOut
+        r.started = started
         return r
     }
 
@@ -56,6 +59,8 @@ final class Row {
             "idleWakeupsPs": num(idleWake, 1), "diskReadBps": num(diskR, 0), "diskWriteBps": num(diskW, 0),
             "netInBps": num(netIn, 0), "netOutBps": num(netOut, 0),
             "model": model ?? NSNull(), "note": note ?? NSNull(),
+            // A string, so the page passes it back exactly.
+            "started": started.map { String($0) as Any } ?? NSNull(),
             "children": children.map { $0.json() },
         ]
     }
@@ -144,6 +149,7 @@ final class ProcessSampler {
             } == 0
             if ok {
                 row.mem = ru.ri_phys_footprint
+                row.started = ru.ri_proc_start_abstime
                 let cpuNs = UInt64(Double(ru.ri_user_time + ru.ri_system_time) * Mach.ticksToNs)
                 row.cpuTimeSec = Double(cpuNs) / 1e9
                 let wake = ru.ri_pkg_idle_wkups + ru.ri_interrupt_wkups
@@ -273,6 +279,15 @@ final class ProcessSampler {
     }
 
     // MARK: helpers
+
+    /// When `pid` started (mach ticks), or nil if it's gone or not ours to read.
+    static func startTime(_ pid: pid_t) -> UInt64? {
+        var ru = rusage_info_v4()
+        let ok = withUnsafeMutablePointer(to: &ru) {
+            $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V4, $0) }
+        } == 0
+        return ok ? ru.ri_proc_start_abstime : nil
+    }
 
     private func userName(_ uid: uid_t) -> String {
         if let n = users[uid] { return n }

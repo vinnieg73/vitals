@@ -19,7 +19,7 @@ protocol PageActions: AnyObject {
     func openWindow()
     func openHelp(section: String?)
     func quitApp()
-    func quitProcess(pid: Int32, name: String)
+    func quitProcess(pid: Int32, name: String, started: UInt64?)
     func pageReady(_ web: WKWebView)
 }
 
@@ -39,7 +39,8 @@ final class PageBridge: NSObject, WKScriptMessageHandler {
             case "quitApp": target.quitApp()
             case "quitProcess":
                 if let pid = (body["pid"] as? NSNumber)?.int32Value {
-                    target.quitProcess(pid: pid, name: body["name"] as? String ?? "")
+                    target.quitProcess(pid: pid, name: body["name"] as? String ?? "",
+                                       started: (body["started"] as? String).flatMap { UInt64($0) })
                 }
             case "ready":
                 if let web = message.webView { target.pageReady(web) }

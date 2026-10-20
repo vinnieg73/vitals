@@ -196,7 +196,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     // MARK: status item and popover
 
     @objc private func statusClicked() {
-        if NSApp.currentEvent?.type == .rightMouseUp {
+        // Right-click or ⌃-click (the trackpad habit) opens the menu.
+        let e = NSApp.currentEvent
+        if e?.type == .rightMouseUp || e?.modifierFlags.contains(.control) == true {
             popover?.performClose(nil)
             statusItem.menu = statusMenu()
             statusItem.button?.performClick(nil)
@@ -365,11 +367,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
     /// The page has already asked "Quit X?". Polite only: terminate / SIGTERM, never SIGKILL,
     /// and never for root's or other users' processes.
-    func quitProcess(pid: Int32, name: String) {
+    func quitProcess(pid: Int32, name: String, started: UInt64?) {
         guard pid > 1, pid != getpid() else { return }
         var bsd = proc_bsdinfo()
         let size = Int32(MemoryLayout<proc_bsdinfo>.size)
         guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsd, size) == size, bsd.pbi_uid != 0, bsd.pbi_uid == getuid() else {
+            NSSound.beep()
+            return
+        }
+        // The sheet can sit open a while: if X quit and macOS gave its pid to a new process, leave that one alone.
+        guard Self.sameProcess(pid: pid, started: started) else {
             NSSound.beep()
             return
         }
@@ -378,6 +385,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         } else {
             kill(pid, SIGTERM)
         }
+    }
+
+    /// True only if `pid` is still the process that started at `started`.
+    nonisolated static func sameProcess(pid: Int32, started: UInt64?) -> Bool {
+        guard let started else { return false }
+        return ProcessSampler.startTime(pid) == started
     }
 
     // Links: help.html opens the Help window, window.html the main window, web links the browser.
@@ -442,13 +455,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         NSApp.mainMenu = main
     }
 
-    /// Right-click on the menu bar item.
+    /// Right-click or ⌃-click on the menu bar item.
     private func statusMenu() -> NSMenu {
         let m = NSMenu()
-        // Shows the global hotkey; ⌘O only works while Vitals is active.
-        let open = m.addItem(withTitle: "Open Vitals", action: #selector(openWindow), keyEquivalent: "v")
-        open.keyEquivalentModifierMask = [.control, .option, .command]
+        // Shows the global hotkey (⌘O only works while Vitals is active), or says another app has it.
+        let shortcut = hotkey?.registered == true
+        let open = m.addItem(withTitle: "Open Vitals", action: #selector(openWindow), keyEquivalent: shortcut ? "v" : "")
+        if shortcut { open.keyEquivalentModifierMask = [.control, .option, .command] }
         open.target = self
+        if !shortcut { m.addItem(withTitle: "⌃⌥⌘V is taken by another app", action: nil, keyEquivalent: "") }
         m.addItem(withTitle: "Vitals Help", action: #selector(showHelp), keyEquivalent: "?").target = self
         m.addItem(.separator())
         m.addItem(withTitle: "Open at Login", action: #selector(toggleLogin), keyEquivalent: "").target = self
@@ -458,19 +473,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        if item.action == #selector(toggleLogin) { item.state = SMAppService.mainApp.status == .enabled ? .on : .off }
+        if item.action == #selector(toggleLogin) {
+            let (title, state) = Self.loginItem(SMAppService.mainApp.status)
+            item.title = title
+            item.state = state
+        }
         return true
+    }
+
+    /// "Open at Login" as the menu shows it. Turned on but not yet allowed in System Settings shows as a dash.
+    nonisolated static func loginItem(_ status: SMAppService.Status) -> (String, NSControl.StateValue) {
+        switch status {
+        case .enabled: return ("Open at Login", .on)
+        case .requiresApproval: return ("Open at Login (allow in Settings…)", .mixed)
+        default: return ("Open at Login", .off)
+        }
     }
 
     @objc private func toggleLogin() {
         let service = SMAppService.mainApp
+        // Waiting on the user: the switch is in System Settings → General → Login Items.
+        if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems(); return }
         do {
             if service.status == .enabled { try service.unregister() } else { try service.register() }
         } catch {
+            if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems(); return }
             let alert = NSAlert(error: error)
             alert.messageText = "Couldn't change Open at Login"
             alert.runModal()
+            return
         }
+        if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
     }
 }
 

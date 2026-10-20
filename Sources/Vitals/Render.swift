@@ -156,5 +156,5 @@ final class Renderer: NSObject, NSApplicationDelegate, PageActions, WKNavigation
     func openWindow() {}
     func openHelp(section: String?) {}
     func quitApp() {}
-    func quitProcess(pid: Int32, name: String) {}
+    func quitProcess(pid: Int32, name: String, started: UInt64?) {}
 }

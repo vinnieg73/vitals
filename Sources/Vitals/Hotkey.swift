@@ -7,6 +7,8 @@ final class Hotkey {
     private var ref: EventHotKeyRef?
     private var handler: EventHandlerRef?
     private let action: () -> Void
+    /// False when another app already has this shortcut (eventHotKeyExistsErr), so pressing it won't reach Vitals.
+    private(set) var registered = false
 
     /// ⌃⌥⌘V by default (⌥⌘V is Finder's "Move Item Here").
     init(keyCode: UInt32 = UInt32(kVK_ANSI_V), modifiers: UInt32 = UInt32(cmdKey | optionKey | controlKey), action: @escaping () -> Void) {
@@ -20,7 +22,9 @@ final class Hotkey {
             return noErr
         }, 1, &spec, me, &handler)
         let id = EventHotKeyID(signature: OSType(0x5654_4C53), id: 1) // 'VTLS'
-        RegisterEventHotKey(keyCode, modifiers, id, GetApplicationEventTarget(), 0, &ref)
+        let status = RegisterEventHotKey(keyCode, modifiers, id, GetApplicationEventTarget(), 0, &ref)
+        registered = status == noErr
+        if !registered { NSLog("Vitals: shortcut not registered (OSStatus \(status)); another app probably has it") }
     }
 
     deinit {

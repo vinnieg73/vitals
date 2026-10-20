@@ -1,4 +1,7 @@
+import AppKit
+import Carbon.HIToolbox
 import Foundation
+import ServiceManagement
 
 /// `Vitals --selftest`: checks the rules that can't be seen from a single `--dump`, without any window or
 /// menu bar item. About 25 s (it waits out a real resting stretch). Prints PASS / FAIL per check; exit 1 on any FAIL.
@@ -15,6 +18,7 @@ enum SelfTest {
         baseline()
         judge()
         deadband()
+        menus()
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
@@ -82,6 +86,37 @@ enum SelfTest {
         check("dials: a 1% move doesn't redraw", a.looksLike(StatusIcon.State(cpu: 41, gpu: 9, ram: 71)))
         check("dials: a 2% move redraws", !a.looksLike(StatusIcon.State(cpu: 42, gpu: 10, ram: 70)))
         check("dials: a color change redraws", !a.looksLike(StatusIcon.State(cpu: 40, gpu: 10, ram: 70, levels: [.memory: .warn])))
+    }
+
+    /// Quit only ever reaches the process the sheet asked about; Open at Login shows "needs approval";
+    /// a shortcut another app already holds is reported, not silently dead.
+    private static func menus() {
+        let me = getpid()
+        let started = ProcessSampler.startTime(me)
+        check("quit: reads a process's start time", started != nil)
+        check("quit: the same process passes", AppDelegate.sameProcess(pid: me, started: started))
+        check("quit: a new process with the same pid is left alone", !AppDelegate.sameProcess(pid: me, started: started.map { $0 &+ 1 }))
+        check("quit: no start time, no quit", !AppDelegate.sameProcess(pid: me, started: nil))
+        // The page gets the start time on every row, as a string it hands back unchanged.
+        func find(_ rows: [Row]) -> Row? {
+            for r in rows { if r.pid == me && r.id == "pid:\(me)" { return r }; if let k = find(r.children) { return k } }
+            return nil
+        }
+        let row = find(ProcessSampler().sample().rows)
+        let sent = row?.json()["started"] as? String
+        check("quit: the page gets the start time", sent != nil && sent.flatMap { UInt64($0) } == started, "\(sent ?? "nil")")
+
+        check("login: on shows a check", AppDelegate.loginItem(.enabled) == ("Open at Login", .on))
+        check("login: off shows no check", AppDelegate.loginItem(.notRegistered) == ("Open at Login", .off))
+        let pending = AppDelegate.loginItem(.requiresApproval)
+        check("login: waiting on Settings says so", pending.1 == .mixed && pending.0.contains("Settings"), pending.0)
+
+        // An odd shortcut nobody uses (⌃⌥⇧⌘F19), taken twice by this process.
+        let mods = UInt32(cmdKey | optionKey | controlKey | shiftKey)
+        let a = Hotkey(keyCode: UInt32(kVK_F19), modifiers: mods) {}
+        let b = Hotkey(keyCode: UInt32(kVK_F19), modifiers: mods) {}
+        check("hotkey: a free shortcut registers", a.registered)
+        check("hotkey: a shortcut that's already taken says so", !b.registered)
     }
 
     /// The real sampler: ticks every 2 s, goes quiet while resting, takes a fresh sample on waking, and leaves a

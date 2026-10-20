@@ -75,5 +75,5 @@ final class Soak: NSObject, NSApplicationDelegate, PageActions, WKNavigationDele
     func openWindow() {}
     func openHelp(section: String?) {}
     func quitApp() {}
-    func quitProcess(pid: Int32, name: String) {}
+    func quitProcess(pid: Int32, name: String, started: UInt64?) {}
 }

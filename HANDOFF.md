@@ -339,6 +339,21 @@ _Last updated 2026-10-20 ~01:15 UTC by the cloud audit thread (efficiency chunk,
   19–20 MB, idle wakeups too few to compare. tccd: the same 4 launch preflights, no prompts.
 - Not checked (needs a real window on his screen): nettop totals kept across a brief cover-up, no stale rows on open.
 
+## Audit usability chunk (2026-10-20, branch fix/audit-usability)
+- Vinnie: "go ahead with the next chunk". REPORT.md items Low 6, 7, 8 and Fable's E.
+- Quit (L6): every row carries `started` (the process start time, a string); the Quit sheet sends it back and
+  `quitProcess` beeps instead of quitting if that pid now belongs to a different process (`AppDelegate.sameProcess`).
+- Open at Login (L7): when macOS wants the user's OK, the menu shows "Open at Login (allow in Settings…)" with a dash,
+  and choosing it opens System Settings → Login Items (`SMAppService.openSystemSettingsLoginItems`), also right after
+  turning it on if macOS asks.
+- Shortcut (L8): `Hotkey.registered` is false when another app holds ⌃⌥⌘V; the right-click menu then drops the ⌃⌥⌘V
+  hint and shows "⌃⌥⌘V is taken by another app" (greyed). Logged with NSLog.
+- ⌃-click (E) opens the right-click menu, like a right-click.
+- Help (icon section) and README mention right-click / ⌃-click.
+- `--selftest` adds: start-time check (same process passes, +1 tick or no time fails, rows carry it), the three
+  login item states, and a test shortcut (⌃⌥⇧⌘F19) registered twice: first OK, second reported as taken.
+- Not checkable without his screen: the real right-click / ⌃-click menu, the Login Items hand-off, a real Quit.
+
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?
 - Should Biggest space users include Downloads/Documents? It would ask for permission once.
