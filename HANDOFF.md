@@ -375,6 +375,16 @@ _Last updated 2026-10-20 ~01:15 UTC by the cloud audit thread (efficiency chunk,
 - L11: build.sh stamps CFBundleVersion with the commit count, so About shows "Version 0.1.0 (N)".
 - L14: two apps with the same name get "group:name" and "group:name-2" (oldest pid keeps the plain id).
 - `--selftest` adds: NaN → null in page data, unique group ids, no port-reference pile-up, counters still read.
+- Checked on the Mac (2026-10-20 ~03:40Z, bc2f940), all in the background: 0 warnings; CFBundleVersion 51 (= commit
+  count). `--selftest` 42/42 PASS in 21.5 s. `--dump`: 644 rows, no duplicate ids (14 groups), no field newly null,
+  all own rows have their numbers. No removed app.js helper is still referenced. `--bench` 16.6 / 16.4 ms with rows
+  (was ~14; maybe the isValidJSONObject walk, only while a page shows), 1.2 without. Renders clean; `--soak 3 window`:
+  app 18 → 26 → 24.4 MB, page 81 → 103 MB.
+- Installed 03:38Z with `open -g` (pid 56995); the front app (Claude) didn't change. 3 min of `top -s 2`: CPU 0.64% →
+  0.37% (ps 0.69% → 0.42%), 21 → 17–18 MB. tccd: the usual launch preflights, no prompts; no "snapshot" / "page data"
+  log lines.
+- Audit fix order (REPORT.md 1–8) is done. Not done (not in the order): L12 second-display colors, L13 signing,
+  Fable F (Help alone runs full sampling), G (4 KB path buffer per pid), H (popover takes focus).
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?
