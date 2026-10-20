@@ -44,6 +44,6 @@ if [[ "${1:-}" == "--install" ]]; then
   cp -R "$APP" /Applications/
   LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
   "$LSREGISTER" -f "/Applications/Vitals.app" || true
-  open "/Applications/Vitals.app"
+  open -g "/Applications/Vitals.app"   # -g: launch in the background, never take focus from Vinnie
   echo "Installed to /Applications/Vitals.app"
 fi
