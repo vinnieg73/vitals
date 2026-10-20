@@ -305,6 +305,16 @@ _Last updated 2026-10-20 ~00:45 UTC by the cloud audit thread (top-4 fixes, bran
   rates, and the CPU/GPU 30 s busy clocks restart.
 - `--selftest` (SelfTest.swift, ~25 s, no windows): baseline cases, busy clock across a sleep, and a real Sampler
   resting/waking with the gap.
+- Checked on the Mac (2026-10-20 ~00:35Z, 9a55cc5): release build clean, no warnings. `--selftest` 21/21 PASS in
+  19.5 s. `--dump`: valid JSON, no `disk.bigUsers`; read today 596.4 GB, written 49.8 GB (baseline 2026-10-19, boot
+  unchanged, up 10 days). `--bench`: 13.4 ms per tick with process rows, 1.8 ms without (one tick, not an average),
+  32 MB resident. Renders (window/popover/help light+dark, menubar) clean, no page errors. `--soak 3 window`: app
+  18 → 24 MB, page 68 → 89.5 MB (live buffers filling, as before).
+- Installed 00:31Z (pid 32957): first 211 s used 2.1 s of CPU (1.0% of a core), `top` avg 0.95%, 19–21 MB. The
+  50–80% launch spike (the scan) is gone. tccd: only the usual launch preflights (ListenEvent, Gatekeeper), no prompts.
+- Not checked on the Mac (needs the screen asleep/locked, the popover open, or a midnight): the real rest
+  notifications, the once-a-minute sample while resting, the popover release (`--status-log` prints "popover page
+  released"), a real midnight rollover.
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?
