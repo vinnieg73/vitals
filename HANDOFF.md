@@ -353,6 +353,14 @@ _Last updated 2026-10-20 ~01:15 UTC by the cloud audit thread (efficiency chunk,
 - `--selftest` adds: start-time check (same process passes, +1 tick or no time fails, rows carry it), the three
   login item states, and a test shortcut (⌃⌥⇧⌘F19) registered twice: first OK, second reported as taken.
 - Not checkable without his screen: the real right-click / ⌃-click menu, the Login Items hand-off, a real Quit.
+- Checked on the Mac (2026-10-20 ~03:10Z, 55775ae): 0 warnings. `--selftest` 37/37 PASS in 21.5 s; the second F19
+  registration got OSStatus -9878 (eventHotKeyExistsErr). `--dump`: all 710 rows have `started`; 490 of 491 own rows a
+  string (the pid-less Claude Code group is null), all 219 other users' rows null. `--bench` 14.3 / 13.9 ms with rows,
+  1.2 / 1.3 without. Renders clean (help's icon text is in the bundle but below the 860 pt render). `--soak 3 window`:
+  app 18 → 26 → 25.7 MB, page 67 → 92 MB.
+- Installed 03:08Z (pid 51089). 3 min of `top -s 2` (89 samples): CPU 0.67% → 0.70% (max 1.7 → 2.8; `ps` 0.72% → 0.74%),
+  memory 30 MB (old app, ~2 h up) → 20–21 MB (fresh). tccd: the same launch preflights (ListenEvent ×2, DeveloperTool),
+  no prompts. No "shortcut not registered" line, so the installed app has ⌃⌥⌘V.
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?
