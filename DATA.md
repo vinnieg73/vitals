@@ -37,18 +37,16 @@ unknown; the page shows "–".
     pressurePct,                        // 100 - kern.memorystatus_level (same as `memory_pressure` "free percentage")
     level: "normal" | "warn" | "critical",   // kern.memorystatus_vm_pressure_level 1/2/4
     swapUsedBytes, swapTotalBytes,      // sysctl vm.swapusage
-    swapOutBytesSinceBoot,              // vm_statistics64 swapouts * page size
-    history: { pressurePct: [..], swapUsedBytes: [..] }
+    swapOutBytesSinceBoot               // vm_statistics64 swapouts * page size
   },
 
   cpu: {
     totalPct, userPct, systemPct, idlePct,
     cores: [ { kind: "P" | "E", pct } ],     // performance cores first
-    load: [1min, 5min, 15min],
-    history: [ totalPct... ]
+    load: [1min, 5min, 15min]
   },
 
-  gpu: { pct, history: [..] },               // IOAccelerator PerformanceStatistics "Device Utilization %"
+  gpu: { pct },               // IOAccelerator PerformanceStatistics "Device Utilization %"
 
   energy: {
     batteryPct, pluggedIn, charging, fullyCharged, adapterWatts,
@@ -95,8 +93,6 @@ Proc = {
   memBytes,            // phys_footprint (what Activity Monitor's Memory column shows); groups = sum
   cpuPct, cpuTimeSec, threads,
   energy,              // Activity Monitor-style energy impact (rough is fine; groups = sum)
-  compressedBytes,     // Activity Monitor's "Compressed Memory" (TASK_VM_INFO.compressed); groups = sum. Can exceed
-                       // memBytes for a virtual machine (guest memory). Null for root's and other users' processes
   idleWakeupsPs,       // Activity Monitor's "Idle Wake Ups", per second; groups = sum
   diskReadBps, diskWriteBps, netInBps, netOutBps,
   model,               // sessions only: "Opus" | "Sonnet" | "Haiku" | "Fable" | null

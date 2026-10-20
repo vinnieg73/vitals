@@ -1,6 +1,6 @@
 # Vitals — handoff
 
-_Last updated 2026-10-20 ~00:45 UTC by the cloud audit thread (top-4 fixes, branch fix/audit-top4)._
+_Last updated 2026-10-20 ~01:15 UTC by the cloud audit thread (efficiency chunk, branch fix/audit-efficiency)._
 
 ## Status
 - The Swift side is built and green (`scripts/build.sh`). `--dump` matches vm_stat, sysctl,
@@ -315,6 +315,21 @@ _Last updated 2026-10-20 ~00:45 UTC by the cloud audit thread (top-4 fixes, bran
 - Not checked on the Mac (needs the screen asleep/locked, the popover open, or a midnight): the real rest
   notifications, the once-a-minute sample while resting, the popover release (`--status-log` prints "popover page
   released"), a real midnight rollover.
+
+## Audit efficiency chunk (2026-10-20, branch fix/audit-efficiency)
+- Vinnie: "next logical chunk, then retest it all". REPORT.md items Low 1, 2, 3, 4, B, I (+ the fan guard from 9).
+- Menu bar only: battery (AppleSmartBattery's whole property table) and fan (SMC) are read only while a page shows
+  (once at launch, then the last reading is kept). Interface display name only when the interface changes; one
+  SCDynamicStore for the app's life; one DateFormatter; "today" baseline saved every 5 min (and on quit), not 30 s.
+- The unused 1-hour `history` (memory/cpu/gpu) is gone from the snapshot and DATA.md; per-process
+  `compressedBytes` (task_name_for_pid per pid per tick) too. Pages never read either.
+- Timer: created and rescheduled only on the sampler queue; 1 s slack with only the menu bar, 0.2 s with a page.
+- nettop keeps its last totals when the window is covered, so rates come back on the first run if it was under 30 s.
+  Stopped, its rates aren't handed out.
+- Dials redraw only when a needle moves 2%+ or a color changes (`State.looksLike`); unchanged + no page = no main-
+  thread hop at all. Tooltip / accessibility label set only when the words change.
+- Opening a page pushes only a snapshot taken while a page showed (no stale process rows); the kick fills it in.
+- `--selftest` adds: dial dead-band, no history in the snapshot, battery/fan present with no page.
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?

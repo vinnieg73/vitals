@@ -18,7 +18,6 @@ final class Row {
     var cpuTimeSec: Double?
     var threads: Int?
     var energy: Double?
-    var compressed: UInt64?
     var idleWake: Double?
     var diskR: Double?, diskW: Double?, netIn: Double?, netOut: Double?
     var model: String?
@@ -33,7 +32,7 @@ final class Row {
     func copy(id: String) -> Row {
         let r = Row(id: id, pid: pid, name: name, kind: "process", user: user)
         r.mem = mem; r.cpuPct = cpuPct; r.cpuTimeSec = cpuTimeSec; r.threads = threads; r.energy = energy
-        r.compressed = compressed; r.idleWake = idleWake
+        r.idleWake = idleWake
         r.diskR = diskR; r.diskW = diskW; r.netIn = netIn; r.netOut = netOut
         return r
     }
@@ -45,7 +44,7 @@ final class Row {
             return vals.isEmpty ? nil : vals.reduce(.zero, +)
         }
         mem = add(\.mem); cpuPct = add(\.cpuPct); cpuTimeSec = add(\.cpuTimeSec); threads = add(\.threads)
-        energy = add(\.energy); compressed = add(\.compressed); idleWake = add(\.idleWake); diskR = add(\.diskR); diskW = add(\.diskW); netIn = add(\.netIn); netOut = add(\.netOut)
+        energy = add(\.energy); idleWake = add(\.idleWake); diskR = add(\.diskR); diskW = add(\.diskW); netIn = add(\.netIn); netOut = add(\.netOut)
     }
 
     func json() -> [String: Any] {
@@ -53,7 +52,7 @@ final class Row {
             "id": id, "pid": pid.map { Int($0) as Any } ?? NSNull(), "name": name, "kind": kind,
             "user": user ?? NSNull(), "memBytes": mem.map { $0 as Any } ?? NSNull(),
             "cpuPct": num(cpuPct, 1), "cpuTimeSec": num(cpuTimeSec, 0), "threads": threads ?? NSNull(),
-            "energy": num(energy, 1), "compressedBytes": compressed.map { $0 as Any } ?? NSNull(),
+            "energy": num(energy, 1),
             "idleWakeupsPs": num(idleWake, 1), "diskReadBps": num(diskR, 0), "diskWriteBps": num(diskW, 0),
             "netInBps": num(netIn, 0), "netOutBps": num(netOut, 0),
             "model": model ?? NSNull(), "note": note ?? NSNull(),
@@ -78,19 +77,6 @@ private let responsibleFn: ResponsibleFn? = {
 }()
 
 final class ProcessSampler {
-    /// Activity Monitor's "Compressed Memory": works for your own processes through the task name port.
-    private static func compressedBytes(_ pid: pid_t) -> UInt64? {
-        var port: mach_port_t = 0
-        guard task_name_for_pid(mach_task_self_, pid, &port) == KERN_SUCCESS else { return nil }
-        defer { mach_port_deallocate(mach_task_self_, port) }
-        var info = task_vm_info_data_t()
-        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
-        let kr = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(port, task_flavor_t(TASK_VM_INFO), $0, &count) }
-        }
-        return kr == KERN_SUCCESS ? info.compressed : nil
-    }
-
     private struct Prev { let start: UInt64; let cpuNs: UInt64; let diskR: UInt64; let diskW: UInt64; let wakeups: UInt64; let idleWakeups: UInt64 }
     private var prev: [pid_t: Prev] = [:]
     private var prevTime: UInt64 = 0
@@ -163,7 +149,6 @@ final class ProcessSampler {
                 let wake = ru.ri_pkg_idle_wkups + ru.ri_interrupt_wkups
                 let cur = Prev(start: ru.ri_proc_start_abstime, cpuNs: cpuNs, diskR: ru.ri_diskio_bytesread,
                                diskW: ru.ri_diskio_byteswritten, wakeups: wake, idleWakeups: ru.ri_pkg_idle_wkups)
-                row.compressed = Self.compressedBytes(pid)
                 seen[pid] = cur
                 if dt > 0, let p = prev[pid], p.start == cur.start {
                     row.cpuPct = Double(cpuNs &- p.cpuNs) / 1e9 / dt * 100
@@ -408,16 +393,19 @@ final class NetTop {
         }
     }
 
+    /// Only while enabled (or primed for --dump): stopped, the kept rates are stale.
     func rates() -> [pid_t: (Double, Double)]? {
         lock.lock(); defer { lock.unlock() }
-        return current
+        return enabled || primed ? current : nil
     }
+    private var primed = false
 
     /// Runs nettop twice, `interval` apart, and blocks until the rates are known (for --dump).
     func primeBlocking(interval: TimeInterval) {
         queue.sync { run() }
         Thread.sleep(forTimeInterval: interval)
         queue.sync { run() }
+        lock.lock(); primed = true; lock.unlock()
     }
 
     private func start() {
@@ -428,9 +416,9 @@ final class NetTop {
         timer = t
     }
 
+    /// Keeps the last totals: a window that's covered for a moment picks up its rates on the first run back.
     private func stop() {
         timer?.cancel(); timer = nil
-        lock.lock(); current = nil; last = [:]; lastAt = nil; lock.unlock()
     }
 
     private func run() {
@@ -459,7 +447,9 @@ final class NetTop {
             totals[pid] = (t.0 + i, t.1 + o)
         }
         lock.lock()
-        if let lastAt {
+        // Rates need the previous run; one from over 30 s ago (stopped while the window was hidden) would average
+        // the whole time away, so then there are no rates until the next run.
+        if let lastAt, now.timeIntervalSince(lastAt) < 30 {
             let dt = now.timeIntervalSince(lastAt)
             var r: [pid_t: (Double, Double)] = [:]
             for (pid, t) in totals {
@@ -467,6 +457,8 @@ final class NetTop {
                 r[pid] = (Double(t.0 >= p.0 ? t.0 - p.0 : 0) / dt, Double(t.1 >= p.1 ? t.1 - p.1 : 0) / dt)
             }
             current = r
+        } else {
+            current = nil
         }
         last = totals
         lastAt = now

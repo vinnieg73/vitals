@@ -69,11 +69,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         }
         hotkey = Hotkey { [weak self] in MainActor.assumeIsolated { self?.toggleWindow() } }
 
-        sampler.onSnapshot = { [weak self, live, judge, statusTest] snap in
+        let drawn = DrawnState()
+        sampler.onSnapshot = { [weak self, live, judge, statusTest, drawn] snap in
             var state = judge.state(from: snap)
             if statusTest { state = Self.testState() }
+            // At this size a needle that moved under 2% looks the same (1% is a third of a pixel at its tip): no redraw.
+            let redraw = drawn.state.map { !state.looksLike($0) } ?? true
+            if redraw { drawn.state = state }
             let json = live.value ? Self.encode(snap) : nil
-            DispatchQueue.main.async { MainActor.assumeIsolated { self?.deliver(state: state, json: json) } }
+            // Nothing to draw and no page to feed: don't wake the main thread at all.
+            guard redraw || json != nil else { return }
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.deliver(state: redraw ? state : nil, json: json) } }
         }
         sampler.setWantProcesses(false)
         sampler.start()
@@ -139,8 +145,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
     // MARK: snapshots
 
-    private func deliver(state: StatusIcon.State, json: String?) {
-        if state != lastState, let b = statusItem.button {
+    private func deliver(state: StatusIcon.State?, json: String?) {
+        if let state, state != lastState, let b = statusItem.button {
             StatusIcon.apply(state, to: b)
             lastState = state
             logStatus("\(state)")
@@ -177,7 +183,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
 
     func pageReady(_ web: WKWebView) {
-        if let json = lastJSON ?? sampler.latestSnapshot().flatMap(Self.encode) { push(json, to: web) }
+        // Only a snapshot taken while a page was showing: an older one has stale process rows. If there's none
+        // yet, the fresh sample asked for on open arrives in a moment.
+        if let json = lastJSON { push(json, to: web) }
         if web === popoverWeb { fitPopover() }
         if web === helpWeb, let s = pendingHelpSection {
             pendingHelpSection = nil
@@ -220,7 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         p.show(relativeTo: b.bounds, of: b, preferredEdge: .minY)
         p.contentViewController?.view.window?.makeKey()
         updateLive()
-        if let w = popoverWeb, let json = lastJSON ?? sampler.latestSnapshot().flatMap(Self.encode) {
+        if let w = popoverWeb, let json = lastJSON {
             push(json, to: w)
             fitPopover()
         }
@@ -464,6 +472,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             alert.runModal()
         }
     }
+}
+
+/// The icon state last sent to be drawn. Used only on the sampler queue.
+final class DrawnState: @unchecked Sendable {
+    var state: StatusIcon.State?
 }
 
 /// A Bool shared between the main thread and the sampler queue.

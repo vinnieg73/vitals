@@ -115,8 +115,11 @@ enum Network {
     struct Counters { var inBytes: UInt64 = 0, outBytes: UInt64 = 0, inPackets: UInt64 = 0, outPackets: UInt64 = 0 }
 
     /// BSD name of the interface carrying the default route, e.g. "en0".
+    /// One connection to configd for the app's life, not a new one every check.
+    private static let store = SCDynamicStoreCreate(nil, "Vitals" as CFString, nil, nil)
+
     static func primaryInterface() -> String? {
-        guard let store = SCDynamicStoreCreate(nil, "Vitals" as CFString, nil, nil) else { return nil }
+        guard let store else { return nil }
         for key in ["State:/Network/Global/IPv4", "State:/Network/Global/IPv6"] {
             if let d = SCDynamicStoreCopyValue(store, key as CFString) as? [String: Any],
                let name = d["PrimaryInterface"] as? String { return name }
@@ -183,12 +186,14 @@ final class DailyBaseline {
         lastSeen = (d["lastSeen"] as? [String: NSNumber])?.mapValues(\.uint64Value) ?? [:]
     }
 
-    private static func today() -> String {
+    private static let dayFormat: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: Date())
-    }
+        return f
+    }()
+
+    private static func today() -> String { dayFormat.string(from: Date()) }
 
     /// Returns counter - baseline for each value, and records the values. `day` and `boot` are for --selftest.
     func today(_ current: [String: UInt64], day dayNow: String? = nil, boot bootIn: Int? = nil) -> [String: UInt64] {
@@ -208,7 +213,8 @@ final class DailyBaseline {
         for (k, v) in current where v < (lastSeen[k] ?? 0) { base[k] = 0 }
         // Merge, so an interface that's down at midnight still has a baseline when it comes back.
         lastSeen.merge(current) { $1 }
-        if Date().timeIntervalSince(lastSaved) > 30 { save() }
+        // Saved every 5 minutes (and on quit): a crash loses at most that much of "since the last value".
+        if Date().timeIntervalSince(lastSaved) > 300 { save() }
         var out: [String: UInt64] = [:]
         for (k, v) in current {
             let b = base[k] ?? 0

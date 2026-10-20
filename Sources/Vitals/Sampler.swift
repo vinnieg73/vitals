@@ -7,7 +7,7 @@ final class Sampler: @unchecked Sendable {
     let processes = ProcessSampler()
     private let daily = DailyBaseline()
     private let queue = DispatchQueue(label: "vitals.sampler", qos: .utility)
-    private var timer: DispatchSourceTimer?
+    private var timer: DispatchSourceTimer?   // queue only
     private var resting = false     // queue only
 
     // Previous counters, for rates.
@@ -16,13 +16,6 @@ final class Sampler: @unchecked Sendable {
     private var prevNet: Network.Counters?
     private var prevNetIface: String?
     private var prevAt: Date?
-
-    // One history point every 30 s, the last hour.
-    private static let historyEvery: TimeInterval = 30
-    private static let historyLength = 120
-    private var history: [String: [Double]] = [:]
-    private var bucket: [String: [Double]] = [:]
-    private var bucketStart = Date()
 
     // The strip charts: every sample, the last 5 minutes (DATA.md `live`).
     private static let liveLength = 150
@@ -33,6 +26,9 @@ final class Sampler: @unchecked Sendable {
     // Free space asks CacheDelete for purgeable space, which is slow-ish: once a minute is plenty.
     private var vol: (name: String?, total: UInt64?, free: UInt64?) = (nil, nil, nil)
     private var volCheckedAt = Date.distantPast
+    // Battery and fan only show in the window and popover: read while a page shows, else keep the last reading.
+    private var power: Power.Reading?
+    private var fanRPM: Any = NSNull()
 
     /// Latest snapshot, set on the sampler queue.
     private var latest: [String: Any]? {
@@ -43,28 +39,38 @@ final class Sampler: @unchecked Sendable {
     private let latestLock = NSLock()
     var onSnapshot: (([String: Any]) -> Void)?
 
-    /// Process rows are the costly part; while no page shows them only the memory, CPU etc. are sampled.
+    /// A page is showing. Process rows (and battery / fan) are only sampled then; with just the menu bar, only
+    /// what the dials and the charts' history need.
     private var wantProcesses = true
     private var lastProcs: ProcessSampler.Result?
 
     func latestSnapshot() -> [String: Any]? { latest }
 
     func start() {
-        let t = DispatchSource.makeTimerSource(queue: queue)
-        t.schedule(deadline: .now(), repeating: 2, leeway: .milliseconds(200))
-        t.setEventHandler { [weak self] in
-            guard let self else { return }
-            let snap = self.sample()
-            self.latest = snap
-            self.onSnapshot?(snap)
+        // On the queue, so the timer and the settings it's scheduled from are only ever touched there.
+        queue.async {
+            let t = DispatchSource.makeTimerSource(queue: self.queue)
+            t.setEventHandler { [weak self] in
+                guard let self else { return }
+                let snap = self.sample()
+                self.latest = snap
+                self.onSnapshot?(snap)
+            }
+            self.timer = t
+            self.reschedule(now: true)
+            t.resume()
         }
-        t.resume()
-        timer = t
     }
 
     func setWantNetwork(_ on: Bool) { queue.async { self.processes.wantNetwork = on } }
     func setWindowOpen(_ on: Bool) { setWantNetwork(on) }
-    func setWantProcesses(_ on: Bool) { queue.async { self.wantProcesses = on } }
+    func setWantProcesses(_ on: Bool) {
+        queue.async {
+            guard on != self.wantProcesses else { return }
+            self.wantProcesses = on
+            self.reschedule(now: false)
+        }
+    }
     /// One extra sample right away, delivered like a timer tick.
     func kick() {
         queue.async { let s = self.sample(); self.latest = s; self.onSnapshot?(s) }
@@ -76,11 +82,19 @@ final class Sampler: @unchecked Sendable {
     /// fresh sample at once and goes back to every 2 s.
     func setResting(_ on: Bool) {
         queue.async {
-            guard on != self.resting, let t = self.timer else { return }
+            guard on != self.resting else { return }
             self.resting = on
-            t.schedule(deadline: .now() + (on ? 60 : 0), repeating: on ? 60 : 2,
-                       leeway: on ? .seconds(5) : .milliseconds(200))
+            self.reschedule(now: !on)
         }
+    }
+
+    /// Every 2 s, or once a minute while resting. The slack lets macOS fold the wakeup in with others: a
+    /// second with only the menu bar showing, 0.2 s while a page shows (its charts step every 2 s).
+    private func reschedule(now: Bool) {
+        guard let t = timer else { return }
+        let every: Double = resting ? 60 : 2
+        let leeway: DispatchTimeInterval = resting ? .seconds(5) : wantProcesses ? .milliseconds(200) : .seconds(1)
+        t.schedule(deadline: .now() + (now ? 0 : every), repeating: every, leeway: leeway)
     }
 
     /// Takes one sample synchronously (used by --dump; call twice for real rates).
@@ -106,17 +120,6 @@ final class Sampler: @unchecked Sendable {
         // (and on the first sample, which has no rates yet).
         let impact: Any = freshProcs && dt > 0 ? num(procs.rows.reduce(0) { $0 + ($1.energy ?? 0) }, 1) : NSNull()
 
-        record("pressurePct", memory["pressurePct"] as? Double)
-        record("swapUsedBytes", (memory["swapUsedBytes"] as? UInt64).map(Double.init), average: false)
-        record("cpu", cpu["totalPct"] as? Double)
-        record("gpu", gpuPct)
-        rollHistory(now)
-
-        var mem = memory
-        mem["history"] = ["pressurePct": hist("pressurePct", 0), "swapUsedBytes": hist("swapUsedBytes", 0)]
-        var cpuOut = cpu
-        cpuOut["history"] = hist("cpu", 1)
-
         // Disk
         if Date().timeIntervalSince(volCheckedAt) >= 60 {
             vol = Disk.volume()
@@ -134,7 +137,8 @@ final class Sampler: @unchecked Sendable {
         if now.timeIntervalSince(ifaceCheckedAt) > 10 {
             ifaceCheckedAt = now
             if let bsd = Network.primaryInterface() {
-                iface = (bsd, Network.displayName(bsd: bsd) ?? bsd)
+                // The display name ("Wi-Fi") asks SystemConfiguration for every interface: only when it changes.
+                if bsd != iface?.bsd { iface = (bsd, Network.displayName(bsd: bsd) ?? bsd) }
             } else { iface = nil }
         }
         let netNow = iface.flatMap { Network.counters(bsd: $0.bsd) }
@@ -164,13 +168,17 @@ final class Sampler: @unchecked Sendable {
         ]
 
         // Energy
-        let p = Power.read()
+        if wantProcesses || power == nil {
+            power = Power.read()
+            fanRPM = Fan.rpm().flatMap { $0.isFinite && $0 < 100_000 ? Int($0.rounded()) : nil } ?? NSNull()
+        }
+        let p = power ?? Power.Reading()
         let energy: [String: Any] = [
             "batteryPct": p.batteryPct ?? NSNull(), "pluggedIn": p.pluggedIn ?? NSNull(),
             "charging": p.charging ?? NSNull(), "fullyCharged": p.fullyCharged ?? NSNull(),
             "adapterWatts": p.adapterWatts ?? NSNull(), "cycles": p.cycles ?? NSNull(),
             "healthPct": p.healthPct ?? NSNull(), "minutesLeft": p.minutesLeft ?? NSNull(),
-            "thermal": Power.thermal(), "fanRPM": Fan.rpm().map { Int($0.rounded()) } ?? NSNull(),
+            "thermal": Power.thermal(), "fanRPM": fanRPM,
             "impact": impact,
         ]
 
@@ -201,9 +209,9 @@ final class Sampler: @unchecked Sendable {
         return [
             "time": Self.timeFormatter.string(from: now),
             "host": hostOut,
-            "memory": mem,
-            "cpu": cpuOut,
-            "gpu": ["pct": num(gpuPct, 0), "history": hist("gpu", 0)],
+            "memory": memory,
+            "cpu": cpu,
+            "gpu": ["pct": num(gpuPct, 0)],
             "energy": energy,
             "disk": disk,
             "network": net,
@@ -301,7 +309,7 @@ final class Sampler: @unchecked Sendable {
         return out
     }
 
-    // MARK: history
+    // MARK: live
 
     private func addLive(_ point: [String: Any]) {
         for (k, v) in point {
@@ -312,26 +320,4 @@ final class Sampler: @unchecked Sendable {
         }
     }
 
-    private func record(_ key: String, _ value: Double?, average: Bool = true) {
-        guard let value else { return }
-        if average { bucket[key, default: []].append(value) } else { bucket[key] = [value] }
-    }
-
-    private func rollHistory(_ now: Date) {
-        // The very first point goes in right away so the charts aren't empty after launch.
-        let first = history.isEmpty
-        guard first || now.timeIntervalSince(bucketStart) >= Self.historyEvery else { return }
-        for (k, vals) in bucket where !vals.isEmpty {
-            var h = history[k] ?? []
-            h.append(vals.reduce(0, +) / Double(vals.count))
-            if h.count > Self.historyLength { h.removeFirst(h.count - Self.historyLength) }
-            history[k] = h
-        }
-        bucket = [:]
-        bucketStart = now
-    }
-
-    private func hist(_ key: String, _ places: Int) -> [Any] {
-        (history[key] ?? []).map { num($0, places) }
-    }
 }

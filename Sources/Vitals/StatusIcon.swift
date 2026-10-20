@@ -44,6 +44,11 @@ enum StatusIcon {
 
         func level(_ a: Area) -> Severity { levels[a] ?? .ok }
 
+        /// Same colors and every needle within 1%: drawn, the two can't be told apart.
+        func looksLike(_ o: State) -> Bool {
+            levels == o.levels && abs(cpu - o.cpu) < 2 && abs(gpu - o.gpu) < 2 && abs(ram - o.ram) < 2
+        }
+
         /// Drawn as a template image (calm dials): the menu bar recolors it for light and dark by itself.
         var followsMenuBar: Bool { takeover == nil && StatusIcon.labels.allSatisfy { level($0.0) == .ok } }
 
@@ -174,8 +179,9 @@ enum StatusIcon {
         }
         button.title = ""
         button.imagePosition = .imageOnly
-        button.toolTip = tip
-        button.setAccessibilityLabel(tip)
+        // Setting the tooltip hides one that's showing: only when the words change.
+        if button.toolTip != tip { button.toolTip = tip }
+        if button.accessibilityLabel() != tip { button.setAccessibilityLabel(tip) }
     }
 
     /// The three dials with their names under them. Template (follows the menu bar) when nothing is strained.

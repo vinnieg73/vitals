@@ -14,6 +14,7 @@ enum SelfTest {
     static func run() -> Never {
         baseline()
         judge()
+        deadband()
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
@@ -75,6 +76,14 @@ enum SelfTest {
         check("judge: 30 s busy after waking turns amber", s.level(.cpu) == .warn)
     }
 
+    /// The dials redraw only when a needle moves 2% or more, or a color changes.
+    private static func deadband() {
+        let a = StatusIcon.State(cpu: 40, gpu: 10, ram: 70)
+        check("dials: a 1% move doesn't redraw", a.looksLike(StatusIcon.State(cpu: 41, gpu: 9, ram: 71)))
+        check("dials: a 2% move redraws", !a.looksLike(StatusIcon.State(cpu: 42, gpu: 10, ram: 70)))
+        check("dials: a color change redraws", !a.looksLike(StatusIcon.State(cpu: 40, gpu: 10, ram: 70, levels: [.memory: .warn])))
+    }
+
     /// The real sampler: ticks every 2 s, goes quiet while resting, takes a fresh sample on waking, and leaves a
     /// gap (nulls, no disk / network rates) across a stretch over 10 s. No folder scan in the snapshot.
     private static func sampler() {
@@ -87,10 +96,15 @@ enum SelfTest {
         func last() -> [String: Any] { lock.lock(); defer { lock.unlock() }; return got.last?.1 ?? [:] }
 
         s.start()
-        Thread.sleep(forTimeInterval: 4.6)
+        Thread.sleep(forTimeInterval: 6.5)   // every 2 s, up to 1 s late with no page showing
         let awake = count()
-        check("sampler: samples every 2 s", awake >= 3, "\(awake) samples in 4.6 s")
-        check("sampler: no folder scan in the snapshot", (last()["disk"] as? [String: Any])?["bigUsers"] == nil)
+        check("sampler: samples every 2 s", awake >= 3, "\(awake) samples in 6.5 s")
+        let snap0 = last()
+        check("sampler: no folder scan in the snapshot", (snap0["disk"] as? [String: Any])?["bigUsers"] == nil)
+        let history = ["memory", "cpu", "gpu"].filter { (snap0[$0] as? [String: Any])?["history"] != nil }
+        check("sampler: no unused 1-hour history in the snapshot", history.isEmpty, history.joined(separator: ", "))
+        let energy = snap0["energy"] as? [String: Any] ?? [:]
+        check("sampler: battery and fan read once even with no page", energy["thermal"] is String && energy.keys.contains("fanRPM"))
 
         s.setResting(true)
         Thread.sleep(forTimeInterval: 0.3)
