@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-SCRATCH="$HOME/Library/Caches/VitalsBuild"
+SCRATCH="${VITALS_SCRATCH:-$HOME/Library/Caches/VitalsBuild}"   # override to build beside another build
 swift build -c release --scratch-path "$SCRATCH"
 BIN="$(swift build -c release --scratch-path "$SCRATCH" --show-bin-path)"
 APP="$SCRATCH/Vitals.app"
