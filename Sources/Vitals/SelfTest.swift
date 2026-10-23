@@ -196,6 +196,14 @@ enum SelfTest {
         var taken: Set<String> = []
         let ids = ["group:safari", "group:safari", "group:safari", "group:claude-code"].map { ProcessSampler.uniqueID($0, taken: &taken) }
         check("rows: same-named apps get their own ids", ids == ["group:safari", "group:safari-2", "group:safari-3", "group:claude-code-2"], ids.joined(separator: ", "))
+        // Two copies of Foo (pids 100 and 200): when the first quits, the second keeps its own row id.
+        let first = ProcessSampler.groupIDs([(100, "group:foo"), (200, "group:foo")], previous: [:])
+        let afterQuit = ProcessSampler.groupIDs([(200, "group:foo")], previous: first)
+        let renewed = ProcessSampler.groupIDs([(200, "group:foo"), (300, "group:foo")], previous: first)
+        func show(_ m: [pid_t: (base: String, id: String)]) -> String { m.keys.sorted().map { "\($0)=\(m[$0]!.id)" }.joined(separator: " ") }
+        check("rows: the oldest copy gets the plain id", first[100]?.id == "group:foo" && first[200]?.id == "group:foo-2", show(first))
+        check("rows: when it quits, the other copy keeps its own id", afterQuit[200]?.id == "group:foo-2", show(afterQuit))
+        check("rows: a new copy never takes the id of one that just quit", renewed[200]?.id == "group:foo-2" && renewed[300]?.id == "group:foo-3", show(renewed))
 
         func refs() -> mach_port_urefs_t {
             var r: mach_port_urefs_t = 0
