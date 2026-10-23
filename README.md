@@ -47,4 +47,7 @@ node scripts/test-pages.js     # charts and readouts after a gap, hover labels, 
 - `Resources/` — the pages (window, popover, help, app.css, app.js, sample.js). The Swift side feeds
   them the snapshot described in `DATA.md`.
 - `Support/` — Info.plist and the placeholder page used when a page is missing.
-- `icon/make-icon.swift` — draws `icon/icon-1024.png`.
+- `icon/make-icon.swift` — draws `icon/icon-1024.png` (light), `icon/icon-1024-dark.png` (Dark mode, "Graphite") and the
+  gauge layers in `icon/Vitals.icon/Assets/`. `build.sh` compiles `icon/Vitals.icon` (Icon Composer format) with actool,
+  so on macOS 26+ Finder and the Dock show the Graphite icon in Dark mode. `swift scripts/icon-preview.swift` draws the
+  installed icon in both modes with no window.

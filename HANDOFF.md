@@ -461,6 +461,14 @@ All in the background (Vinnie's rule): no windows on his screen, no focus grabs,
 - First launch after install: the stored baseline has no boot session id, so the old 60 s boot-time rule decides once;
   the id is saved with the next save (within 5 min, or on quit). No reset of today's totals expected.
 
+## Dark mode app icon (2026-10-23, branch icon/dark)
+- Vinnie asked for a dark version of the app icon and picked "Graphite" from the mockups
+  (https://claude.ai/artifact/RsKpvdyvdnXcfgdfVnyDLe): the Vitals window's dark grays, light needle, amber #EEA929.
+- `icon/make-icon.swift` draws light + dark full icons and the gauge alone (scaled to the 1024 Icon Composer canvas).
+  `icon/Vitals.icon/icon.json` (hand-written Icon Composer file): tile gradient + gauge layer, each with a dark
+  specialization. `build.sh` compiles it with `xcrun actool` into Assets.car and adds CFBundleIconName; AppIcon.icns
+  stays for older macOS. `scripts/icon-preview.swift` checks the installed icon in both modes, off screen.
+
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?
 

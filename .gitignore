@@ -3,3 +3,5 @@ build/
 renders/
 *.iconset/
 .DS_Store
+icon/icon-1024-dark.png
+icon/Vitals.icon/Assets/
