@@ -99,12 +99,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
                 MainActor.assumeIsolated { self?.setRest(reason, on) }
             }
         }
+        // Lock and unlock are distributed notifications, which AppKit holds back while an app isn't the active one,
+        // and Vitals almost never is: ask for them right away.
         let dist = DistributedNotificationCenter.default()
-        for (name, on) in [("com.apple.screenIsLocked", true), ("com.apple.screenIsUnlocked", false)] {
-            dist.addObserver(forName: .init(name), object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.setRest("locked", on) }
-            }
+        dist.addObserver(self, selector: #selector(screenLocked(_:)), name: .init("com.apple.screenIsLocked"),
+                         object: nil, suspensionBehavior: .deliverImmediately)
+        dist.addObserver(self, selector: #selector(screenUnlocked(_:)), name: .init("com.apple.screenIsUnlocked"),
+                         object: nil, suspensionBehavior: .deliverImmediately)
+        // Started while already locked, asleep or switched away (a background install can be): rest now, not
+        // only after the next change.
+        let session = CGSessionCopyCurrentDictionary() as? [String: Any]
+        for reason in Self.restingAtLaunch(session: session, displaysAsleep: CGDisplayIsAsleep(CGMainDisplayID()) != 0) {
+            setRest(reason, true)
         }
+    }
+
+    @objc private nonisolated func screenLocked(_ n: Notification) {
+        DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.setRest("locked", true) } }
+    }
+    @objc private nonisolated func screenUnlocked(_ n: Notification) {
+        DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.setRest("locked", false) } }
+    }
+
+    /// The rest reasons already true at launch, from the login session's state (CGSessionCopyCurrentDictionary)
+    /// and whether the main display sleeps. Unknown counts as awake.
+    nonisolated static func restingAtLaunch(session: [String: Any]?, displaysAsleep: Bool) -> [String] {
+        var out: [String] = []
+        if displaysAsleep { out.append("screens") }
+        if (session?["CGSSessionScreenIsLocked"] as? Bool) == true { out.append("locked") }
+        if (session?["kCGSSessionOnConsoleKey"] as? Bool) == false { out.append("session") }
+        return out
     }
 
     private func setRest(_ reason: String, _ on: Bool) {

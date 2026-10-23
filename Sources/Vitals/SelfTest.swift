@@ -109,6 +109,19 @@ enum SelfTest {
         let sent = row?.json()["started"] as? String
         check("quit: the page gets the start time", sent != nil && sent.flatMap { UInt64($0) } == started, "\(sent ?? "nil")")
 
+        typealias R = AppDelegate
+        check("rest: an awake, unlocked session doesn't rest at launch",
+              R.restingAtLaunch(session: ["CGSSessionScreenIsLocked": false, "kCGSSessionOnConsoleKey": true], displaysAsleep: false).isEmpty)
+        check("rest: started while locked rests at once",
+              R.restingAtLaunch(session: ["CGSSessionScreenIsLocked": true, "kCGSSessionOnConsoleKey": true], displaysAsleep: false) == ["locked"])
+        check("rest: started with the screens asleep rests at once",
+              R.restingAtLaunch(session: ["kCGSSessionOnConsoleKey": true], displaysAsleep: true) == ["screens"])
+        check("rest: started behind another user's session rests at once",
+              R.restingAtLaunch(session: ["kCGSSessionOnConsoleKey": false], displaysAsleep: false) == ["session"])
+        check("rest: no session info counts as awake", R.restingAtLaunch(session: nil, displaysAsleep: false).isEmpty)
+        let realSession = CGSessionCopyCurrentDictionary() as? [String: Any]
+        check("rest: the login session's state can be read", realSession != nil, "CGSessionCopyCurrentDictionary gave nil (run from a logged-in session)")
+
         check("login: on shows a check", AppDelegate.loginItem(.enabled) == ("Open at Login", .on))
         check("login: off shows no check", AppDelegate.loginItem(.notRegistered) == ("Open at Login", .off))
         let pending = AppDelegate.loginItem(.requiresApproval)
