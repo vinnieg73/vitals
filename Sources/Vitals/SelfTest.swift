@@ -173,6 +173,14 @@ enum SelfTest {
         let b = Hotkey(keyCode: UInt32(kVK_F19), modifiers: mods) {}
         check("hotkey: a free shortcut registers", a.registered)
         check("hotkey: a shortcut that's already taken says so", !b.registered)
+        // macOS's own shortcuts (Spotlight's ⌘Space and the like) hold a key without any app registering it.
+        let system = Hotkey.systemShortcuts()
+        check("hotkey: macOS's own shortcuts can be read", !system.isEmpty, "CopySymbolicHotKeys gave none")
+        check("hotkey: the odd test shortcut isn't one of macOS's", !a.takenBySystem)
+        if let s = system.first {   // matched, not registered: the test mustn't grab a real shortcut
+            check("hotkey: one of macOS's own shortcuts shows as taken", Hotkey.isSystemShortcut(keyCode: s.code, modifiers: s.mods),
+                  "code \(s.code) mods \(s.mods)")
+        }
     }
 
     /// Small guards: page data survives a NaN, same-named apps get their own row ids, and reading the CPU and

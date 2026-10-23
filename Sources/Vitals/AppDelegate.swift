@@ -511,12 +511,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     /// Right-click or ⌃-click on the menu bar item.
     private func statusMenu() -> NSMenu {
         let m = NSMenu()
-        // Shows the global hotkey (⌘O only works while Vitals is active), or says another app has it.
-        let shortcut = hotkey?.registered == true
+        // Shows the global hotkey (⌘O only works while Vitals is active), or says another app or macOS has it.
+        let byApp = hotkey?.registered != true
+        let bySystem = !byApp && hotkey?.takenBySystem == true
+        let shortcut = !byApp && !bySystem
         let open = m.addItem(withTitle: "Open Vitals", action: #selector(openWindow), keyEquivalent: shortcut ? "v" : "")
         if shortcut { open.keyEquivalentModifierMask = [.control, .option, .command] }
         open.target = self
-        if !shortcut { m.addItem(withTitle: "⌃⌥⌘V is taken by another app", action: nil, keyEquivalent: "") }
+        if byApp { m.addItem(withTitle: "⌃⌥⌘V is taken by another app", action: nil, keyEquivalent: "") }
+        if bySystem { m.addItem(withTitle: "⌃⌥⌘V is taken by a macOS shortcut", action: nil, keyEquivalent: "") }
         m.addItem(withTitle: "Vitals Help", action: #selector(showHelp), keyEquivalent: "?").target = self
         m.addItem(.separator())
         m.addItem(withTitle: "Open at Login", action: #selector(toggleLogin), keyEquivalent: "").target = self
