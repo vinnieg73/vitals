@@ -21,6 +21,7 @@ enum SelfTest {
         menus()
         tidy()
         gaps()
+        nettop()
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
@@ -145,6 +146,19 @@ enum SelfTest {
         let after = refs()
         check("counters: reading CPU and memory 50 times keeps no port references", after <= before + 1, "\(before) -> \(after)")
         check("counters: CPU and memory still read", VMCounters.read() != nil && !CPUTicks.read().isEmpty)
+    }
+
+    /// Per-process Net in/out: rates nettop worked out over 30 s ago (the window was covered a long while) are
+    /// never handed out, so the column can't show old numbers as current.
+    private static func nettop() {
+        let n = NetTop()
+        check("nettop: no rates before any run", n.rates() == nil)
+        let at = Date()
+        n.seed([1: (500, 60)], at: at)
+        check("nettop: fresh rates are handed out", n.rates(now: at + 29)?[1]?.0 == 500)
+        check("nettop: rates over 30 s old are not", n.rates(now: at + 31) == nil)
+        n.seed([1: (500, 60)], at: at - 3600)
+        check("nettop: rates from an hour ago are not", n.rates() == nil)
     }
 
     /// Time away becomes empty chart slots, one per 2 s, never more than the 5-minute chart.

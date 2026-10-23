@@ -409,7 +409,10 @@ final class NetTop {
     private var last: [pid_t: (UInt64, UInt64)] = [:]
     private var lastAt: Date?
     private var current: [pid_t: (Double, Double)]?
+    private var currentAt: Date?
     private var timer: DispatchSourceTimer?
+    /// Rates older than this (nettop stopped while the window was hidden) are stale: hand out none.
+    static let maxAge: TimeInterval = 30
 
     var enabled = false {
         didSet {
@@ -418,10 +421,17 @@ final class NetTop {
         }
     }
 
-    /// Only while enabled (or primed for --dump): stopped, the kept rates are stale.
-    func rates() -> [pid_t: (Double, Double)]? {
+    /// Only while enabled (or primed for --dump), and only rates from the last 30 s: right after the window comes
+    /// back from a long cover-up, the kept ones are from the last run before it and could be hours old.
+    func rates(now: Date = Date()) -> [pid_t: (Double, Double)]? {
         lock.lock(); defer { lock.unlock() }
-        return enabled || primed ? current : nil
+        guard enabled || primed, let at = currentAt, now.timeIntervalSince(at) < Self.maxAge else { return nil }
+        return current
+    }
+
+    /// For --selftest: rates as if a run had worked them out at `at`.
+    func seed(_ r: [pid_t: (Double, Double)], at: Date) {
+        lock.lock(); current = r; currentAt = at; primed = true; lock.unlock()
     }
     private var primed = false
 
@@ -474,7 +484,7 @@ final class NetTop {
         lock.lock()
         // Rates need the previous run; one from over 30 s ago (stopped while the window was hidden) would average
         // the whole time away, so then there are no rates until the next run.
-        if let lastAt, now.timeIntervalSince(lastAt) < 30 {
+        if let lastAt, now.timeIntervalSince(lastAt) < Self.maxAge {
             let dt = now.timeIntervalSince(lastAt)
             var r: [pid_t: (Double, Double)] = [:]
             for (pid, t) in totals {
@@ -482,8 +492,10 @@ final class NetTop {
                 r[pid] = (Double(t.0 >= p.0 ? t.0 - p.0 : 0) / dt, Double(t.1 >= p.1 ? t.1 - p.1 : 0) / dt)
             }
             current = r
+            currentAt = now
         } else {
             current = nil
+            currentAt = nil
         }
         last = totals
         lastAt = now
