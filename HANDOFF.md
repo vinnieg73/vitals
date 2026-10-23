@@ -1,6 +1,7 @@
 # Vitals — handoff
 
-_Last updated 2026-10-20 ~01:15 UTC by the cloud audit thread (efficiency chunk, branch fix/audit-efficiency)._
+_Last updated 2026-10-23 by the cloud audit thread (all 2026-10-23 audit findings, branch fix/audit-2026-10-23, not yet
+built or tested on the Mac: see "Mac test plan (audit 2026-10-23)")._
 
 ## Status
 - The Swift side is built and green (`scripts/build.sh`). `--dump` matches vm_stat, sysctl,
@@ -385,6 +386,67 @@ _Last updated 2026-10-20 ~01:15 UTC by the cloud audit thread (efficiency chunk,
   log lines.
 - Audit fix order (REPORT.md 1–8) is done. Not done (not in the order): L12 second-display colors, L13 signing,
   Fable F (Help alone runs full sampling), G (4 KB path buffer per pid), H (popover takes focus).
+
+## Audit fixes (2026-10-23, branch fix/audit-2026-10-23)
+- Vinnie: "fix everything" from /mnt/project-files/tool-reviews/2026-10-23/vitals.md (0 High, 1 Medium, 9 Low), "making
+  sure you are testing everything". All 10 fixed, in the report's order, one commit per group. Nothing skipped.
+- **M1 charts after a sleep or lock** (Sampler.swift, app.js): more than 10 s between samples now adds one null point per
+  2 s away (`Sampler.gapSlots`, at most 150) instead of one, so pre-sleep points sit where they really were or slide off,
+  and hover times are right. Resting (one sample a minute) adds 30 per sample, so an hour locked is a full empty chart.
+  `V.now` falls back only to the newest point, never past a null: disk/net/energy read "–" on the waking sample.
+- **L nettop stale rates** (Processes.swift): rates carry the time they were worked out; `rates()` hands out none over 30 s old.
+- **L rest at launch + L lock notifications** (AppDelegate.swift): lock/unlock observers use `.deliverImmediately`
+  (selector API, hop to main). At launch `restingAtLaunch` checks CGSessionCopyCurrentDictionary (screen locked, session
+  not on console) and CGDisplayIsAsleep(main display) and rests right away.
+- **L unlock double sample** (Sampler.swift): a timer tick or kick under 0.5 s after the last sample is skipped (`tooSoon`),
+  unless that sample had no process rows and a page now wants them.
+- **L clock change resets "today"** (Devices.swift): reboots are detected by `kern.bootsessionuuid` (stored as `session`
+  in `dailyBaseline`); kern.boottime moves with the clock, so it's only the fallback (60 s) for a baseline saved without an id.
+- **L time zone** (Devices.swift, Sampler.swift): the day and snapshot-time formatters re-zone to `TimeZone.current` when
+  it changes, and `NSTimeZone.resetSystemTimeZone()` runs on the existing once-a-minute volume check (no new wakeups).
+- **L `--dump` NaN** (Dump.swift): goes through `AppDelegate.encodeData` (the pages' NaN-safe encoder) with pretty/sorted options.
+- **L shortcut taken** (Hotkey.swift, AppDelegate.swift): besides a failed registration, the right-click menu now checks
+  macOS's own enabled shortcuts (CopySymbolicHotKeys) each time it opens: "⌃⌥⌘V is taken by a macOS shortcut". Still not
+  detectable: another app's non-exclusive Carbon registration or an event tap (no API for it).
+- **L same-named apps** (Processes.swift): `ProcessSampler.groupIDs` keeps each pid's group id across samples; a new copy
+  never takes an id another pid had last sample. So when the oldest copy quits, the other keeps "group:name-2".
+- Tested here (Linux, no Swift toolchain, so the Swift was not compiled): `node scripts/test-pages.js` (new, headless
+  Chromium, fake snapshots): 17/17 pass after; 5 fail before the app.js fix (V.now, window disk/net/energy readouts,
+  popover readouts). `node --check` on app.js, sample.js and the pages' scripts. Swift: new `--selftest` cases for every
+  Swift fix (listed in the Mac test plan), and a separate review of the whole diff.
+
+## Mac test plan (audit 2026-10-23)
+All in the background (Vinnie's rule): no windows on his screen, no focus grabs, install relaunches with `open -g`.
+1. `git fetch && git checkout fix/audit-2026-10-23`, `scripts/build.sh` (not --install yet). Expect 0 warnings.
+2. `~/Library/Caches/VitalsBuild/Vitals.app/Contents/MacOS/Vitals --selftest` (~25 s, no windows). Expect all PASS
+   (72: 42 before + 30 new; "the login session's state" and "one of macOS's own shortcuts" depend on the Mac). New checks: baseline clock moved 2 h on / 5 h back, new boot session, relaunch,
+   upgrade from a baseline without an id, "this Mac has a boot session id", day and snapshot time in two zones;
+   quit/rest launch-state rules and "the login session's state can be read"; hotkey "macOS's own shortcuts can be read"
+   and a listed one matches; `--dump` NaN; rows group ids (3); charts gap slots; nettop (4); kick (3); sampler "the
+   stretch is padded to its real length". If "login session's state" or "macOS's own shortcuts" fail only because the
+   command ran outside his login session, rerun from a Terminal in his session before treating it as a bug.
+3. `Vitals --dump | python3 -m json.tool > /dev/null` (valid JSON); `time` still has his offset; `sysctl kern.bootsessionuuid`
+   prints a UUID; `defaults read com.vinnie.vitals dailyBaseline` gains a `session` after ~5 min of the installed app.
+4. Renders: `--render window`, `popover`, `help` light/dark and `--render window out.png dark --warm 40`; no page errors.
+   `--soak 3 window` as before (app ~25 MB, page ~100 MB).
+5. Install (`scripts/build.sh --install`, relaunches with `open -g`). Resting check, as for the earlier `--status-log`
+   runs: quit the installed copy, start the build with `open -g -n <app> --stdout /tmp/vitals-rest.log --args --status-log`
+   (it sits in the menu bar like the real one; quit it after and relaunch the installed one with `open -g`). Ask Vinnie
+   to lock the screen (⌃⌘Q) for a minute with the screens on, then unlock: the log must show "rest locked on → once a
+   minute" at the lock and "rest locked off" at the unlock, with Vitals NOT the active app (the .deliverImmediately fix).
+   Then start a test copy while the screen is locked (`sleep 20; open -g -n …`, lock within 20 s): the log shows "rest
+   locked on" right at launch.
+6. Charts after a gap (needs his window, so only when he opens it himself): after the lock above, the window's charts show
+   the lock as an empty stretch of the right length, hover over the last point before it says the real time ago, and
+   the disk/net big numbers show "–" for one tick. No tall spike in disk/net right after the unlock.
+7. CPU: 3 min of `top -l 0 -s 2 -pid $(pgrep -x Vitals)` with only the menu bar: about the same as before (0.4–0.7%).
+8. Optional: hold ⌃⌥⌘V in System Settings → Keyboard Shortcuts (e.g. assign it to a Services item), right-click the
+   icon: "⌃⌥⌘V is taken by a macOS shortcut". Undo it after.
+
+## Deploy (audit 2026-10-23)
+- Merge fix/audit-2026-10-23 into main only on Vinnie's OK, then `scripts/build.sh --install` on the Mac (background, `open -g`).
+- First launch after install: the stored baseline has no boot session id, so the old 60 s boot-time rule decides once;
+  the id is saved with the next save (within 5 min, or on quit). No reset of today's totals expected.
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?

@@ -70,7 +70,8 @@ unknown; the page shows "–".
 
   live: {                                    // the strip charts: last 5 minutes, one point every 2 s
     stepSec: 2,                              // up to 150 points each, oldest first; starts with 1 point at launch
-                                             // a null point in every series = a gap (Mac asleep, or resting while the screens sleep)
+                                             // a null point in every series = a gap (Mac asleep, or resting while the screens sleep);
+                                             // a gap is one null per 2 s away (at most 150), so index = time
     pressurePct: [..], swapUsedBytes: [..],
     memUsedPct: [..],                        // memory.usedBytes / totalBytes × 100, one decimal (Activity Monitor's Memory Used)
     cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
