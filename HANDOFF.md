@@ -467,7 +467,11 @@ All in the background (Vinnie's rule): no windows on his screen, no focus grabs,
 - `icon/make-icon.swift` draws light + dark full icons and the gauge alone (scaled to the 1024 Icon Composer canvas).
   `icon/Vitals.icon/icon.json` (hand-written Icon Composer file): tile gradient + gauge layer, each with a dark
   specialization. `build.sh` compiles it with `xcrun actool` into Assets.car and adds CFBundleIconName; AppIcon.icns
-  stays for older macOS. `scripts/icon-preview.swift` checks the installed icon in both modes, off screen.
+  stays for older macOS. `scripts/icon-preview.sh` renders both looks with Icon Composer's ictool, off screen
+  (NSWorkspace's icon follows the Mac's own mode, so it can't show the light icon while the Mac is dark).
+- Checked on the Mac (2026-10-23, Xcode 27.1): actool compiled icon.json first try; Assets.car has Aqua, DarkAqua and
+  Tintable renditions. ictool: light tile #E7E5E0 / hub #5C5A56 (today's icon: #EBEAE4 / #5C5A55), dark tile #2F2F31 /
+  hub #EAEAED. Finder shows the graphite icon on the dark Mac.
 
 ## Open decisions
 - Privileged helper for root processes' numbers (needs an admin prompt once)?

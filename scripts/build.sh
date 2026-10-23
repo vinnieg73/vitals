@@ -11,8 +11,8 @@ APP="$SCRATCH/Vitals.app"
 
 # App icon (all drawn by icon/make-icon.swift). The .icns is the light icon for older macOS; on macOS 26+
 # Assets.car (compiled from icon/Vitals.icon) gives the light and Dark mode ("Graphite") versions.
-# The dark and layer PNGs aren't committed: drawn here when missing or when the script changed.
-[[ icon/make-icon.swift -nt icon/Vitals.icon/Assets/gauge-dark.png ]] && swift icon/make-icon.swift
+# The dark and layer PNGs aren't committed: drawn here when missing (after editing the script: --force).
+[[ -f icon/icon-1024-dark.png && -f icon/Vitals.icon/Assets/gauge-dark.png ]] || swift icon/make-icon.swift
 ICONSET="$SCRATCH/AppIcon.iconset"
 rm -rf "$ICONSET"; mkdir -p "$ICONSET"
 for s in 16 32 128 256 512; do

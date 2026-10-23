@@ -1,5 +1,6 @@
 // Draws the Vitals app icon: a gray gauge whose needle sits in an amber arc, on a rounded square.
-// Run from the vitals folder:  swift icon/make-icon.swift
+// Run from the vitals folder:  swift icon/make-icon.swift [--force]
+// Writes only the files that are missing; --force redraws all of them (after changing this script).
 // Writes, all at 1024 px:
 //   icon/icon-1024.png, icon/icon-1024-dark.png        the whole icon, light and Dark mode ("Graphite")
 //   icon/Vitals.icon/Assets/gauge-{light,dark}.png      the gauge alone on clear, for the Icon Composer file
@@ -26,7 +27,11 @@ let dark = Palette(top: rgb(0x323235), bottom: rgb(0x222224), rim: rgb(0xFFFFFF,
 
 /// tile: the whole icon on the macOS grid (824 body, inset 100). Without it, only the gauge, scaled up to the
 /// full 1024 canvas the way Icon Composer layers are drawn (macOS adds the tile, mask and shadow).
+let force = CommandLine.arguments.contains("--force")
+
 func draw(_ p: Palette, tile: Bool, to path: String) {
+    // A redraw differs by a little anti-aliasing noise, so the committed icon-1024.png is left alone unless asked.
+    if !force && FileManager.default.fileExists(atPath: path) { return }
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(S), pixelsHigh: Int(S), bitsPerSample: 8,
                                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
                                bytesPerRow: 0, bitsPerPixel: 0)!

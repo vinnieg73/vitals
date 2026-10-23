@@ -49,5 +49,5 @@ node scripts/test-pages.js     # charts and readouts after a gap, hover labels, 
 - `Support/` — Info.plist and the placeholder page used when a page is missing.
 - `icon/make-icon.swift` — draws `icon/icon-1024.png` (light), `icon/icon-1024-dark.png` (Dark mode, "Graphite") and the
   gauge layers in `icon/Vitals.icon/Assets/`. `build.sh` compiles `icon/Vitals.icon` (Icon Composer format) with actool,
-  so on macOS 26+ Finder and the Dock show the Graphite icon in Dark mode. `swift scripts/icon-preview.swift` draws the
-  installed icon in both modes with no window.
+  so on macOS 26+ Finder and the Dock show the Graphite icon in Dark mode. `scripts/icon-preview.sh [out-folder]` renders
+  both looks with Icon Composer's `ictool` (no window). After editing the script: `swift icon/make-icon.swift --force`.
