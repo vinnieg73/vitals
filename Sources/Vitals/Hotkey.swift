@@ -18,7 +18,22 @@ final class Hotkey {
     var takenBySystem: Bool { Self.isSystemShortcut(keyCode: keyCode, modifiers: modifiers) }
 
     static func isSystemShortcut(keyCode: UInt32, modifiers: UInt32) -> Bool {
-        systemShortcuts().contains { $0.code == keyCode && $0.mods == modifiers }
+        let want = carbonModifiers(modifiers)
+        return systemShortcuts().contains { $0.code == keyCode && carbonModifiers($0.mods) == want }
+    }
+
+    /// ⌘ ⇧ ⌥ ⌃ as Carbon flags (cmdKey…), from either Carbon flags or Cocoa ones (NSEvent.ModifierFlags, as
+    /// com.apple.symbolichotkeys stores them; CopySymbolicHotKeys should give Carbon, this doesn't depend on it).
+    /// Other bits (caps lock, fn, numeric pad) are dropped.
+    static func carbonModifiers(_ raw: UInt32) -> UInt32 {
+        let carbon = UInt32(cmdKey | shiftKey | optionKey | controlKey)
+        guard raw & 0x00FF_0000 != 0 else { return raw & carbon }   // Carbon flags live in the low 16 bits
+        var out: UInt32 = 0
+        if raw & (1 << 20) != 0 { out |= UInt32(cmdKey) }
+        if raw & (1 << 17) != 0 { out |= UInt32(shiftKey) }
+        if raw & (1 << 19) != 0 { out |= UInt32(optionKey) }
+        if raw & (1 << 18) != 0 { out |= UInt32(controlKey) }
+        return out
     }
 
     /// ⌃⌥⌘V by default (⌥⌘V is Finder's "Move Item Here").

@@ -398,31 +398,44 @@ built or tested on the Mac: see "Mac test plan (audit 2026-10-23)")._
 - **L rest at launch + L lock notifications** (AppDelegate.swift): lock/unlock observers use `.deliverImmediately`
   (selector API, hop to main). At launch `restingAtLaunch` checks CGSessionCopyCurrentDictionary (screen locked, session
   not on console) and CGDisplayIsAsleep(main display) and rests right away.
-- **L unlock double sample** (Sampler.swift): a timer tick or kick under 0.5 s after the last sample is skipped (`tooSoon`),
-  unless that sample had no process rows and a page now wants them.
+- **L unlock double sample** (Sampler.swift): a timer tick or kick under 0.5 s after the last sample never takes a full
+  sample (`sampleIfDue`), in either order. If the last sample was taken without a page (stale rows) and a page now wants
+  rows, it gets the last snapshot with fresh process rows and energy impact only (`withFreshRows`; their rates run from
+  the last rows sample), so CPU, disk and network are never measured over a few ms. (First version only skipped when the
+  last sample already had rows; the review found the unlock order where the rest-end sample comes first slipped through.)
 - **L clock change resets "today"** (Devices.swift): reboots are detected by `kern.bootsessionuuid` (stored as `session`
   in `dailyBaseline`); kern.boottime moves with the clock, so it's only the fallback (60 s) for a baseline saved without an id.
 - **L time zone** (Devices.swift, Sampler.swift): the day and snapshot-time formatters re-zone to `TimeZone.current` when
   it changes, and `NSTimeZone.resetSystemTimeZone()` runs on the existing once-a-minute volume check (no new wakeups).
 - **L `--dump` NaN** (Dump.swift): goes through `AppDelegate.encodeData` (the pages' NaN-safe encoder) with pretty/sorted options.
 - **L shortcut taken** (Hotkey.swift, AppDelegate.swift): besides a failed registration, the right-click menu now checks
-  macOS's own enabled shortcuts (CopySymbolicHotKeys) each time it opens: "⌃⌥⌘V is taken by a macOS shortcut". Still not
+  macOS's own enabled shortcuts (CopySymbolicHotKeys) each time it opens: "⌃⌥⌘V is taken by a macOS shortcut". The
+  list's modifiers should be Carbon flags (as MASShortcut / ShortcutRecorder compare them); `carbonModifiers` also
+  accepts Cocoa flags (as com.apple.symbolichotkeys.plist stores them) and drops fn / caps lock, so either works. Still not
   detectable: another app's non-exclusive Carbon registration or an event tap (no API for it).
 - **L same-named apps** (Processes.swift): `ProcessSampler.groupIDs` keeps each pid's group id across samples; a new copy
   never takes an id another pid had last sample. So when the oldest copy quits, the other keeps "group:name-2".
-- Tested here (Linux, no Swift toolchain, so the Swift was not compiled): `node scripts/test-pages.js` (new, headless
-  Chromium, fake snapshots): 17/17 pass after; 5 fail before the app.js fix (V.now, window disk/net/energy readouts,
-  popover readouts). `node --check` on app.js, sample.js and the pages' scripts. Swift: new `--selftest` cases for every
-  Swift fix (listed in the Mac test plan), and a separate review of the whole diff.
+- Tested here (Linux): `node scripts/test-pages.js` (new, headless Chromium, fake snapshots): 17/17 pass after; 5 fail
+  before the app.js fix (V.now, window disk/net/energy readouts, popover readouts). `node --check` on app.js, sample.js
+  and the pages' scripts. Swift 5.10.1 (Linux toolchain, scratch): `swiftc -parse` on every file; the pure-logic code
+  copied verbatim into a scratch harness (DailyBaseline, NetTop, groupIDs/uniqueID, gapSlots, carbonModifiers,
+  restingAtLaunch, encodeData/jsonSafe, sampleIfDue/withFreshRows on a fake sampler, with stubs for Sysctl and the
+  Darwin-only calls) type-checks and passes 39/39, including both unlock orders. AppKit/Carbon/CoreGraphics code
+  (observers, CopySymbolicHotKeys, CGSession) and SelfTest.swift are only parsed: they need the Mac's build.
+  New `--selftest` cases for every Swift fix (listed below). An independent review of the diff found the unlock-order
+  hole, fixed as above.
 
 ## Mac test plan (audit 2026-10-23)
 All in the background (Vinnie's rule): no windows on his screen, no focus grabs, install relaunches with `open -g`.
 1. `git fetch && git checkout fix/audit-2026-10-23`, `scripts/build.sh` (not --install yet). Expect 0 warnings.
 2. `~/Library/Caches/VitalsBuild/Vitals.app/Contents/MacOS/Vitals --selftest` (~25 s, no windows). Expect all PASS
-   (72: 42 before + 30 new; "the login session's state" and "one of macOS's own shortcuts" depend on the Mac). New checks: baseline clock moved 2 h on / 5 h back, new boot session, relaunch,
+   (up to 78: 42 before + 36 new; two hotkey checks only run when the system list has entries; "the login session's
+   state" and "macOS's own shortcuts" depend on the Mac). New checks: baseline clock moved 2 h on / 5 h back, new boot session, relaunch,
    upgrade from a baseline without an id, "this Mac has a boot session id", day and snapshot time in two zones;
    quit/rest launch-state rules and "the login session's state can be read"; hotkey "macOS's own shortcuts can be read"
-   and a listed one matches; `--dump` NaN; rows group ids (3); charts gap slots; nettop (4); kick (3); sampler "the
+   and a listed one matches, Carbon/Cocoa modifiers (3), Space shortcuts read with modifiers; `--dump` NaN; rows group
+   ids (3); charts gap slots; nettop (4); kick (5, incl. the unlock order: same snapshot time and disk rate, fresh
+   energy impact); sampler "the
    stretch is padded to its real length". If "login session's state" or "macOS's own shortcuts" fail only because the
    command ran outside his login session, rerun from a Terminal in his session before treating it as a bug.
 3. `Vitals --dump | python3 -m json.tool > /dev/null` (valid JSON); `time` still has his offset; `sysctl kern.bootsessionuuid`

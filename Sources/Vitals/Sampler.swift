@@ -52,12 +52,7 @@ final class Sampler: @unchecked Sendable {
         queue.async { [weak self] in
             guard let self else { return }
             let t = DispatchSource.makeTimerSource(queue: self.queue)
-            t.setEventHandler { [weak self] in
-                guard let self, !self.tooSoon() else { return }
-                let snap = self.sample()
-                self.latest = snap
-                self.onSnapshot?(snap)
-            }
+            t.setEventHandler { [weak self] in self?.sampleIfDue() }
             self.timer = t
             self.reschedule(now: true)
             t.resume()
@@ -73,21 +68,43 @@ final class Sampler: @unchecked Sendable {
             self.reschedule(now: false)
         }
     }
-    /// One extra sample right away, delivered like a timer tick (unless one just ran, see `tooSoon`).
+    /// One extra sample right away, delivered like a timer tick (unless one just ran, see `sampleIfDue`).
     func kick() {
-        queue.async {
-            guard !self.tooSoon() else { return }
-            let s = self.sample(); self.latest = s; self.onSnapshot?(s)
-        }
+        queue.async { self.sampleIfDue() }
     }
 
-    /// A sample under half a second after the last one (an unlock with the window open asks twice: the end of the
-    /// rest and the window coming back) would measure disk, network and per-process CPU over a few ms, a spike that
-    /// flattens a chart's scale for 5 minutes. Skip it, unless the last one lacked the process rows a page now wants.
-    private func tooSoon() -> Bool {
-        guard let at = prevAt, lastForPage || !wantProcesses else { return false }
-        let ago = Date().timeIntervalSince(at)
-        return ago >= 0 && ago < 0.5
+    /// A sample, delivered. Not a full one under half a second after the last (an unlock with the window open asks
+    /// twice, the end of the rest and the window coming back, in either order): that would measure CPU, disk and
+    /// network over a few ms, a spike that flattens a chart's scale for 5 minutes. Then the last snapshot stands, and
+    /// if it was taken without a page (stale process rows) and a page now wants them, it gets fresh rows only.
+    private func sampleIfDue() {
+        let ago = prevAt.map { Date().timeIntervalSince($0) }
+        if let ago, ago >= 0, ago < 0.5 {
+            guard wantProcesses && !lastForPage, let snap = latest else { return }
+            let s = withFreshRows(snap)
+            latest = s
+            onSnapshot?(s)
+            return
+        }
+        let s = sample()
+        latest = s
+        onSnapshot?(s)
+    }
+
+    /// `snap` with process rows (and energy impact) sampled now. Their rates run from the last time rows were
+    /// sampled, not over the last few ms.
+    private func withFreshRows(_ snap: [String: Any]) -> [String: Any] {
+        let procs = processes.sample()
+        lastProcs = procs
+        lastForPage = true
+        var out = snap
+        out["processes"] = procs.rows.map { $0.json() }
+        out["totals"] = ["processes": procs.processes, "threads": procs.threads]
+        if var energy = out["energy"] as? [String: Any] {
+            energy["impact"] = num(procs.rows.reduce(0) { $0 + ($1.energy ?? 0) }, 1)
+            out["energy"] = energy
+        }
+        return out
     }
     func saveState() { queue.sync { daily.save() } }
 

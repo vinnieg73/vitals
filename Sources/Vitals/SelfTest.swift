@@ -173,10 +173,24 @@ enum SelfTest {
         let b = Hotkey(keyCode: UInt32(kVK_F19), modifiers: mods) {}
         check("hotkey: a free shortcut registers", a.registered)
         check("hotkey: a shortcut that's already taken says so", !b.registered)
+        // The system list's modifiers may be Carbon or Cocoa flags: both read the same.
+        let ctrlOptCmd = UInt32(cmdKey | optionKey | controlKey)
+        check("hotkey: Carbon modifiers read as themselves", Hotkey.carbonModifiers(ctrlOptCmd) == ctrlOptCmd)
+        check("hotkey: Cocoa modifiers (⌃⌥⌘ = 0x1C0000) read as Carbon", Hotkey.carbonModifiers(0x1C_0000) == ctrlOptCmd,
+              "\(Hotkey.carbonModifiers(0x1C_0000))")
+        check("hotkey: fn and caps lock bits don't count", Hotkey.carbonModifiers(0x80_0000 | 0x1_0000 | 0x10_0000) == UInt32(cmdKey)
+              && Hotkey.carbonModifiers(UInt32(cmdKey | alphaLock)) == UInt32(cmdKey))
         // macOS's own shortcuts (Spotlight's ⌘Space and the like) hold a key without any app registering it.
         let system = Hotkey.systemShortcuts()
         check("hotkey: macOS's own shortcuts can be read", !system.isEmpty, "CopySymbolicHotKeys gave none")
         check("hotkey: the odd test shortcut isn't one of macOS's", !a.takenBySystem)
+        // macOS's Space shortcuts (Spotlight ⌘Space, input sources ⌃Space…) never have no modifiers: reading none
+        // would mean the units are wrong.
+        let space = system.filter { $0.code == 49 }.map { Hotkey.carbonModifiers($0.mods) }
+        if !space.isEmpty {
+            check("hotkey: macOS's Space shortcuts read with modifiers", !space.contains(0),
+                  "raw \(system.filter { $0.code == 49 }.map { String($0.mods) }.joined(separator: ", "))")
+        }
         if let s = system.first {   // matched, not registered: the test mustn't grab a real shortcut
             check("hotkey: one of macOS's own shortcuts shows as taken", Hotkey.isSystemShortcut(keyCode: s.code, modifiers: s.mods),
                   "code \(s.code) mods \(s.mods)")
@@ -244,9 +258,11 @@ enum SelfTest {
     private static func kicks() {
         let lock = NSLock()
         var n = 0
+        var delivered: [String: Any] = [:]
         let s = Sampler()   // process rows on, as while a page shows
-        s.onSnapshot = { _ in lock.lock(); n += 1; lock.unlock() }
+        s.onSnapshot = { snap in lock.lock(); n += 1; delivered = snap; lock.unlock() }
         func count() -> Int { lock.lock(); defer { lock.unlock() }; return n }
+        func lastDelivered() -> [String: Any] { lock.lock(); defer { lock.unlock() }; return delivered }
         _ = s.sampleNow()
         s.kick()
         Thread.sleep(forTimeInterval: 0.3)
@@ -255,12 +271,25 @@ enum SelfTest {
         s.kick()
         Thread.sleep(forTimeInterval: 0.6)
         check("kick: samples when the last one is over 0.5 s old", count() == 1, "\(count()) samples")
+        // The unlock order: the end of the rest samples before the window is back (no page, stale rows), then the
+        // window asks a moment later. It gets fresh rows, but CPU, disk and network aren't measured over those few ms.
         s.setWantProcesses(false)
         _ = s.sampleNow()
+        Thread.sleep(forTimeInterval: 0.6)
+        let restEnd = s.sampleNow()
         s.setWantProcesses(true)
         s.kick()
         Thread.sleep(forTimeInterval: 0.6)
-        check("kick: samples right after one taken without a page (its rows are stale)", count() == 2, "\(count()) samples")
+        let got = lastDelivered()
+        func read(_ snap: [String: Any]) -> NSNumber? { (snap["disk"] as? [String: Any])?["readBps"] as? NSNumber }
+        func points(_ snap: [String: Any]) -> Int? { ((snap["live"] as? [String: Any])?["memUsedPct"] as? [Any])?.count }
+        func impact(_ snap: [String: Any]) -> Any? { (snap["energy"] as? [String: Any])?["impact"] }
+        check("kick: right after a sample without a page, the page still gets a snapshot", count() == 2, "\(count()) samples")
+        check("kick: ...with fresh process rows", impact(restEnd) is NSNull && impact(got) is NSNumber,
+              "impact \(String(describing: impact(restEnd))) -> \(String(describing: impact(got)))")
+        check("kick: ...but no rates over a few ms", got["time"] as? String == restEnd["time"] as? String && read(got) != nil
+              && read(got) == read(restEnd) && points(got) == points(restEnd),
+              "readBps \(String(describing: read(restEnd))) -> \(String(describing: read(got))), points \(points(restEnd) ?? -1) -> \(points(got) ?? -1)")
     }
 
     /// The real sampler: ticks every 2 s, goes quiet while resting, takes a fresh sample on waking, and leaves a
