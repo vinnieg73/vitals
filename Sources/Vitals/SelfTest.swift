@@ -20,6 +20,9 @@ enum SelfTest {
         deadband()
         menus()
         tidy()
+        gaps()
+        nettop()
+        kicks()
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
@@ -33,7 +36,7 @@ enum SelfTest {
         store.removePersistentDomain(forName: suite)
         defer { store.removePersistentDomain(forName: suite) }
 
-        let d = DailyBaseline(store: store)
+        let d = DailyBaseline(store: store, bootSession: nil)   // no boot session id: the boot time rule
         check("baseline: first run counts since boot", d.today(["diskR": 1000], day: "2026-10-19", boot: 1000)["diskR"] == 1000)
         _ = d.today(["diskR": 1500], day: "2026-10-19", boot: 1000)
         check("baseline: new day starts from the last value", d.today(["diskR": 2000], day: "2026-10-20", boot: 1000)["diskR"] == 500)
@@ -54,8 +57,47 @@ enum SelfTest {
               "got \(restarted.map(String.init) ?? "nil") then \(after.map(String.init) ?? "nil")")
 
         d.save()
-        let again = DailyBaseline(store: store).today(["diskR": 1000], day: "2026-10-21", boot: 9000)["diskR"]
+        let again = DailyBaseline(store: store, bootSession: nil).today(["diskR": 1000], day: "2026-10-21", boot: 9000)["diskR"]
         check("baseline: relaunch the same day keeps the baseline", again == 300, "got \(again.map(String.init) ?? "nil"), want 300")
+
+        // With a boot session id (kern.bootsessionuuid), only a new id is a reboot: changing the clock by hand
+        // moves the boot time by as much, and mustn't reset "today".
+        store.removePersistentDomain(forName: suite)
+        let s = DailyBaseline(store: store, bootSession: "A")
+        _ = s.today(["diskR": 1000], day: "2026-10-20", boot: 1000)
+        _ = s.today(["diskR": 1600], day: "2026-10-21", boot: 1000)            // midnight: baseline 1000
+        let moved = s.today(["diskR": 1700], day: "2026-10-21", boot: 1000 + 2 * 3600)["diskR"]
+        check("baseline: a clock moved 2 hours on is not a reboot", moved == 700, "got \(moved.map(String.init) ?? "nil"), want 700")
+        let back = s.today(["diskR": 1800], day: "2026-10-21", boot: 1000 - 5 * 3600)["diskR"]
+        check("baseline: a clock moved 5 hours back is not a reboot", back == 800, "got \(back.map(String.init) ?? "nil"), want 800")
+        let reboot = s.today(["diskR": 40], day: "2026-10-21", boot: 1000 - 5 * 3600, session: "B")["diskR"]
+        check("baseline: a new boot session is a reboot", reboot == 40, "got \(reboot.map(String.init) ?? "nil"), want 40")
+        s.save()
+        let relaunch = DailyBaseline(store: store, bootSession: "B").today(["diskR": 90], day: "2026-10-21", boot: 77777)["diskR"]
+        check("baseline: relaunch in the same boot keeps the baseline", relaunch == 90, "got \(relaunch.map(String.init) ?? "nil"), want 90")
+
+        // A baseline saved by an older Vitals has no session id: the boot time decides once, then the id is kept.
+        store.removePersistentDomain(forName: suite)
+        let old = DailyBaseline(store: store, bootSession: nil)
+        _ = old.today(["diskR": 1000], day: "2026-10-21", boot: 5000)
+        _ = old.today(["diskR": 1200], day: "2026-10-22", boot: 5000)
+        old.save()
+        let upgraded = DailyBaseline(store: store, bootSession: "C")
+        let up1 = upgraded.today(["diskR": 1300], day: "2026-10-22", boot: 5001)["diskR"]
+        let up2 = upgraded.today(["diskR": 1400], day: "2026-10-22", boot: 5001 + 3600)["diskR"]
+        check("baseline: an older saved baseline carries over, then a clock change is ignored", up1 == 300 && up2 == 400,
+              "got \(up1.map(String.init) ?? "nil") then \(up2.map(String.init) ?? "nil"), want 300 then 400")
+        check("baseline: this Mac has a boot session id", Sysctl.string("kern.bootsessionuuid")?.isEmpty == false)
+
+        // "Today" and the snapshot time follow a time zone change (12:00 UTC is the 21st at UTC+14, the 20th at UTC-11).
+        let noon = Date(timeIntervalSince1970: 1_792_497_600)   // 2026-10-20 12:00 UTC
+        let east = TimeZone(identifier: "Pacific/Kiritimati")!, west = TimeZone(identifier: "Pacific/Pago_Pago")!
+        let days = [DailyBaseline.dayString(noon, zone: east), DailyBaseline.dayString(noon, zone: west)]
+        check("today: the day follows a time zone change", days == ["2026-10-21", "2026-10-20"], days.joined(separator: ", "))
+        let times = [Sampler.timeString(noon, zone: east), Sampler.timeString(noon, zone: west)]
+        check("today: the snapshot time follows a time zone change", times[0].hasSuffix("+14:00") && times[1].hasSuffix("-11:00"), times.joined(separator: ", "))
+        _ = DailyBaseline.dayString(noon)   // back to this Mac's zone for the rest of the run
+        _ = Sampler.timeString(noon)
     }
 
     /// CPU "busy for 30 s": still flags a steady 30 s, but time asleep doesn't count toward it.
@@ -107,6 +149,19 @@ enum SelfTest {
         let sent = row?.json()["started"] as? String
         check("quit: the page gets the start time", sent != nil && sent.flatMap { UInt64($0) } == started, "\(sent ?? "nil")")
 
+        typealias R = AppDelegate
+        check("rest: an awake, unlocked session doesn't rest at launch",
+              R.restingAtLaunch(session: ["CGSSessionScreenIsLocked": false, "kCGSSessionOnConsoleKey": true], displaysAsleep: false).isEmpty)
+        check("rest: started while locked rests at once",
+              R.restingAtLaunch(session: ["CGSSessionScreenIsLocked": true, "kCGSSessionOnConsoleKey": true], displaysAsleep: false) == ["locked"])
+        check("rest: started with the screens asleep rests at once",
+              R.restingAtLaunch(session: ["kCGSSessionOnConsoleKey": true], displaysAsleep: true) == ["screens"])
+        check("rest: started behind another user's session rests at once",
+              R.restingAtLaunch(session: ["kCGSSessionOnConsoleKey": false], displaysAsleep: false) == ["session"])
+        check("rest: no session info counts as awake", R.restingAtLaunch(session: nil, displaysAsleep: false).isEmpty)
+        let realSession = CGSessionCopyCurrentDictionary() as? [String: Any]
+        check("rest: the login session's state can be read", realSession != nil, "CGSessionCopyCurrentDictionary gave nil (run from a logged-in session)")
+
         check("login: on shows a check", AppDelegate.loginItem(.enabled) == ("Open at Login", .on))
         check("login: off shows no check", AppDelegate.loginItem(.notRegistered) == ("Open at Login", .off))
         let pending = AppDelegate.loginItem(.requiresApproval)
@@ -118,6 +173,28 @@ enum SelfTest {
         let b = Hotkey(keyCode: UInt32(kVK_F19), modifiers: mods) {}
         check("hotkey: a free shortcut registers", a.registered)
         check("hotkey: a shortcut that's already taken says so", !b.registered)
+        // The system list's modifiers may be Carbon or Cocoa flags: both read the same.
+        let ctrlOptCmd = UInt32(cmdKey | optionKey | controlKey)
+        check("hotkey: Carbon modifiers read as themselves", Hotkey.carbonModifiers(ctrlOptCmd) == ctrlOptCmd)
+        check("hotkey: Cocoa modifiers (⌃⌥⌘ = 0x1C0000) read as Carbon", Hotkey.carbonModifiers(0x1C_0000) == ctrlOptCmd,
+              "\(Hotkey.carbonModifiers(0x1C_0000))")
+        check("hotkey: fn and caps lock bits don't count", Hotkey.carbonModifiers(0x80_0000 | 0x1_0000 | 0x10_0000) == UInt32(cmdKey)
+              && Hotkey.carbonModifiers(UInt32(cmdKey | alphaLock)) == UInt32(cmdKey))
+        // macOS's own shortcuts (Spotlight's ⌘Space and the like) hold a key without any app registering it.
+        let system = Hotkey.systemShortcuts()
+        check("hotkey: macOS's own shortcuts can be read", !system.isEmpty, "CopySymbolicHotKeys gave none")
+        check("hotkey: the odd test shortcut isn't one of macOS's", !a.takenBySystem)
+        // macOS's Space shortcuts (Spotlight ⌘Space, input sources ⌃Space…) never have no modifiers: reading none
+        // would mean the units are wrong.
+        let space = system.filter { $0.code == 49 }.map { Hotkey.carbonModifiers($0.mods) }
+        if !space.isEmpty {
+            check("hotkey: macOS's Space shortcuts read with modifiers", !space.contains(0),
+                  "raw \(system.filter { $0.code == 49 }.map { String($0.mods) }.joined(separator: ", "))")
+        }
+        if let s = system.first {   // matched, not registered: the test mustn't grab a real shortcut
+            check("hotkey: one of macOS's own shortcuts shows as taken", Hotkey.isSystemShortcut(keyCode: s.code, modifiers: s.mods),
+                  "code \(s.code) mods \(s.mods)")
+        }
     }
 
     /// Small guards: page data survives a NaN, same-named apps get their own row ids, and reading the CPU and
@@ -127,10 +204,20 @@ enum SelfTest {
         let json = AppDelegate.encode(bad)
         check("page data: a NaN becomes null instead of a crash", json?.contains("null") == true && json?.contains("\"ok\":5") == true, json ?? "nil")
         check("page data: normal numbers and true/false survive", json?.contains("true") == true && json?.contains("\"a\"") == true, json ?? "nil")
+        let dumped = AppDelegate.encodeData(bad, options: [.prettyPrinted, .sortedKeys]).map { String(decoding: $0, as: UTF8.self) }
+        check("--dump: a NaN becomes null instead of a crash", dumped?.contains("null") == true && dumped?.contains("\"ok\" : 5") == true, dumped ?? "nil")
 
         var taken: Set<String> = []
         let ids = ["group:safari", "group:safari", "group:safari", "group:claude-code"].map { ProcessSampler.uniqueID($0, taken: &taken) }
         check("rows: same-named apps get their own ids", ids == ["group:safari", "group:safari-2", "group:safari-3", "group:claude-code-2"], ids.joined(separator: ", "))
+        // Two copies of Foo (pids 100 and 200): when the first quits, the second keeps its own row id.
+        let first = ProcessSampler.groupIDs([(100, "group:foo"), (200, "group:foo")], previous: [:])
+        let afterQuit = ProcessSampler.groupIDs([(200, "group:foo")], previous: first)
+        let renewed = ProcessSampler.groupIDs([(200, "group:foo"), (300, "group:foo")], previous: first)
+        func show(_ m: [pid_t: (base: String, id: String)]) -> String { m.keys.sorted().map { "\($0)=\(m[$0]!.id)" }.joined(separator: " ") }
+        check("rows: the oldest copy gets the plain id", first[100]?.id == "group:foo" && first[200]?.id == "group:foo-2", show(first))
+        check("rows: when it quits, the other copy keeps its own id", afterQuit[200]?.id == "group:foo-2", show(afterQuit))
+        check("rows: a new copy never takes the id of one that just quit", renewed[200]?.id == "group:foo-2" && renewed[300]?.id == "group:foo-3", show(renewed))
 
         func refs() -> mach_port_urefs_t {
             var r: mach_port_urefs_t = 0
@@ -144,6 +231,65 @@ enum SelfTest {
         let after = refs()
         check("counters: reading CPU and memory 50 times keeps no port references", after <= before + 1, "\(before) -> \(after)")
         check("counters: CPU and memory still read", VMCounters.read() != nil && !CPUTicks.read().isEmpty)
+    }
+
+    /// Per-process Net in/out: rates nettop worked out over 30 s ago (the window was covered a long while) are
+    /// never handed out, so the column can't show old numbers as current.
+    private static func nettop() {
+        let n = NetTop()
+        check("nettop: no rates before any run", n.rates() == nil)
+        let at = Date()
+        n.seed([1: (500, 60)], at: at)
+        check("nettop: fresh rates are handed out", n.rates(now: at + 29)?[1]?.0 == 500)
+        check("nettop: rates over 30 s old are not", n.rates(now: at + 31) == nil)
+        n.seed([1: (500, 60)], at: at - 3600)
+        check("nettop: rates from an hour ago are not", n.rates() == nil)
+    }
+
+    /// Time away becomes empty chart slots, one per 2 s, never more than the 5-minute chart.
+    private static func gaps() {
+        let cases: [(Double, Int)] = [(2, 0), (10, 0), (11, 6), (60, 30), (299, 150), (8 * 3600, 150), (1e300, 150), (.nan, 0), (-50, 0)]
+        let bad = cases.filter { Sampler.gapSlots($0.0) != $0.1 }.map { "\($0.0) s → \(Sampler.gapSlots($0.0)), want \($0.1)" }
+        check("charts: time away becomes one empty slot per 2 s, at most 150", bad.isEmpty, bad.joined(separator: "; "))
+    }
+
+    /// Opening a page asks for a sample at once, but not within half a second of one taken for a page (an unlock
+    /// with the window open asks twice): rates over a few ms would spike the charts.
+    private static func kicks() {
+        let lock = NSLock()
+        var n = 0
+        var delivered: [String: Any] = [:]
+        let s = Sampler()   // process rows on, as while a page shows
+        s.onSnapshot = { snap in lock.lock(); n += 1; delivered = snap; lock.unlock() }
+        func count() -> Int { lock.lock(); defer { lock.unlock() }; return n }
+        func lastDelivered() -> [String: Any] { lock.lock(); defer { lock.unlock() }; return delivered }
+        _ = s.sampleNow()
+        s.kick()
+        Thread.sleep(forTimeInterval: 0.3)
+        check("kick: skipped right after a sample", count() == 0, "\(count()) extra samples")
+        Thread.sleep(forTimeInterval: 0.4)
+        s.kick()
+        Thread.sleep(forTimeInterval: 0.6)
+        check("kick: samples when the last one is over 0.5 s old", count() == 1, "\(count()) samples")
+        // The unlock order: the end of the rest samples before the window is back (no page, stale rows), then the
+        // window asks a moment later. It gets fresh rows, but CPU, disk and network aren't measured over those few ms.
+        s.setWantProcesses(false)
+        _ = s.sampleNow()
+        Thread.sleep(forTimeInterval: 0.6)
+        let restEnd = s.sampleNow()
+        s.setWantProcesses(true)
+        s.kick()
+        Thread.sleep(forTimeInterval: 0.6)
+        let got = lastDelivered()
+        func read(_ snap: [String: Any]) -> NSNumber? { (snap["disk"] as? [String: Any])?["readBps"] as? NSNumber }
+        func points(_ snap: [String: Any]) -> Int? { ((snap["live"] as? [String: Any])?["memUsedPct"] as? [Any])?.count }
+        func impact(_ snap: [String: Any]) -> Any? { (snap["energy"] as? [String: Any])?["impact"] }
+        check("kick: right after a sample without a page, the page still gets a snapshot", count() == 2, "\(count()) samples")
+        check("kick: ...with fresh process rows", impact(restEnd) is NSNull && impact(got) is NSNumber,
+              "impact \(String(describing: impact(restEnd))) -> \(String(describing: impact(got)))")
+        check("kick: ...but no rates over a few ms", got["time"] as? String == restEnd["time"] as? String && read(got) != nil
+              && read(got) == read(restEnd) && points(got) == points(restEnd),
+              "readBps \(String(describing: read(restEnd))) -> \(String(describing: read(got))), points \(points(restEnd) ?? -1) -> \(points(got) ?? -1)")
     }
 
     /// The real sampler: ticks every 2 s, goes quiet while resting, takes a fresh sample on waking, and leaves a
@@ -186,13 +332,18 @@ enum SelfTest {
         check("sampler: the stretch shows as a gap in the charts",
               !lastPoints.isEmpty && lastPoints.allSatisfy { $0 is NSNull }, "\(lastPoints.count) series")
         check("sampler: no disk rate across the stretch", (snap["disk"] as? [String: Any])?["readBps"] is NSNull)
+        // ~12–15 s away = 6–7 empty 2 s slots, so the points from before slide back to where they really were.
+        let mem = live["memUsedPct"] as? [Any] ?? []
+        let empty = mem.reversed().prefix { $0 is NSNull }.count
+        check("sampler: the stretch is padded to its real length", (5...8).contains(empty) && mem.dropLast(empty).last is NSNumber,
+              "\(empty) empty slots at the end of \(mem.count)")
         check("sampler: the needles still have values", ((snap["cpu"] as? [String: Any])?["totalPct"] as? NSNumber) != nil)
 
         Thread.sleep(forTimeInterval: 2.5)
         let next = last()
         let rate = (next["disk"] as? [String: Any])?["readBps"]
         check("sampler: rates come back on the next tick", rate is NSNumber, "readBps \(String(describing: rate))")
-        let mem = ((next["live"] as? [String: Any])?["memUsedPct"] as? [Any])?.last
-        check("sampler: chart points come back on the next tick", mem is NSNumber, "memUsedPct \(String(describing: mem))")
+        let memNext = ((next["live"] as? [String: Any])?["memUsedPct"] as? [Any])?.last
+        check("sampler: chart points come back on the next tick", memNext is NSNumber, "memUsedPct \(String(describing: memNext))")
     }
 }

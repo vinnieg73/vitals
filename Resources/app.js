@@ -366,8 +366,13 @@
     return { stepSec: 2, pressurePct: [m.pressurePct], memUsedPct: [used], swapUsedBytes: [m.swapUsedBytes], cpuUserPct: [c.userPct], cpuSystemPct: [c.systemPct],
       gpuPct: [(s.gpu || {}).pct], diskReadBps: [d.readBps], diskWriteBps: [d.writeBps], netInBps: [n.inBps], netOutBps: [n.outBps], energyImpact: [e.impact] };
   }
-  // current value, or the last real point of its live series when the current one is null
-  function now(v, series) { return isNum(v) ? v : lastNum(series); }
+  // current value, or the newest point of its live series when the current one is null. Never a point from
+  // before a gap: after a sleep that would show a speed from before it as if it were now.
+  function now(v, series) {
+    if (isNum(v)) return v;
+    var a = series || [];
+    return a.length && isNum(a[a.length - 1]) ? a[a.length - 1] : null;
+  }
 
   /* ---------- wiring ---------- */
   var Vitals = window.Vitals = {

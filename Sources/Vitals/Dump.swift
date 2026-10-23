@@ -9,7 +9,8 @@ enum Dump {
         s.processes.primeNetwork(interval: 2)
         let snap = s.sampleNow()
         if CommandLine.arguments.contains("--bench") { bench(s) }
-        let data = (try? JSONSerialization.data(withJSONObject: snap, options: [.prettyPrinted, .sortedKeys])) ?? Data()
+        // Through the NaN-safe encoder: JSONSerialization on a NaN is an exception Swift can't catch (a crash).
+        let data = AppDelegate.encodeData(snap, options: [.prettyPrinted, .sortedKeys]) ?? Data()
         FileHandle.standardOutput.write(data)
         FileHandle.standardOutput.write(Data("\n".utf8))
         exit(0)

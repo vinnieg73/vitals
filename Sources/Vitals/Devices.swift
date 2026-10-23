@@ -172,16 +172,20 @@ final class DailyBaseline {
     private let key = "dailyBaseline"
     private var day: String
     private var boot: Int
+    private var session: String?          // the boot session id the baseline belongs to
+    private let bootSession: String?      // this boot's (kern.bootsessionuuid), read once
     private var base: [String: UInt64]
     private var lastSeen: [String: UInt64]
     private var lastSaved = Date.distantPast
     private let store: UserDefaults
 
-    init(store: UserDefaults = .standard) {
+    init(store: UserDefaults = .standard, bootSession: String? = Sysctl.string("kern.bootsessionuuid")) {
         self.store = store
+        self.bootSession = bootSession
         let d = store.dictionary(forKey: key) ?? [:]
         day = d["day"] as? String ?? ""
         boot = d["boot"] as? Int ?? 0
+        session = (d["session"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         base = (d["base"] as? [String: NSNumber])?.mapValues(\.uint64Value) ?? [:]
         lastSeen = (d["lastSeen"] as? [String: NSNumber])?.mapValues(\.uint64Value) ?? [:]
     }
@@ -193,15 +197,27 @@ final class DailyBaseline {
         return f
     }()
 
-    private static func today() -> String { dayFormat.string(from: Date()) }
+    /// The local day in the time zone in force now: the Mac may have moved time zones since launch, and a formatter
+    /// made once keeps the zone it was made in.
+    static func dayString(_ date: Date, zone: TimeZone = .current) -> String {
+        if dayFormat.timeZone?.identifier != zone.identifier { dayFormat.timeZone = zone }
+        return dayFormat.string(from: date)
+    }
 
-    /// Returns counter - baseline for each value, and records the values. `day` and `boot` are for --selftest.
-    func today(_ current: [String: UInt64], day dayNow: String? = nil, boot bootIn: Int? = nil) -> [String: UInt64] {
+    private static func today() -> String { dayString(Date()) }
+
+    /// Returns counter - baseline for each value, and records the values. `day`, `boot` and `session` are for --selftest.
+    func today(_ current: [String: UInt64], day dayNow: String? = nil, boot bootIn: Int? = nil, session sessionIn: String? = nil) -> [String: UInt64] {
         let now = dayNow ?? Self.today()
         let bootNow = bootIn ?? Int(Sysctl.bootTime()?.timeIntervalSince1970 ?? 0)
-        // macOS moves kern.boottime a little when it corrects the clock (often right after a wake), so only a
-        // big move is a reboot. Follow the small moves so they can't add up.
-        if abs(bootNow - boot) > 60 {
+        let sessionNow = sessionIn ?? bootSession
+        // A reboot gets a new boot session id. kern.boottime is no good for this: it moves by as much as the clock
+        // moves (a second when macOS corrects it, hours when the date or time is changed by hand). Without an id
+        // on both sides (a baseline saved by an older Vitals, or the sysctl fails), only a boot time move over
+        // 60 s is a reboot; follow the small moves so they can't add up.
+        let rebooted: Bool
+        if let sessionNow, let session { rebooted = sessionNow != session } else { rebooted = abs(bootNow - boot) > 60 }
+        if rebooted {
             // Rebooted (or first run): counters restarted at zero.
             base = [:]; lastSeen = [:]; day = now
         } else if day != now {
@@ -209,6 +225,7 @@ final class DailyBaseline {
             base = lastSeen; day = now
         }
         boot = bootNow
+        if let sessionNow { session = sessionNow }
         // A counter below its last value restarted (an interface that went away and came back): count from zero.
         for (k, v) in current where v < (lastSeen[k] ?? 0) { base[k] = 0 }
         // Merge, so an interface that's down at midnight still has a baseline when it comes back.
@@ -226,7 +243,7 @@ final class DailyBaseline {
     func save() {
         lastSaved = Date()
         store.set([
-            "day": day, "boot": boot,
+            "day": day, "boot": boot, "session": session ?? "",
             "base": base.mapValues { NSNumber(value: $0) },
             "lastSeen": lastSeen.mapValues { NSNumber(value: $0) },
         ] as [String: Any], forKey: key)

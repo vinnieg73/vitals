@@ -99,12 +99,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
                 MainActor.assumeIsolated { self?.setRest(reason, on) }
             }
         }
+        // Lock and unlock are distributed notifications, which AppKit holds back while an app isn't the active one,
+        // and Vitals almost never is: ask for them right away.
         let dist = DistributedNotificationCenter.default()
-        for (name, on) in [("com.apple.screenIsLocked", true), ("com.apple.screenIsUnlocked", false)] {
-            dist.addObserver(forName: .init(name), object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.setRest("locked", on) }
-            }
+        dist.addObserver(self, selector: #selector(screenLocked(_:)), name: .init("com.apple.screenIsLocked"),
+                         object: nil, suspensionBehavior: .deliverImmediately)
+        dist.addObserver(self, selector: #selector(screenUnlocked(_:)), name: .init("com.apple.screenIsUnlocked"),
+                         object: nil, suspensionBehavior: .deliverImmediately)
+        // Started while already locked, asleep or switched away (a background install can be): rest now, not
+        // only after the next change.
+        let session = CGSessionCopyCurrentDictionary() as? [String: Any]
+        for reason in Self.restingAtLaunch(session: session, displaysAsleep: CGDisplayIsAsleep(CGMainDisplayID()) != 0) {
+            setRest(reason, true)
         }
+    }
+
+    @objc private nonisolated func screenLocked(_ n: Notification) {
+        DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.setRest("locked", true) } }
+    }
+    @objc private nonisolated func screenUnlocked(_ n: Notification) {
+        DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.setRest("locked", false) } }
+    }
+
+    /// The rest reasons already true at launch, from the login session's state (CGSessionCopyCurrentDictionary)
+    /// and whether the main display sleeps. Unknown counts as awake.
+    nonisolated static func restingAtLaunch(session: [String: Any]?, displaysAsleep: Bool) -> [String] {
+        var out: [String] = []
+        if displaysAsleep { out.append("screens") }
+        if (session?["CGSSessionScreenIsLocked"] as? Bool) == true { out.append("locked") }
+        if (session?["kCGSSessionOnConsoleKey"] as? Bool) == false { out.append("session") }
+        return out
     }
 
     private func setRest(_ reason: String, _ on: Bool) {
@@ -139,6 +163,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
 
     nonisolated static func encode(_ snap: [String: Any]) -> String? {
+        encodeData(snap).map { String(decoding: $0, as: UTF8.self) }
+    }
+
+    /// The snapshot as JSON (the pages, and --dump with `options`).
+    nonisolated static func encodeData(_ snap: [String: Any], options: JSONSerialization.WritingOptions = []) -> Data? {
         // A NaN or infinity anywhere makes JSONSerialization throw an exception Swift can't catch (a crash),
         // so check first; if one slipped in, send it as null and say so in the log rather than freeze the pages.
         var obj: Any = snap
@@ -147,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             NSLog("Vitals: snapshot had a value JSON can't hold (NaN, infinity or a non-JSON type); sent as null")
         }
         do {
-            return String(decoding: try JSONSerialization.data(withJSONObject: obj), as: UTF8.self)
+            return try JSONSerialization.data(withJSONObject: obj, options: options)
         } catch {
             NSLog("Vitals: couldn't turn the snapshot into page data: \(error)")
             return nil
@@ -482,12 +511,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     /// Right-click or ⌃-click on the menu bar item.
     private func statusMenu() -> NSMenu {
         let m = NSMenu()
-        // Shows the global hotkey (⌘O only works while Vitals is active), or says another app has it.
-        let shortcut = hotkey?.registered == true
+        // Shows the global hotkey (⌘O only works while Vitals is active), or says another app or macOS has it.
+        let byApp = hotkey?.registered != true
+        let bySystem = !byApp && hotkey?.takenBySystem == true
+        let shortcut = !byApp && !bySystem
         let open = m.addItem(withTitle: "Open Vitals", action: #selector(openWindow), keyEquivalent: shortcut ? "v" : "")
         if shortcut { open.keyEquivalentModifierMask = [.control, .option, .command] }
         open.target = self
-        if !shortcut { m.addItem(withTitle: "⌃⌥⌘V is taken by another app", action: nil, keyEquivalent: "") }
+        if byApp { m.addItem(withTitle: "⌃⌥⌘V is taken by another app", action: nil, keyEquivalent: "") }
+        if bySystem { m.addItem(withTitle: "⌃⌥⌘V is taken by a macOS shortcut", action: nil, keyEquivalent: "") }
         m.addItem(withTitle: "Vitals Help", action: #selector(showHelp), keyEquivalent: "?").target = self
         m.addItem(.separator())
         m.addItem(withTitle: "Open at Login", action: #selector(toggleLogin), keyEquivalent: "").target = self

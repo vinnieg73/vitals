@@ -34,6 +34,12 @@ Vitals.app/Contents/MacOS/Vitals --soak 6 window                                
 
 `--dump --bench` also prints what one sample costs.
 
+The pages can also be checked without the app, in headless Chromium with fake snapshots (needs Node and Playwright):
+
+```bash
+node scripts/test-pages.js     # charts and readouts after a gap, hover labels, no page errors
+```
+
 ## Layout
 
 - `Sources/Vitals/` — the Swift app: the sampler (System, Devices, Fan, Processes, Sampler),

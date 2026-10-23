@@ -43,6 +43,7 @@ final class Sampler: @unchecked Sendable {
     /// what the dials and the charts' history need.
     private var wantProcesses = true
     private var lastProcs: ProcessSampler.Result?
+    private var lastForPage = false   // queue only: the last sample was taken while a page showed (fresh rows)
 
     func latestSnapshot() -> [String: Any]? { latest }
 
@@ -51,12 +52,7 @@ final class Sampler: @unchecked Sendable {
         queue.async { [weak self] in
             guard let self else { return }
             let t = DispatchSource.makeTimerSource(queue: self.queue)
-            t.setEventHandler { [weak self] in
-                guard let self else { return }
-                let snap = self.sample()
-                self.latest = snap
-                self.onSnapshot?(snap)
-            }
+            t.setEventHandler { [weak self] in self?.sampleIfDue() }
             self.timer = t
             self.reschedule(now: true)
             t.resume()
@@ -72,9 +68,43 @@ final class Sampler: @unchecked Sendable {
             self.reschedule(now: false)
         }
     }
-    /// One extra sample right away, delivered like a timer tick.
+    /// One extra sample right away, delivered like a timer tick (unless one just ran, see `sampleIfDue`).
     func kick() {
-        queue.async { let s = self.sample(); self.latest = s; self.onSnapshot?(s) }
+        queue.async { self.sampleIfDue() }
+    }
+
+    /// A sample, delivered. Not a full one under half a second after the last (an unlock with the window open asks
+    /// twice, the end of the rest and the window coming back, in either order): that would measure CPU, disk and
+    /// network over a few ms, a spike that flattens a chart's scale for 5 minutes. Then the last snapshot stands, and
+    /// if it was taken without a page (stale process rows) and a page now wants them, it gets fresh rows only.
+    private func sampleIfDue() {
+        let ago = prevAt.map { Date().timeIntervalSince($0) }
+        if let ago, ago >= 0, ago < 0.5 {
+            guard wantProcesses && !lastForPage, let snap = latest else { return }
+            let s = withFreshRows(snap)
+            latest = s
+            onSnapshot?(s)
+            return
+        }
+        let s = sample()
+        latest = s
+        onSnapshot?(s)
+    }
+
+    /// `snap` with process rows (and energy impact) sampled now. Their rates run from the last time rows were
+    /// sampled, not over the last few ms.
+    private func withFreshRows(_ snap: [String: Any]) -> [String: Any] {
+        let procs = processes.sample()
+        lastProcs = procs
+        lastForPage = true
+        var out = snap
+        out["processes"] = procs.rows.map { $0.json() }
+        out["totals"] = ["processes": procs.processes, "threads": procs.threads]
+        if var energy = out["energy"] as? [String: Any] {
+            energy["impact"] = num(procs.rows.reduce(0) { $0 + ($1.energy ?? 0) }, 1)
+            out["energy"] = energy
+        }
+        return out
     }
     func saveState() { queue.sync { daily.save() } }
 
@@ -116,6 +146,7 @@ final class Sampler: @unchecked Sendable {
         let gpuPct = GPU.utilization()
         let procs: ProcessSampler.Result
         let freshProcs = wantProcesses || lastProcs == nil
+        lastForPage = wantProcesses
         if freshProcs { procs = processes.sample(); lastProcs = procs } else { procs = lastProcs! }
         // Energy impact needs the process rows, which are only sampled while a page shows; null otherwise
         // (and on the first sample, which has no rates yet).
@@ -125,6 +156,9 @@ final class Sampler: @unchecked Sendable {
         if Date().timeIntervalSince(volCheckedAt) >= 60 {
             vol = Disk.volume()
             volCheckedAt = Date()
+            // Foundation caches the system time zone; once a minute, look again (travel, or a change in Settings),
+            // so "today" rolls over at the right midnight.
+            NSTimeZone.resetSystemTimeZone()
         }
         let diskNow = Disk.counters()
         var readBps: Any = NSNull(), writeBps: Any = NSNull()
@@ -196,7 +230,14 @@ final class Sampler: @unchecked Sendable {
             "gpuPct": num(gpuPct, 0), "diskReadBps": readBps, "diskWriteBps": writeBps,
             "netInBps": net["inBps"] ?? NSNull(), "netOutBps": net["outBps"] ?? NSNull(), "energyImpact": impact,
         ]
-        addLive(gap ? point.mapValues { _ -> Any in NSNull() } : point)
+        if gap {
+            // The charts place points by index, one slot per 2 s: fill the time away with empty slots so what came
+            // before slides back to where it really was (or off the 5 minutes), instead of sitting next to "now".
+            let empty = point.mapValues { _ -> Any in NSNull() }
+            for _ in 0..<Self.gapSlots(dt) { addLive(empty) }
+        } else {
+            addLive(point)
+        }
         var liveOut: [String: Any] = live
         liveOut["stepSec"] = 2
 
@@ -208,7 +249,7 @@ final class Sampler: @unchecked Sendable {
         ]
 
         return [
-            "time": Self.timeFormatter.string(from: now),
+            "time": Self.timeString(now),
             "host": hostOut,
             "memory": memory,
             "cpu": cpu,
@@ -228,6 +269,12 @@ final class Sampler: @unchecked Sendable {
         f.formatOptions = [.withInternetDateTime]
         return f
     }()
+
+    /// The snapshot time with the current time zone's offset (followed if the Mac changes zones).
+    static func timeString(_ date: Date, zone: TimeZone = .current) -> String {
+        if timeFormatter.timeZone?.identifier != zone.identifier { timeFormatter.timeZone = zone }
+        return timeFormatter.string(from: date)
+    }
 
     // MARK: memory
 
@@ -311,6 +358,13 @@ final class Sampler: @unchecked Sendable {
     }
 
     // MARK: live
+
+    /// How many empty 2 s chart slots stand for `dt` seconds away (the last one is this sample's own, empty point):
+    /// none for a normal tick, at most a full chart.
+    static func gapSlots(_ dt: Double) -> Int {
+        guard dt > 10 else { return 0 }
+        return Int(min(Double(liveLength), (dt / 2).rounded()))   // dt can be huge after a clock change: clamp before Int
+    }
 
     private func addLive(_ point: [String: Any]) {
         for (k, v) in point {

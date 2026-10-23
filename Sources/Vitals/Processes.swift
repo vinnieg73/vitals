@@ -86,6 +86,7 @@ final class ProcessSampler {
     private var prev: [pid_t: Prev] = [:]
     private var prevTime: UInt64 = 0
     private var users: [uid_t: String] = [:]
+    private var lastGroupIDs: [pid_t: (base: String, id: String)] = [:]
     private let nettop = NetTop()
     private let sessions = SessionModels()
     private let me = getuid()
@@ -250,16 +251,22 @@ final class ProcessSampler {
         let sessionRows = Array(sessions.values)
 
         // Apps with helpers become a summed row; the app's own process is listed as one of its children.
-        // Two apps with the same name get "group:name" and "group:name-2" (oldest pid first, so it stays put).
-        var groupIDs: Set<String> = []
-        for row in top.sorted(by: { ($0.pid ?? 0) < ($1.pid ?? 0) }) where row.kind == "app" {
-            guard let pid = row.pid, var children = kids[pid], !children.isEmpty else { continue }
+        // Two apps with the same name get "group:name" and "group:name-2" (oldest pid first), and each keeps its id
+        // while it runs: when the first quits, the second doesn't take over its row (the page's selection and open
+        // groups go by id).
+        let groups = top.sorted(by: { ($0.pid ?? 0) < ($1.pid ?? 0) }).filter { row in
+            row.kind == "app" && row.pid.flatMap { kids[$0] }?.isEmpty == false
+        }
+        let ids = Self.groupIDs(groups.map { (pid: $0.pid!, base: "group:" + Self.slug($0.name)) }, previous: lastGroupIDs)
+        lastGroupIDs = ids
+        for row in groups {
+            guard let pid = row.pid, var children = kids[pid], let id = ids[pid]?.id else { continue }
             let own = row.copy(id: "pid:\(pid)")
             own.kind = "app"
             own.note = "the app itself"
             children.append(own)
             children.sort(by: Self.byMemory)
-            row.id = Self.uniqueID("group:" + Self.slug(row.name), taken: &groupIDs)
+            row.id = id
             row.children = children
             row.sum(of: children)
         }
@@ -275,6 +282,16 @@ final class ProcessSampler {
     }
 
     private static func byMemory(_ a: Row, _ b: Row) -> Bool { (a.mem ?? 0) > (b.mem ?? 0) }
+
+    /// Group ids for apps with helpers, oldest pid first: a pid keeps the id it had last sample; a new one gets the
+    /// first free id, never one another pid had last sample.
+    static func groupIDs(_ apps: [(pid: pid_t, base: String)], previous: [pid_t: (base: String, id: String)]) -> [pid_t: (base: String, id: String)] {
+        var out: [pid_t: (base: String, id: String)] = [:]
+        var taken = Set(previous.values.map { $0.id })
+        for a in apps { if let p = previous[a.pid], p.base == a.base { out[a.pid] = p } }
+        for a in apps where out[a.pid] == nil { out[a.pid] = (a.base, uniqueID(a.base, taken: &taken)) }
+        return out
+    }
 
     /// `base`, or `base-2`, `base-3`… if that id is already taken (or is the Claude Code group's).
     static func uniqueID(_ base: String, taken: inout Set<String>) -> String {
@@ -409,7 +426,10 @@ final class NetTop {
     private var last: [pid_t: (UInt64, UInt64)] = [:]
     private var lastAt: Date?
     private var current: [pid_t: (Double, Double)]?
+    private var currentAt: Date?
     private var timer: DispatchSourceTimer?
+    /// Rates older than this (nettop stopped while the window was hidden) are stale: hand out none.
+    static let maxAge: TimeInterval = 30
 
     var enabled = false {
         didSet {
@@ -418,10 +438,17 @@ final class NetTop {
         }
     }
 
-    /// Only while enabled (or primed for --dump): stopped, the kept rates are stale.
-    func rates() -> [pid_t: (Double, Double)]? {
+    /// Only while enabled (or primed for --dump), and only rates from the last 30 s: right after the window comes
+    /// back from a long cover-up, the kept ones are from the last run before it and could be hours old.
+    func rates(now: Date = Date()) -> [pid_t: (Double, Double)]? {
         lock.lock(); defer { lock.unlock() }
-        return enabled || primed ? current : nil
+        guard enabled || primed, let at = currentAt, now.timeIntervalSince(at) < Self.maxAge else { return nil }
+        return current
+    }
+
+    /// For --selftest: rates as if a run had worked them out at `at`.
+    func seed(_ r: [pid_t: (Double, Double)], at: Date) {
+        lock.lock(); current = r; currentAt = at; primed = true; lock.unlock()
     }
     private var primed = false
 
@@ -474,7 +501,7 @@ final class NetTop {
         lock.lock()
         // Rates need the previous run; one from over 30 s ago (stopped while the window was hidden) would average
         // the whole time away, so then there are no rates until the next run.
-        if let lastAt, now.timeIntervalSince(lastAt) < 30 {
+        if let lastAt, now.timeIntervalSince(lastAt) < Self.maxAge {
             let dt = now.timeIntervalSince(lastAt)
             var r: [pid_t: (Double, Double)] = [:]
             for (pid, t) in totals {
@@ -482,8 +509,10 @@ final class NetTop {
                 r[pid] = (Double(t.0 >= p.0 ? t.0 - p.0 : 0) / dt, Double(t.1 >= p.1 ? t.1 - p.1 : 0) / dt)
             }
             current = r
+            currentAt = now
         } else {
             current = nil
+            currentAt = nil
         }
         last = totals
         lastAt = now
