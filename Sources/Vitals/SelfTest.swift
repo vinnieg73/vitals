@@ -20,6 +20,7 @@ enum SelfTest {
         deadband()
         menus()
         tidy()
+        gaps()
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
@@ -146,6 +147,13 @@ enum SelfTest {
         check("counters: CPU and memory still read", VMCounters.read() != nil && !CPUTicks.read().isEmpty)
     }
 
+    /// Time away becomes empty chart slots, one per 2 s, never more than the 5-minute chart.
+    private static func gaps() {
+        let cases: [(Double, Int)] = [(2, 0), (10, 0), (11, 6), (60, 30), (299, 150), (8 * 3600, 150), (1e300, 150), (.nan, 0), (-50, 0)]
+        let bad = cases.filter { Sampler.gapSlots($0.0) != $0.1 }.map { "\($0.0) s → \(Sampler.gapSlots($0.0)), want \($0.1)" }
+        check("charts: time away becomes one empty slot per 2 s, at most 150", bad.isEmpty, bad.joined(separator: "; "))
+    }
+
     /// The real sampler: ticks every 2 s, goes quiet while resting, takes a fresh sample on waking, and leaves a
     /// gap (nulls, no disk / network rates) across a stretch over 10 s. No folder scan in the snapshot.
     private static func sampler() {
@@ -186,13 +194,18 @@ enum SelfTest {
         check("sampler: the stretch shows as a gap in the charts",
               !lastPoints.isEmpty && lastPoints.allSatisfy { $0 is NSNull }, "\(lastPoints.count) series")
         check("sampler: no disk rate across the stretch", (snap["disk"] as? [String: Any])?["readBps"] is NSNull)
+        // ~12–15 s away = 6–7 empty 2 s slots, so the points from before slide back to where they really were.
+        let mem = live["memUsedPct"] as? [Any] ?? []
+        let empty = mem.reversed().prefix { $0 is NSNull }.count
+        check("sampler: the stretch is padded to its real length", (5...8).contains(empty) && mem.dropLast(empty).last is NSNumber,
+              "\(empty) empty slots at the end of \(mem.count)")
         check("sampler: the needles still have values", ((snap["cpu"] as? [String: Any])?["totalPct"] as? NSNumber) != nil)
 
         Thread.sleep(forTimeInterval: 2.5)
         let next = last()
         let rate = (next["disk"] as? [String: Any])?["readBps"]
         check("sampler: rates come back on the next tick", rate is NSNumber, "readBps \(String(describing: rate))")
-        let mem = ((next["live"] as? [String: Any])?["memUsedPct"] as? [Any])?.last
-        check("sampler: chart points come back on the next tick", mem is NSNumber, "memUsedPct \(String(describing: mem))")
+        let memNext = ((next["live"] as? [String: Any])?["memUsedPct"] as? [Any])?.last
+        check("sampler: chart points come back on the next tick", memNext is NSNumber, "memUsedPct \(String(describing: memNext))")
     }
 }

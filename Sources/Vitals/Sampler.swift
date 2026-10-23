@@ -196,7 +196,14 @@ final class Sampler: @unchecked Sendable {
             "gpuPct": num(gpuPct, 0), "diskReadBps": readBps, "diskWriteBps": writeBps,
             "netInBps": net["inBps"] ?? NSNull(), "netOutBps": net["outBps"] ?? NSNull(), "energyImpact": impact,
         ]
-        addLive(gap ? point.mapValues { _ -> Any in NSNull() } : point)
+        if gap {
+            // The charts place points by index, one slot per 2 s: fill the time away with empty slots so what came
+            // before slides back to where it really was (or off the 5 minutes), instead of sitting next to "now".
+            let empty = point.mapValues { _ -> Any in NSNull() }
+            for _ in 0..<Self.gapSlots(dt) { addLive(empty) }
+        } else {
+            addLive(point)
+        }
         var liveOut: [String: Any] = live
         liveOut["stepSec"] = 2
 
@@ -311,6 +318,13 @@ final class Sampler: @unchecked Sendable {
     }
 
     // MARK: live
+
+    /// How many empty 2 s chart slots stand for `dt` seconds away (the last one is this sample's own, empty point):
+    /// none for a normal tick, at most a full chart.
+    static func gapSlots(_ dt: Double) -> Int {
+        guard dt > 10 else { return 0 }
+        return Int(min(Double(liveLength), (dt / 2).rounded()))   // dt can be huge after a clock change: clamp before Int
+    }
 
     private func addLive(_ point: [String: Any]) {
         for (k, v) in point {
