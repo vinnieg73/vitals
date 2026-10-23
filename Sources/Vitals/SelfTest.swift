@@ -22,6 +22,7 @@ enum SelfTest {
         tidy()
         gaps()
         nettop()
+        kicks()
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
@@ -179,6 +180,30 @@ enum SelfTest {
         let cases: [(Double, Int)] = [(2, 0), (10, 0), (11, 6), (60, 30), (299, 150), (8 * 3600, 150), (1e300, 150), (.nan, 0), (-50, 0)]
         let bad = cases.filter { Sampler.gapSlots($0.0) != $0.1 }.map { "\($0.0) s → \(Sampler.gapSlots($0.0)), want \($0.1)" }
         check("charts: time away becomes one empty slot per 2 s, at most 150", bad.isEmpty, bad.joined(separator: "; "))
+    }
+
+    /// Opening a page asks for a sample at once, but not within half a second of one taken for a page (an unlock
+    /// with the window open asks twice): rates over a few ms would spike the charts.
+    private static func kicks() {
+        let lock = NSLock()
+        var n = 0
+        let s = Sampler()   // process rows on, as while a page shows
+        s.onSnapshot = { _ in lock.lock(); n += 1; lock.unlock() }
+        func count() -> Int { lock.lock(); defer { lock.unlock() }; return n }
+        _ = s.sampleNow()
+        s.kick()
+        Thread.sleep(forTimeInterval: 0.3)
+        check("kick: skipped right after a sample", count() == 0, "\(count()) extra samples")
+        Thread.sleep(forTimeInterval: 0.4)
+        s.kick()
+        Thread.sleep(forTimeInterval: 0.6)
+        check("kick: samples when the last one is over 0.5 s old", count() == 1, "\(count()) samples")
+        s.setWantProcesses(false)
+        _ = s.sampleNow()
+        s.setWantProcesses(true)
+        s.kick()
+        Thread.sleep(forTimeInterval: 0.6)
+        check("kick: samples right after one taken without a page (its rows are stale)", count() == 2, "\(count()) samples")
     }
 
     /// The real sampler: ticks every 2 s, goes quiet while resting, takes a fresh sample on waking, and leaves a

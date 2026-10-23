@@ -43,6 +43,7 @@ final class Sampler: @unchecked Sendable {
     /// what the dials and the charts' history need.
     private var wantProcesses = true
     private var lastProcs: ProcessSampler.Result?
+    private var lastForPage = false   // queue only: the last sample was taken while a page showed (fresh rows)
 
     func latestSnapshot() -> [String: Any]? { latest }
 
@@ -52,7 +53,7 @@ final class Sampler: @unchecked Sendable {
             guard let self else { return }
             let t = DispatchSource.makeTimerSource(queue: self.queue)
             t.setEventHandler { [weak self] in
-                guard let self else { return }
+                guard let self, !self.tooSoon() else { return }
                 let snap = self.sample()
                 self.latest = snap
                 self.onSnapshot?(snap)
@@ -72,9 +73,21 @@ final class Sampler: @unchecked Sendable {
             self.reschedule(now: false)
         }
     }
-    /// One extra sample right away, delivered like a timer tick.
+    /// One extra sample right away, delivered like a timer tick (unless one just ran, see `tooSoon`).
     func kick() {
-        queue.async { let s = self.sample(); self.latest = s; self.onSnapshot?(s) }
+        queue.async {
+            guard !self.tooSoon() else { return }
+            let s = self.sample(); self.latest = s; self.onSnapshot?(s)
+        }
+    }
+
+    /// A sample under half a second after the last one (an unlock with the window open asks twice: the end of the
+    /// rest and the window coming back) would measure disk, network and per-process CPU over a few ms, a spike that
+    /// flattens a chart's scale for 5 minutes. Skip it, unless the last one lacked the process rows a page now wants.
+    private func tooSoon() -> Bool {
+        guard let at = prevAt, lastForPage || !wantProcesses else { return false }
+        let ago = Date().timeIntervalSince(at)
+        return ago >= 0 && ago < 0.5
     }
     func saveState() { queue.sync { daily.save() } }
 
@@ -116,6 +129,7 @@ final class Sampler: @unchecked Sendable {
         let gpuPct = GPU.utilization()
         let procs: ProcessSampler.Result
         let freshProcs = wantProcesses || lastProcs == nil
+        lastForPage = wantProcesses
         if freshProcs { procs = processes.sample(); lastProcs = procs } else { procs = lastProcs! }
         // Energy impact needs the process rows, which are only sampled while a page shows; null otherwise
         // (and on the first sample, which has no rates yet).
