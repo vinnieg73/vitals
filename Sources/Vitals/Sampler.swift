@@ -139,6 +139,9 @@ final class Sampler: @unchecked Sendable {
         if Date().timeIntervalSince(volCheckedAt) >= 60 {
             vol = Disk.volume()
             volCheckedAt = Date()
+            // Foundation caches the system time zone; once a minute, look again (travel, or a change in Settings),
+            // so "today" rolls over at the right midnight.
+            NSTimeZone.resetSystemTimeZone()
         }
         let diskNow = Disk.counters()
         var readBps: Any = NSNull(), writeBps: Any = NSNull()
@@ -229,7 +232,7 @@ final class Sampler: @unchecked Sendable {
         ]
 
         return [
-            "time": Self.timeFormatter.string(from: now),
+            "time": Self.timeString(now),
             "host": hostOut,
             "memory": memory,
             "cpu": cpu,
@@ -249,6 +252,12 @@ final class Sampler: @unchecked Sendable {
         f.formatOptions = [.withInternetDateTime]
         return f
     }()
+
+    /// The snapshot time with the current time zone's offset (followed if the Mac changes zones).
+    static func timeString(_ date: Date, zone: TimeZone = .current) -> String {
+        if timeFormatter.timeZone?.identifier != zone.identifier { timeFormatter.timeZone = zone }
+        return timeFormatter.string(from: date)
+    }
 
     // MARK: memory
 

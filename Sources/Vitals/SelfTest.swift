@@ -36,7 +36,7 @@ enum SelfTest {
         store.removePersistentDomain(forName: suite)
         defer { store.removePersistentDomain(forName: suite) }
 
-        let d = DailyBaseline(store: store)
+        let d = DailyBaseline(store: store, bootSession: nil)   // no boot session id: the boot time rule
         check("baseline: first run counts since boot", d.today(["diskR": 1000], day: "2026-10-19", boot: 1000)["diskR"] == 1000)
         _ = d.today(["diskR": 1500], day: "2026-10-19", boot: 1000)
         check("baseline: new day starts from the last value", d.today(["diskR": 2000], day: "2026-10-20", boot: 1000)["diskR"] == 500)
@@ -57,8 +57,47 @@ enum SelfTest {
               "got \(restarted.map(String.init) ?? "nil") then \(after.map(String.init) ?? "nil")")
 
         d.save()
-        let again = DailyBaseline(store: store).today(["diskR": 1000], day: "2026-10-21", boot: 9000)["diskR"]
+        let again = DailyBaseline(store: store, bootSession: nil).today(["diskR": 1000], day: "2026-10-21", boot: 9000)["diskR"]
         check("baseline: relaunch the same day keeps the baseline", again == 300, "got \(again.map(String.init) ?? "nil"), want 300")
+
+        // With a boot session id (kern.bootsessionuuid), only a new id is a reboot: changing the clock by hand
+        // moves the boot time by as much, and mustn't reset "today".
+        store.removePersistentDomain(forName: suite)
+        let s = DailyBaseline(store: store, bootSession: "A")
+        _ = s.today(["diskR": 1000], day: "2026-10-20", boot: 1000)
+        _ = s.today(["diskR": 1600], day: "2026-10-21", boot: 1000)            // midnight: baseline 1000
+        let moved = s.today(["diskR": 1700], day: "2026-10-21", boot: 1000 + 2 * 3600)["diskR"]
+        check("baseline: a clock moved 2 hours on is not a reboot", moved == 700, "got \(moved.map(String.init) ?? "nil"), want 700")
+        let back = s.today(["diskR": 1800], day: "2026-10-21", boot: 1000 - 5 * 3600)["diskR"]
+        check("baseline: a clock moved 5 hours back is not a reboot", back == 800, "got \(back.map(String.init) ?? "nil"), want 800")
+        let reboot = s.today(["diskR": 40], day: "2026-10-21", boot: 1000 - 5 * 3600, session: "B")["diskR"]
+        check("baseline: a new boot session is a reboot", reboot == 40, "got \(reboot.map(String.init) ?? "nil"), want 40")
+        s.save()
+        let relaunch = DailyBaseline(store: store, bootSession: "B").today(["diskR": 90], day: "2026-10-21", boot: 77777)["diskR"]
+        check("baseline: relaunch in the same boot keeps the baseline", relaunch == 90, "got \(relaunch.map(String.init) ?? "nil"), want 90")
+
+        // A baseline saved by an older Vitals has no session id: the boot time decides once, then the id is kept.
+        store.removePersistentDomain(forName: suite)
+        let old = DailyBaseline(store: store, bootSession: nil)
+        _ = old.today(["diskR": 1000], day: "2026-10-21", boot: 5000)
+        _ = old.today(["diskR": 1200], day: "2026-10-22", boot: 5000)
+        old.save()
+        let upgraded = DailyBaseline(store: store, bootSession: "C")
+        let up1 = upgraded.today(["diskR": 1300], day: "2026-10-22", boot: 5001)["diskR"]
+        let up2 = upgraded.today(["diskR": 1400], day: "2026-10-22", boot: 5001 + 3600)["diskR"]
+        check("baseline: an older saved baseline carries over, then a clock change is ignored", up1 == 300 && up2 == 400,
+              "got \(up1.map(String.init) ?? "nil") then \(up2.map(String.init) ?? "nil"), want 300 then 400")
+        check("baseline: this Mac has a boot session id", Sysctl.string("kern.bootsessionuuid")?.isEmpty == false)
+
+        // "Today" and the snapshot time follow a time zone change (12:00 UTC is the 21st at UTC+14, the 20th at UTC-11).
+        let noon = Date(timeIntervalSince1970: 1_792_497_600)   // 2026-10-20 12:00 UTC
+        let east = TimeZone(identifier: "Pacific/Kiritimati")!, west = TimeZone(identifier: "Pacific/Pago_Pago")!
+        let days = [DailyBaseline.dayString(noon, zone: east), DailyBaseline.dayString(noon, zone: west)]
+        check("today: the day follows a time zone change", days == ["2026-10-21", "2026-10-20"], days.joined(separator: ", "))
+        let times = [Sampler.timeString(noon, zone: east), Sampler.timeString(noon, zone: west)]
+        check("today: the snapshot time follows a time zone change", times[0].hasSuffix("+14:00") && times[1].hasSuffix("-11:00"), times.joined(separator: ", "))
+        _ = DailyBaseline.dayString(noon)   // back to this Mac's zone for the rest of the run
+        _ = Sampler.timeString(noon)
     }
 
     /// CPU "busy for 30 s": still flags a steady 30 s, but time asleep doesn't count toward it.
@@ -143,6 +182,8 @@ enum SelfTest {
         let json = AppDelegate.encode(bad)
         check("page data: a NaN becomes null instead of a crash", json?.contains("null") == true && json?.contains("\"ok\":5") == true, json ?? "nil")
         check("page data: normal numbers and true/false survive", json?.contains("true") == true && json?.contains("\"a\"") == true, json ?? "nil")
+        let dumped = AppDelegate.encodeData(bad, options: [.prettyPrinted, .sortedKeys]).map { String(decoding: $0, as: UTF8.self) }
+        check("--dump: a NaN becomes null instead of a crash", dumped?.contains("null") == true && dumped?.contains("\"ok\" : 5") == true, dumped ?? "nil")
 
         var taken: Set<String> = []
         let ids = ["group:safari", "group:safari", "group:safari", "group:claude-code"].map { ProcessSampler.uniqueID($0, taken: &taken) }

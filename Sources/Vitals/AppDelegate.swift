@@ -163,6 +163,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
 
     nonisolated static func encode(_ snap: [String: Any]) -> String? {
+        encodeData(snap).map { String(decoding: $0, as: UTF8.self) }
+    }
+
+    /// The snapshot as JSON (the pages, and --dump with `options`).
+    nonisolated static func encodeData(_ snap: [String: Any], options: JSONSerialization.WritingOptions = []) -> Data? {
         // A NaN or infinity anywhere makes JSONSerialization throw an exception Swift can't catch (a crash),
         // so check first; if one slipped in, send it as null and say so in the log rather than freeze the pages.
         var obj: Any = snap
@@ -171,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             NSLog("Vitals: snapshot had a value JSON can't hold (NaN, infinity or a non-JSON type); sent as null")
         }
         do {
-            return String(decoding: try JSONSerialization.data(withJSONObject: obj), as: UTF8.self)
+            return try JSONSerialization.data(withJSONObject: obj, options: options)
         } catch {
             NSLog("Vitals: couldn't turn the snapshot into page data: \(error)")
             return nil
