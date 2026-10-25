@@ -7,7 +7,7 @@ A menu bar app that shows what Activity Monitor shows, with every stat up front 
   pressure/swap; CPU or GPU: 85%+ for 30 s). Heat or low disk space take over from the dials with a thermometer or
   drive and an amber or red dot. Battery is left to the system's own icon. Preview: `docs/shots/menubar-states-{light,dark}.png`
   (`Vitals --render menubar <out.png> [light|dark]`).
-- **Click it** to open a popover with the short version. **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window.
+- **Click it** to open a popover with the short version (Memory reads % used, RAM used / total and swap used / total, in GB of 1024³ like Activity Monitor). **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window.
 - **Right-click or ⌃-click** it for Open at Login (if macOS wants your OK, it opens Login Items in System Settings),
   Help and Quit. If another app already holds ⌃⌥⌘V, that menu says so.
 - **Help** (⌘?) explains every number in plain English.

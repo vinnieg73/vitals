@@ -91,6 +91,7 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     var mc = ms === "crit" ? "c" : ms === "warn" ? "w" : "";
     var sc = V.swapCls(s);
     set("r-mem", '<b class="' + mc + '">' + F.pct(V.now(m.totalBytes && isNum(m.usedBytes) ? m.usedBytes / m.totalBytes * 100 : null, L.memUsedPct)) + "<small>% used</small></b>" +
+      "<span>RAM " + F.gb(m.usedBytes, 1) + " / " + F.gb(m.totalBytes, 0) + " GB</span>" +
       '<span class="' + sc + '">Swap ' + F.gb(m.swapUsedBytes) + " / " + F.gb(m.swapTotalBytes) + " GB</span>");
     var user = V.now(c.userPct, L.cpuUserPct), sys = V.now(c.systemPct, L.cpuSystemPct);
     var tot = isNum(c.totalPct) ? c.totalPct : isNum(user) && isNum(sys) ? user + sys : null;

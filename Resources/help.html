@@ -137,6 +137,8 @@ p.body b{color:var(--ink);font-weight:600}
     $("terms").innerHTML = [
       term("Memory pressure", "How hard macOS is working to fit everything in memory. Low is good. High means your Mac is juggling.",
         "Yours: <b>" + F.pct(m.pressurePct) + "%, " + (ms === "crit" ? "critical" : ms === "warn" ? "strained" : "normal") + "</b>", sev),
+      term("RAM used", "The memory your Mac can't hand back right away: app memory, wired and compressed, out of all the RAM it has. The menu shows it as used / total, next to the % used. Cached files aren't counted: macOS frees them the moment an app needs room.",
+        "Yours: <b>" + F.gb(m.usedBytes, 1) + " of " + F.gb(m.totalBytes, 0) + " GB</b>"),
       term("Swap", "Memory overflow parked on the SSD. Much slower than real memory, and it wears the SSD. macOS adds swap 1 GB at a time as it needs it, so the total grows and shrinks.",
         "Yours: <b>" + F.gb(m.swapUsedBytes) + " of " + F.gb(m.swapTotalBytes) + " GB</b>", V.swapCls(s) === "c" ? "crit" : V.swapCls(s) === "w" ? "warn" : ""),
       term("Compressed", "Memory macOS has squashed to make room. Cheaper than swap, but it costs a little CPU.", "Yours: <b>" + F.gb(m.compressedBytes) + " GB</b>"),
