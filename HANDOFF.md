@@ -1,7 +1,7 @@
 # Vitals — handoff
 
-_Last updated 2026-10-25 by Claude: the popover's Memory row shows RAM used / total (asked for by Vinnie), uncommitted on
-`main` until his OK._
+_Last updated 2026-10-25 by Claude: the popover's Memory row shows RAM used / total (asked for by Vinnie), committed bff0c17
+on `main`, pushed, installed and relaunched 2026-10-25 23:09._
 
 ## 2026-10-25: RAM used / total in the popover
 - `Resources/popover.html`: the Memory row reads "76% used", then "RAM 13.7 / 18 GB", then the swap line. Used is
@@ -9,8 +9,8 @@ _Last updated 2026-10-25 by Claude: the popover's Memory row shows RAM used / to
   `totalBytes`, in GiB like the swap line. Gray (`--ink-3`) like the other sub-lines; only swap carries a warn/crit color.
 - `Resources/help.html`: a "RAM used" term above Swap, with yours as "13.5 of 18 GB".
 - Checked: `--dump` against `vm_stat` (wired 3.07, compressor 6.02, anonymous − purgeable 4.43 GiB: matches), off-screen
-  `--render popover` light and dark (three lines fit the 52 px row), `node scripts/test-pages.js` all passed. Built to the
-  scratchpad, not installed: rebuild with `scripts/build.sh --install` after the commit.
+  `--render popover` light and dark (three lines fit the 52 px row), `node scripts/test-pages.js` all passed. Installed with
+  `scripts/build.sh --install`.
 
 ## Status
 - The Swift side is built and green (`scripts/build.sh`). `--dump` matches vm_stat, sysctl,
