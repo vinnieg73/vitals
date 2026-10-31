@@ -8,7 +8,8 @@ A menu bar app that shows what Activity Monitor shows, with every stat up front 
   drive and an amber or red dot. Battery is left to the system's own icon. Preview: `docs/shots/menubar-states-{light,dark}.png`
   (`Vitals --render menubar <out.png> [light|dark]`).
 - **Click it** to open a popover with the short version (Memory reads % used, RAM used / total and swap used / total, in GB of 1024³ like Activity Monitor;
-  Energy reads the whole Mac's power draw in watts, from the battery's own meter. Macs without a battery show the
+  Energy reads the whole Mac's power draw in watts ("W draw"), from the battery's own meter, then battery % and fan
+  speed (rpm, or "off"; left out on Macs with no readable fan). Macs without a battery show the
   energy impact score there instead: no unit, 100 ≈ one CPU core fully busy, the same score as the app list's Energy column). **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window.
 - **Right-click or ⌃-click** it for Open at Login (if macOS wants your OK, it opens Login Items in System Settings),
   Help and Quit. If another app already holds ⌃⌥⌘V, that menu says so.

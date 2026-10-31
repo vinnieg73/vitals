@@ -3,6 +3,12 @@
 _Last updated 2026-10-31 by Claude: Energy card shows real watts (Vinnie's pick), committed ad9b10c on `main`, pushed,
 installed and relaunched in the background 2026-10-31 19:49 on his "commit push and ship please"._
 
+## 2026-10-31: fan speed in the popover (Vinnie: "ship it"; committed, pushed, installed)
+- Vinnie asked for fan speed in the popover without making it busier. `Resources/popover.html` Energy row: big
+  "24.7 W draw" (the label rides on the number like Memory's "% used"), then "Battery 75%", then "Fan 2,495 rpm" /
+  "Fan off". Fan line only when `energy.fanRPM` is a number; battery line only with a battery. No battery and no watts:
+  "85.5 score". A first try with "Battery 76% · Fan 2,543 rpm" on one line ran into the strip chart: keep them apart.
+
 ## 2026-10-31: Energy card shows watts (Vinnie picked option A; committed ad9b10c, pushed, installed)
 - Why: the card read "129.1 / Battery 79%" with no unit. That was `energy.impact`, a unitless score: the sum over
   top-level processes of `cpuPct + 0.02 × wakeups/s` (`Processes.swift` ~L164), 100 ≈ one core busy, and it leaves out

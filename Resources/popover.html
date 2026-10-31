@@ -100,9 +100,12 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     set("r-disk", two(V.now(d.readBps, L.diskReadBps), V.now(d.writeBps, L.diskWriteBps)));
     set("r-net", two(V.now(n.inBps, L.netInBps), V.now(n.outBps, L.netOutBps)));
     // watts with a battery; the energy impact score on Macs without one
+    // like the Memory row: the label rides on the big number ("W draw"), then battery and fan on a line each
+    // (fan only where it can be read; "off" when it isn't spinning)
     var useW = V.useWatts(s, L), pw = useW ? V.now(e.watts, L.powerW) : V.now(e.impact, L.energyImpact);
-    set("r-energy", "<b>" + (isNum(pw) ? pw.toFixed(1) : "–") + (useW ? "<small> W</small>" : "") + "</b><span>" +
-      (useW ? "Power draw" : "Energy score") + "</span>" + (isNum(e.batteryPct) ? "<span>Battery " + F.pct(e.batteryPct) + "%</span>" : ""));
+    set("r-energy", "<b>" + (isNum(pw) ? pw.toFixed(1) : "–") + "<small>" + (useW ? " W draw" : " score") + "</small></b>" +
+      (isNum(e.batteryPct) ? "<span>Battery " + F.pct(e.batteryPct) + "%</span>" : "") +
+      (isNum(e.fanRPM) ? "<span>Fan " + (e.fanRPM > 0 ? F.int(e.fanRPM) + " rpm" : "off") + "</span>" : ""));
 
     var tot5 = m.totalBytes || h.memBytes || 1;
     set("top5", top5(s).map(function (t) {
