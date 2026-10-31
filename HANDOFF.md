@@ -1,9 +1,9 @@
 # Vitals — handoff
 
-_Last updated 2026-10-31 by Claude: Energy card shows real watts (Vinnie's pick); built and checked, waiting on his OK to
-commit, push and install._
+_Last updated 2026-10-31 by Claude: Energy card shows real watts (Vinnie's pick), committed ad9b10c on `main`, pushed,
+installed and relaunched in the background 2026-10-31 19:49 on his "commit push and ship please"._
 
-## 2026-10-31: Energy card shows watts (Vinnie picked option A; built and checked, NOT yet committed or installed)
+## 2026-10-31: Energy card shows watts (Vinnie picked option A; committed ad9b10c, pushed, installed)
 - Why: the card read "129.1 / Battery 79%" with no unit. That was `energy.impact`, a unitless score: the sum over
   top-level processes of `cpuPct + 0.02 × wakeups/s` (`Processes.swift` ~L164), 100 ≈ one core busy, and it leaves out
   root / `_windowserver` rows. Help's "over 20 is a lot" was meant for one app, not the total.
