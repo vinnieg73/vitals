@@ -3,7 +3,7 @@
 _Last updated 2026-10-31 by Claude: lid-shut sampling, the window's 5 min / 1 hour / 12 hours switch and more GPU
 detail shipped in 3c3cdbe (Vinnie: "commit push and ship"), installed. Open: a real lid-shut stretch on the Mac. Open: check the watts while plugged in (needs a screenshot)._
 
-## 2026-10-31: more GPU detail (Vinnie: "like the CPU tab and memory tab"; built and checked, NOT committed yet)
+## 2026-10-31: more GPU detail (Vinnie: "like the CPU tab and memory tab"; shipped 3c3cdbe)
 - `GPU.stats()` (Devices.swift) reads the IOAccelerator's Device / Renderer / Tiler Utilization % and "In use system
   memory" in one pass; the snapshot's `gpu` adds `rendererPct`, `tilerPct`, `memBytes` (DATA.md).
 - Popover GPU row: % big, then "Memory X GB" and "N cores" (same shape as the Memory row). Pixels / Shapes (renderer /
