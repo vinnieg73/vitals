@@ -197,7 +197,7 @@
     parent.appendChild(e);
     return e;
   }
-  function tail(a) { a = a || []; return a.length > CAP ? a.slice(-CAP) : a; }
+  function tail(a, cap) { a = a || []; cap = cap || CAP; return a.length > cap ? a.slice(-cap) : a; }
   function linePath(X, Y) {
     var d = "", pen = false;
     for (var i = 0; i < X.length; i++) {
@@ -220,12 +220,13 @@
   }
 
   // opt: { type: "level" | "stack" | "single" | "mirror", max, floor, thr, crit, pad, padTop, mini }
+  // A strip holds CAP points (5 minutes at 2 s) with gridlines at fifths, unless setRange says otherwise.
   //  level:  a = a %, colored per point gray / amber / red, from sev[] when given, else by value (>= thr, >= crit)
   //  stack:  a = system % (bottom), b = user % (on top)
   //  single: a
   //  mirror: a above the midline (read, in), b below (write, out), one shared scale
   function Strip(host, opt) {
-    this.opt = opt; this.w = 0; this.h = 0; this.a = []; this.b = []; this.max = 1;
+    this.opt = opt; this.w = 0; this.h = 0; this.a = []; this.b = []; this.max = 1; this.cap = CAP; this.divs = 5;
     var s = this.svg = mk("svg", "strip", host), t = opt.type;
     s.setAttribute("aria-hidden", "true");
     this.grid = [];
@@ -255,25 +256,34 @@
     this.w = w; this.h = h;
     var s = this.svg;
     s.setAttribute("width", w); s.setAttribute("height", h); s.setAttribute("viewBox", "0 0 " + w + " " + h);
+    var divs = this.divs;
     this.grid.forEach(function (g, k) {
-      var x = (w * (k + 1) / 5).toFixed(1);
+      var x = (w * (k + 1) / divs).toFixed(1);
       g.setAttribute("x1", x); g.setAttribute("x2", x); g.setAttribute("y1", 0); g.setAttribute("y2", h);
     });
     if (this.grad) { this.grad.setAttribute("x1", 0); this.grad.setAttribute("x2", w); this.grad.setAttribute("y1", 0); this.grad.setAttribute("y2", 0); }
     return true;
   };
+  // how many points fit across (`cap`) and how many gridline gaps (`divs`): the window's 1-hour and 12-hour views
+  Strip.prototype.setRange = function (cap, divs) {
+    if (cap === this.cap && divs === this.divs) return;
+    this.cap = cap; this.divs = divs;
+    while (this.grid.length < divs - 1) { var g = mk("line", "gl", this.svg); this.svg.insertBefore(g, this.grid[0] || null); this.grid.push(g); }
+    while (this.grid.length > divs - 1) this.svg.removeChild(this.grid.pop());
+    var w = this.w, h = this.h; this.w = 0; this.size(w, h);
+  };
   // index (into the drawn arrays) under x pixels from the left, or -1 where there is no data yet
   Strip.prototype.index = function (x) {
-    var n = Math.max(this.a.length, this.b.length);
-    var slot = Math.round(Math.max(0, Math.min(1, x / this.w)) * (CAP - 1));
-    var i = slot - (CAP - n);
+    var n = Math.max(this.a.length, this.b.length), cap = this.cap;
+    var slot = Math.round(Math.max(0, Math.min(1, x / this.w)) * (cap - 1));
+    var i = slot - (cap - n);
     return i >= 0 && i < n ? i : -1;
   };
-  Strip.prototype.xOf = function (i, n) { return (CAP - n + i) / (CAP - 1) * this.w; };
+  Strip.prototype.xOf = function (i, n) { return (this.cap - n + i) / (this.cap - 1) * this.w; };
   // nowState: "", "warn" or "crit" for the end dot of a level chart; sev: per-point states for a level chart
   Strip.prototype.draw = function (a, b, nowState, sev) {
     var o = this.opt, t = o.type;
-    a = this.a = tail(a); b = this.b = tail(b);
+    a = this.a = tail(a, this.cap); b = this.b = tail(b, this.cap);
     if (!this.w) return;
     var w = this.w, h = this.h, pad = o.pad == null ? 7 : o.pad, top = o.padTop || pad, bot = h - pad;
     var n = Math.max(a.length, b.length), X = [], i;
@@ -317,7 +327,7 @@
       setLine(this.base, 0, bot, w, bot);
       this.top = top; this.bot = bot;
     }
-    if (t === "level") this.colorStops(a, X, w, o, sev ? tail(sev) : null);
+    if (t === "level") this.colorStops(a, X, w, o, sev ? tail(sev, this.cap) : null);
     this.max = max;
     // "now" dots: where each trace ends (its last real point)
     function dot(c, Y, state) {

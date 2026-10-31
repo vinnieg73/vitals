@@ -39,7 +39,7 @@
       load: [5.2, 4.8, 4.6],
       history: series(120, 3, function (t, r) { return 31 + Math.sin(t * 9) * 5 + (r() - .5) * 12; })
     },
-    gpu: { pct: 9, history: series(120, 5, function (t, r) { return 8 + (r() - .5) * 6 + (t > .7 && t < .75 ? 7 : 0); }) },
+    gpu: { pct: 9, rendererPct: 8, tilerPct: 9, memBytes: 0.92 * G, history: series(120, 5, function (t, r) { return 8 + (r() - .5) * 6 + (t > .7 && t < .75 ? 7 : 0); }) },
     energy: { watts: 14.2, batteryPct: 100, pluggedIn: true, charging: false, fullyCharged: true, adapterWatts: 96, cycles: 47, healthPct: 100,
       minutesLeft: 380, thermal: "nominal", fanRPM: 0, impact: null },
     disk: { volume: "Macintosh HD", totalBytes: 494.4e9, usedBytes: 400.1e9, freeBytes: 94.3e9, readBps: 14.2e6, writeBps: 38.6e6,
@@ -102,6 +102,32 @@
     netOutBps: live(19, function (t, r) { var b = r() < .06 ? .5 + r() * .8 : 0; return (.18 + r() * .25 + b) * 1e6; }, snap.network.outBps),
     energyImpact: live(23, function (t, r) { return 82 + (r() - .5) * 12 + 26 * bump(t, .7, .025) + 10 * bump(t, .22, .02); }, snap.energy.impact, 10),
     powerW: live(31, function (t, r) { return 11.5 + (r() - .5) * 2 + 9 * bump(t, .7, .025) + 3.5 * bump(t, .22, .02); }, snap.energy.watts, 10)
+  };
+  // long: the window's 1-hour / 12-hour charts, a point a minute for 12 hours, the Mac asleep from 8 h to 5 h ago
+  var LN = 720;
+  function longOf(seed, f, last) {
+    var r = rng(seed), a = [];
+    for (var i = 0; i < LN; i++) {
+      var hAgo = (LN - 1 - i) / 60;
+      a.push(hAgo <= 8 && hAgo > 5 ? null : Math.round(f(i / (LN - 1), r) * 10) / 10);
+    }
+    a[LN - 1] = last;
+    return a;
+  }
+  snap.long = {
+    stepSec: 60,
+    pressurePct: longOf(41, function (t, r) { return 55 + 20 * t + (r() - .5) * 4; }, snap.live.pressurePct[N - 1]),
+    memUsedPct: longOf(43, function (t, r) { return 70 + 18 * t + (r() - .5) * 3; }, snap.live.memUsedPct[N - 1]),
+    swapUsedBytes: longOf(47, function (t) { return (2 + 4 * t) * G; }, snap.memory.swapUsedBytes),
+    cpuUserPct: longOf(53, function (t, r) { return 14 + 30 * bump(t, .3, .03) + 18 * bump(t, .85, .04) + (r() - .5) * 6; }, snap.cpu.userPct),
+    cpuSystemPct: longOf(59, function (t, r) { return 7 + 10 * bump(t, .3, .03) + (r() - .5) * 3; }, snap.cpu.systemPct),
+    gpuPct: longOf(61, function (t, r) { return 6 + 25 * bump(t, .85, .03) + (r() - .5) * 3; }, snap.gpu.pct),
+    diskReadBps: longOf(67, function (t, r) { return (4 + r() * 8 + (r() < .05 ? 40 : 0)) * 1e6; }, snap.disk.readBps),
+    diskWriteBps: longOf(71, function (t, r) { return (10 + r() * 20 + (r() < .05 ? 60 : 0)) * 1e6; }, snap.disk.writeBps),
+    netInBps: longOf(73, function (t, r) { return (0.8 + r() * 2 + 4 * bump(t, .6, .05)) * 1e6; }, snap.network.inBps),
+    netOutBps: longOf(79, function (t, r) { return (0.1 + r() * .3) * 1e6; }, snap.network.outBps),
+    energyImpact: longOf(83, function () { return null; }, snap.energy.impact),
+    powerW: longOf(89, function (t, r) { return 9 + 14 * bump(t, .3, .03) + 10 * bump(t, .85, .04) + (r() - .5) * 2; }, snap.energy.watts)
   };
   // like the real feed: the first point of a rate series has nothing to compare against
   ["diskReadBps", "diskWriteBps", "netInBps", "netOutBps"].forEach(function (k) { snap.live[k][0] = null; });

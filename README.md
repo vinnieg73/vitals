@@ -8,14 +8,19 @@ A menu bar app that shows what Activity Monitor shows, with every stat up front 
   drive and an amber or red dot. Battery is left to the system's own icon. Preview: `docs/shots/menubar-states-{light,dark}.png`
   (`Vitals --render menubar <out.png> [light|dark]`).
 - **Click it** to open a popover with the short version (Memory reads % used, RAM used / total and swap used / total, in GB of 1024³ like Activity Monitor;
+  GPU reads % busy, the GPU's memory in use and its core count; the full window adds Pixels and Shapes, how busy
+  its drawing and geometry halves are;
   Energy reads the whole Mac's power draw in watts ("W draw"), from the battery's own meter, then fan speed (rpm,
   or "off"; left out on Macs with no readable fan). No battery % there: macOS's own icon shows it. Disk and
   Network say "read" / "write" and "in" / "out". In "Memory by app" (and the window's list) a loose process says in
   gray who started it ("Claude Code · folder", or an app), and `node` / `python3` are named after their script. Macs without a battery show the
-  energy impact score there instead: no unit, 100 ≈ one CPU core fully busy, the same score as the app list's Energy column). **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window.
+  energy impact score there instead: no unit, 100 ≈ one CPU core fully busy, the same score as the app list's Energy column). **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window. Its charts switch between the last 5 minutes, the last hour and
+  the last 12 hours (a point a minute, gaps where the Mac slept); the history starts over when Vitals restarts.
 - **Right-click or ⌃-click** it for Open at Login (if macOS wants your OK, it opens Login Items in System Settings),
   Help and Quit. If another app already holds ⌃⌥⌘V, that menu says so.
 - **Help** (⌘?) explains every number in plain English.
+- It keeps reading every 2 s while the Mac is awake, lid shut or screen locked too, so the charts have no gap when you
+  come back. Only another user's session in front slows it to once a minute.
 
 ## Build
 

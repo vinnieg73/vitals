@@ -23,6 +23,7 @@ enum SelfTest {
         gaps()
         nettop()
         scripts()
+        longHistory()
         kicks()
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
@@ -160,6 +161,8 @@ enum SelfTest {
         check("rest: started behind another user's session rests at once",
               R.restingAtLaunch(session: ["kCGSSessionOnConsoleKey": false], displaysAsleep: false) == ["session"])
         check("rest: no session info counts as awake", R.restingAtLaunch(session: nil, displaysAsleep: false).isEmpty)
+        check("rest: lid shut or locked keeps sampling every 2 s", !R.slowsSampling(["screens", "locked"]) && !R.slowsSampling([]))
+        check("rest: another user's session in front slows to once a minute", R.slowsSampling(["session"]) && R.slowsSampling(["session", "screens"]))
         let realSession = CGSessionCopyCurrentDictionary() as? [String: Any]
         check("rest: the login session's state can be read", realSession != nil, "CGSessionCopyCurrentDictionary gave nil (run from a logged-in session)")
 
@@ -268,6 +271,31 @@ enum SelfTest {
         }
         check("script name: runtimes are spotted", ["node", "python3", "python3.12", "Python", "bun"].allSatisfy(ProcessSampler.isRuntime)
               && !["nodemon", "vite", "zsh"].contains(where: ProcessSampler.isRuntime))
+    }
+
+    /// The window's 12-hour charts: a point a minute, averaged per series, gaps for minutes nobody sampled.
+    private static func longHistory() {
+        func arr(_ h: LongHistory, _ k: String) -> [Any] { h.json()[k] as? [Any] ?? [] }
+        func val(_ a: [Any], _ i: Int) -> Double? { i < a.count ? (a[i] as? NSNumber)?.doubleValue : nil }
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)   // on a minute boundary
+        var h = LongHistory()
+        h.add(["cpu": 10, "rate": NSNull()], at: t0)
+        h.add(["cpu": 20, "rate": 4], at: t0 + 30)
+        check("long: one minute so far is one point, its average", h.count == 1 && val(arr(h, "cpu"), 0) == 15)
+        check("long: each series averages its own samples (a null rate isn't a zero)", val(arr(h, "rate"), 0) == 4)
+        h.add(["cpu": 50, "rate": 8], at: t0 + 61)
+        check("long: the next minute closes the last one", h.count == 2 && val(arr(h, "cpu"), 0) == 15 && val(arr(h, "cpu"), 1) == 50)
+        h.add(["cpu": 70, "rate": 8], at: t0 + 3 * 3600 + 61)
+        let a = arr(h, "cpu")
+        check("long: 3 hours asleep are 179 empty minutes", h.count == 2 + 179 + 1 && a[2] is NSNull && a[180] is NSNull && val(a, 181) == 70,
+              "\(h.count) points")
+        h.add(["cpu": 1, "rate": 1], at: t0 + 30 * 3600)
+        check("long: never more than 12 hours", h.count == LongHistory.length && arr(h, "cpu").count == LongHistory.length, "\(h.count)")
+        let before = h.count
+        h.add(["cpu": 2, "rate": 1], at: t0 + 29 * 3600)
+        check("long: a clock that went back starts a new minute, no padding", h.count == min(before + 1, LongHistory.length)
+              && val(arr(h, "cpu"), h.count - 1) == 2)
+        check("long: empty before any sample", LongHistory().count == 0 && LongHistory().json()["cpu"] == nil)
     }
 
     /// Time away becomes empty chart slots, one per 2 s, never more than the 5-minute chart.

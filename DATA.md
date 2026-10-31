@@ -46,7 +46,9 @@ unknown; the page shows "–".
     load: [1min, 5min, 15min]
   },
 
-  gpu: { pct },               // IOAccelerator PerformanceStatistics "Device Utilization %"
+  gpu: { pct,                 // IOAccelerator PerformanceStatistics "Device Utilization %"
+         rendererPct, tilerPct, // "Renderer Utilization %" (pixels, shading) and "Tiler Utilization %" (shapes, geometry)
+         memBytes },            // "In use system memory": the GPU's share of the Mac's RAM in use now
 
   energy: {
     batteryPct, pluggedIn, charging, fullyCharged, adapterWatts,
@@ -81,6 +83,15 @@ unknown; the page shows "–".
     netInBps: [..], netOutBps: [..],
     energyImpact: [..],                      // sum of the top-level processes' energy (same units as Proc.energy)
     powerW: [..]                             // energy.watts. The Energy charts show this when it has numbers, else energyImpact
+  },
+
+  long: {                                    // only while the window shows: its 1-hour / 12-hour charts (LongHistory.swift)
+    stepSec: 60,                             // one point a minute, up to 720 (12 h), oldest first; the last is the minute in progress
+                                             // each point = the average of that minute's non-null samples of that series;
+                                             // null = no sample that minute (the Mac asleep). Same keys as live.
+                                             // Filled every tick, window or not; in memory only, starts over with Vitals.
+    pressurePct: [..], memUsedPct: [..], swapUsedBytes: [..], cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
+    diskReadBps: [..], diskWriteBps: [..], netInBps: [..], netOutBps: [..], energyImpact: [..], powerW: [..]
   },
 
   totals: { processes, threads },

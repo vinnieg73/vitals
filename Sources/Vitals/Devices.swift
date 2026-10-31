@@ -86,14 +86,25 @@ enum Power {
 }
 
 enum GPU {
-    static func utilization() -> Double? {
-        var pct: Double?
+    /// IOAccelerator PerformanceStatistics: how busy the GPU is overall, its two halves (renderer: pixels and
+    /// shading; tiler: shapes and geometry), and the memory it has in use (part of the Mac's shared RAM).
+    struct Stats { var pct, rendererPct, tilerPct: Double?; var memBytes: UInt64? }
+
+    static func stats() -> Stats {
+        var out = Stats()
+        var found = false
         Registry.forEach("IOAccelerator") { obj in
-            guard pct == nil, let stats = Registry.property(obj, "PerformanceStatistics") as? [String: Any] else { return }
-            if let v = stats["Device Utilization %"] as? Int { pct = Double(v) }
+            guard !found, let stats = Registry.property(obj, "PerformanceStatistics") as? [String: Any],
+                  let v = stats["Device Utilization %"] as? Int else { return }
+            found = true
+            out.pct = Double(v)
+            out.rendererPct = (stats["Renderer Utilization %"] as? Int).map(Double.init)
+            out.tilerPct = (stats["Tiler Utilization %"] as? Int).map(Double.init)
+            out.memBytes = (stats["In use system memory"] as? NSNumber)?.uint64Value
         }
-        return pct
+        return out
     }
+    static func utilization() -> Double? { stats().pct }
 }
 
 enum Disk {

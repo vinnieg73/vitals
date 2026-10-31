@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var popoverWeb: WKWebView?
     private var popoverDrop: DispatchWorkItem?
     private var restReasons: Set<String> = []
+    private var keepAwakeToken: NSObjectProtocol?   // App Nap off while the screens are off, so the 2 s ticks keep coming
     private var window: NSWindow?
     private var windowWeb: WKWebView?
     private var helpWindow: NSWindow?
@@ -86,8 +87,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         watchForRest()
     }
 
-    /// Nobody can see the menu bar while the screens sleep (also lid closed with the Mac kept awake), the screen
-    /// is locked, or another user's session is in front: the sampler slows to once a minute until all of that ends.
+    /// Screens asleep (also the lid shut with the Mac kept awake) or the screen locked: Vitals keeps sampling every
+    /// 2 s (Vinnie, 2026-10-31), so the charts have no gap when the lid opens. Only another user's session in front
+    /// slows the sampler to once a minute (none of it is his to see).
     private func watchForRest() {
         let ws = NSWorkspace.shared.notificationCenter
         let rules: [(NSNotification.Name, String, Bool)] = [
@@ -131,10 +133,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         return out
     }
 
+    /// Whether these rest reasons slow the sampler to once a minute: only another user's session in front.
+    nonisolated static func slowsSampling(_ reasons: Set<String>) -> Bool { reasons.contains("session") }
+
     private func setRest(_ reason: String, _ on: Bool) {
         if on { restReasons.insert(reason) } else { restReasons.remove(reason) }
-        logStatus("rest \(reason) \(on ? "on" : "off") → \(restReasons.isEmpty ? "every 2 s" : "once a minute")")
-        sampler.setResting(!restReasons.isEmpty)
+        let slow = Self.slowsSampling(restReasons)
+        logStatus("rest \(reason) \(on ? "on" : "off") → \(slow ? "once a minute" : "every 2 s")")
+        sampler.setResting(slow)
+        // With no screen on, macOS would App Nap Vitals and stretch its timer: say the work matters, without
+        // keeping the Mac awake (idle sleep still happens as usual).
+        let screensOff = !slow && !restReasons.isDisjoint(with: ["screens", "locked"])
+        if screensOff, keepAwakeToken == nil {
+            keepAwakeToken = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep,
+                                                                    reason: "Vitals keeps its charts up to date")
+        } else if !screensOff, let t = keepAwakeToken {
+            ProcessInfo.processInfo.endActivity(t)
+            keepAwakeToken = nil
+        }
     }
 
     func applicationWillTerminate(_ note: Notification) { sampler.saveState() }
@@ -230,9 +246,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         live.value = any
         sampler.setWantProcesses(any)
         let windowOpen = showing(window)
+        let windowCame = windowOpen && !lastWindowOpen
         if windowOpen != lastWindowOpen { sampler.setWindowOpen(windowOpen); lastWindowOpen = windowOpen }
         if !any { lastJSON = nil }
-        if any && !was { sampler.kick() }   // fresh rows now rather than in up to 2 s
+        // Fresh rows now rather than in up to 2 s; also when the window comes back while the popover was already
+        // open, so its 12-hour charts aren't the last ones it got, shifted.
+        if (any && !was) || windowCame { sampler.kick() }
     }
 
     func pageReady(_ web: WKWebView) {

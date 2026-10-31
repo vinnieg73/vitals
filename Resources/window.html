@@ -19,6 +19,9 @@ body{display:flex;flex-direction:column;overflow:hidden;min-width:1040px}
 .search svg{flex:none;color:var(--ink-3)}
 .search input{border:0;background:transparent;outline:0;flex:1;font:inherit;font-size:12.5px;color:var(--ink);min-width:0;-webkit-user-select:text;user-select:text}
 .search input::placeholder{color:var(--ink-3)}
+.seg{display:flex;gap:2px;padding:2px;border-radius:7px;background:var(--panel);box-shadow:inset 0 0 0 .5px var(--line);flex:none}
+.seg button{border:0;background:transparent;font:inherit;font-size:12px;color:var(--ink-2);height:24px;padding:0 10px;border-radius:5px;cursor:pointer}
+.seg button.on{background:var(--panel-2);color:var(--ink);font-weight:600;box-shadow:0 0 0 .5px var(--line)}
 
 /* ---- strip charts ---- */
 .scope{margin:0 14px;border-radius:9px;background:var(--scope);box-shadow:inset 0 0 0 .5px var(--line),0 0 0 .5px var(--line-2);position:relative;flex:none}
@@ -111,6 +114,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 <header class="top">
   <span class="host" id="host"></span>
   <span class="sp"></span>
+  <div class="seg" id="range" role="group" aria-label="Chart range"><button data-r="5m" class="on">5 min</button><button data-r="1h">1 hour</button><button data-r="12h">12 hours</button></div>
   <label class="search"><svg width="13" height="13" viewBox="0 0 16 16"><circle cx="6.8" cy="6.8" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.6 10.6 14.5 14.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="q" placeholder="Search processes" spellcheck="false" autocomplete="off"></label>
 </header>
 
@@ -152,6 +156,21 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   var V = Vitals, F = V.F, $ = function (id) { return document.getElementById(id); };
   var GiB = V.GiB, isNum = V.isNum, CAP = V.CAP;
   var snap = null, L = null, MS = [], useW = false;
+  // The charts show the last 5 minutes (L, a point every 2 s) or the last hour / 12 hours (s.long, a point a minute).
+  // C is what the charts and hover read; the readouts at the right always read L, so "now" is never a minute's average.
+  var RANGES = {
+    "5m": { cap: CAP, divs: 5, labels: ["5 min", "4 min", "3 min", "2 min", "1 min", "now"], foot: "last 5 min" },
+    "1h": { cap: 60, divs: 6, labels: ["1 h", "50 min", "40 min", "30 min", "20 min", "10 min", "now"], foot: "last hour, a point a minute" },
+    "12h": { cap: 720, divs: 6, labels: ["12 h", "10 h", "8 h", "6 h", "4 h", "2 h", "now"], foot: "last 12 hours, a point a minute" }
+  };
+  var range = "5m", C = null, LONG = null;
+  // the long block cut to the range; a series the feed doesn't have reads as empty
+  function longView(lg, cap) {
+    var out = { stepSec: 60 };
+    ["pressurePct", "memUsedPct", "swapUsedBytes", "cpuUserPct", "cpuSystemPct", "gpuPct", "diskReadBps", "diskWriteBps",
+      "netInBps", "netOutBps", "energyImpact", "powerW"].forEach(function (k) { out[k] = ((lg || {})[k] || []).slice(-cap); });
+    return out;
+  }
 
   /* ================= strip charts ================= */
   function u(v, unit) { return v + "<small> " + unit + "</small>"; }
@@ -179,25 +198,25 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   // each channel: chart spec, live series, readout, hover tag
   var CH = [
     { id: "mem", opt: { type: "level", max: 100, pad: 8 }, unit: "%",
-      data: function () { return [L.memUsedPct]; },
-      tag: function (i) { return pctTag(L.memUsedPct[i]); },
+      data: function () { return [C.memUsedPct]; },
+      tag: function (i) { return pctTag(C.memUsedPct[i]); },
       tagCls: function (i) { return sevCls(MS[i]); } },
     { id: "cpu", opt: { type: "stack", max: 100, pad: 8 }, unit: "%",
-      data: function () { return [L.cpuSystemPct, L.cpuUserPct]; },
-      tag: function (i) { var a = L.cpuSystemPct[i], b = L.cpuUserPct[i]; return isNum(a) && isNum(b) ? pctTag(a + b) : "–"; } },
+      data: function () { return [C.cpuSystemPct, C.cpuUserPct]; },
+      tag: function (i) { var a = C.cpuSystemPct[i], b = C.cpuUserPct[i]; return isNum(a) && isNum(b) ? pctTag(a + b) : "–"; } },
     { id: "gpu", opt: { type: "single", max: 100, pad: 6 }, unit: "%",
-      data: function () { return [L.gpuPct]; },
-      tag: function (i) { return pctTag(L.gpuPct[i]); } },
+      data: function () { return [C.gpuPct]; },
+      tag: function (i) { return pctTag(C.gpuPct[i]); } },
     { id: "disk", opt: { type: "mirror", floor: 1e6, pad: 8 }, unit: "Bps",
-      data: function () { return [L.diskReadBps, L.diskWriteBps]; },
-      tag: function (i) { return pair(L.diskReadBps[i], L.diskWriteBps[i]); } },
+      data: function () { return [C.diskReadBps, C.diskWriteBps]; },
+      tag: function (i) { return pair(C.diskReadBps[i], C.diskWriteBps[i]); } },
     { id: "net", opt: { type: "mirror", floor: 1e5, pad: 8 }, unit: "Bps",
-      data: function () { return [L.netInBps, L.netOutBps]; },
-      tag: function (i) { return pair(L.netInBps[i], L.netOutBps[i]); } },
+      data: function () { return [C.netInBps, C.netOutBps]; },
+      tag: function (i) { return pair(C.netInBps[i], C.netOutBps[i]); } },
     // watts with a battery (renderReadouts sets useW and the unit); the energy impact score without one
     { id: "energy", opt: { type: "single", floor: 10, pad: 8 }, unit: "",
-      data: function () { return [useW ? L.powerW : L.energyImpact]; },
-      tag: function (i) { var v = (useW ? L.powerW : L.energyImpact)[i]; return isNum(v) ? v.toFixed(1) + (useW ? " W" : "") : "–"; } }
+      data: function () { return [useW ? C.powerW : C.energyImpact]; },
+      tag: function (i) { var v = (useW ? C.powerW : C.energyImpact)[i]; return isNum(v) ? v.toFixed(1) + (useW ? " W" : "") : "–"; } }
   ];
   CH.forEach(function (c) {
     var row = $("ch-" + c.id);
@@ -213,16 +232,20 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   var axisBuilt = "";
   function layout() {
     CH.forEach(function (c) { c.strip.size(c.plot.clientWidth, c.plot.clientHeight); });
-    var p = CH[0].plot, left = p.offsetLeft, w = p.clientWidth, key = left + "x" + w;
+    var p = CH[0].plot, left = p.offsetLeft, w = p.clientWidth, key = left + "x" + w + range;
     if (key === axisBuilt) return;
     axisBuilt = key;
-    $("axis").innerHTML = ["5 min", "4 min", "3 min", "2 min", "1 min", "now"].map(function (t, k) {
-      return '<span class="' + (k === 5 ? "r" : k === 0 ? "l" : "") + '" style="left:' + (left + w * k / 5).toFixed(1) + 'px">' + t + "</span>";
+    var labs = RANGES[range].labels, n = labs.length - 1;
+    $("axis").innerHTML = labs.map(function (t, k) {
+      return '<span class="' + (k === n ? "r" : k === 0 ? "l" : "") + '" style="left:' + (left + w * k / n).toFixed(1) + 'px">' + t + "</span>";
     }).join("") + '<span class="htime" id="htime"></span>';
   }
 
   function drawCharts(s) {
-    L = V.liveOf(s); MS = V.memSev(s, L);
+    L = V.liveOf(s);
+    if (s.long) LONG = s.long;   // a snapshot without it (an older one pushed on open) keeps the last one
+    C = range === "5m" ? L : longView(LONG, RANGES[range].cap);
+    MS = V.memSev(s, C);
     useW = V.useWatts(s, L); CH[5].unit = useW ? "W" : "";
     var ms = V.memState(s);
     layout();
@@ -245,12 +268,12 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var w = CH[0].strip.w, plotLeft = CH[0].plot.offsetLeft;
     if (!L || x < 0 || x > w) { unhover(); return; }
     hoverX = x;
-    var slot = Math.round(x / w * (CAP - 1)), px = slot / (CAP - 1) * w;
+    var cap = RANGES[range].cap, slot = Math.round(x / w * (cap - 1)), px = slot / (cap - 1) * w;
     var hair = $("hair"); hair.style.display = "block"; hair.style.left = (plotLeft + px).toFixed(1) + "px";
-    var secs = (CAP - 1 - slot) * ((L && L.stepSec) || 2), ht = $("htime");
+    var secs = (cap - 1 - slot) * ((C && C.stepSec) || 2), ht = $("htime");
     if (ht) {
       ht.style.display = "block"; ht.style.left = (plotLeft + px).toFixed(1) + "px";
-      ht.textContent = secs ? "−" + Math.floor(secs / 60) + ":" + ("0" + secs % 60).slice(-2) : "now";
+      ht.textContent = ago(secs);
     }
     CH.forEach(function (c) {
       var i = c.strip.index(px), tg = c.htag;
@@ -261,6 +284,13 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
       var tw = tg.offsetWidth;
       tg.style.left = (px + 6 + tw > w ? px - 6 - tw : px + 6).toFixed(1) + "px";
     });
+  }
+  // how long ago a chart slot is: "−1:30" on the 5-minute charts, "−45 min" / "−2 h 05 min" on the long ones
+  function ago(secs) {
+    if (!secs) return "now";
+    if (range === "5m") return "−" + Math.floor(secs / 60) + ":" + ("0" + secs % 60).slice(-2);
+    var m = Math.round(secs / 60);
+    return m < 60 ? "−" + m + " min" : "−" + Math.floor(m / 60) + " h " + ("0" + m % 60).slice(-2) + " min";
   }
   function unhover() {
     hoverX = null;
@@ -295,7 +325,8 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
       kv([["Load", (c.load || []).map(function (x) { return F.pct(x, 1); }).join("&nbsp; ") || "–"], ["Threads", F.int(t.threads)], ["Processes", F.int(t.processes)]]);
 
     $("sub-gpu").textContent = h.gpuCores ? h.gpuCores + " cores" : "";
-    CH[2].ro.innerHTML = '<div><div class="big">' + F.pct(V.now(g.pct, L.gpuPct)) + "<small>%</small></div></div><div></div><div></div>";
+    CH[2].ro.innerHTML = '<div><div class="big">' + F.pct(V.now(g.pct, L.gpuPct)) + "<small>%</small></div></div>" +
+      kv([["Pixels", u(F.pct(g.rendererPct), "%")], ["Shapes", u(F.pct(g.tilerPct), "%")]]) + kv([["Memory", u(F.gb(g.memBytes, 1), "GB")]]);
 
     $("sub-disk").textContent = d.volume || "";
     CH[3].ro.innerHTML = bigTwo(V.now(d.readBps, L.diskReadBps), "read", V.now(d.writeBps, L.diskWriteBps), "write") +
@@ -526,9 +557,20 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     if ($("host").textContent !== host) $("host").textContent = host;
     var up = h.uptimeSec ? "Up " + F.uptime(h.uptimeSec) : "";
     if ($("footL").textContent !== up) $("footL").textContent = up;
-    var right = "Every " + (((s.live || {}).stepSec) || 2) + " s · last 5 min";
+    var right = "Every " + (((s.live || {}).stepSec) || 2) + " s · " + RANGES[range].foot;
     if ($("footR").textContent !== right) $("footR").textContent = right;
   });
+  // the range switch: every chart takes the new width and gridlines, then redraws from the last snapshot
+  function setRange(r) {
+    if (!RANGES[r] || r === range) return;
+    range = r;
+    document.querySelectorAll("#range button").forEach(function (b) { b.classList.toggle("on", b.dataset.r === r); });
+    CH.forEach(function (c) { c.strip.setRange(RANGES[r].cap, RANGES[r].divs); });
+    unhover();
+    if (snap) V.update(snap); else layout();
+  }
+  document.querySelectorAll("#range button").forEach(function (b) { b.addEventListener("click", function () { setRange(b.dataset.r); }); });
+  V.setRange = setRange;
   var rz = 0;
   addEventListener("resize", function () {
     if (rz) return;

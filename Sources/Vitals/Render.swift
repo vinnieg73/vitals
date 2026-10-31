@@ -41,6 +41,7 @@ final class Renderer: NSObject, NSApplicationDelegate, PageActions, WKNavigation
             FileHandle.standardError.write(Data("render timed out\n".utf8)); exit(1)
         }
         let sampler = self.sampler, warm = self.warm
+        if page == "window" { sampler.setWindowOpen(true) }   // as the app does: the window gets the long charts
         DispatchQueue.global(qos: .userInitiated).async {
             _ = sampler.sampleNow()
             sampler.processes.primeNetwork(interval: 2)

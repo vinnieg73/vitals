@@ -98,7 +98,10 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     var user = V.now(c.userPct, L.cpuUserPct), sys = V.now(c.systemPct, L.cpuSystemPct);
     var tot = isNum(c.totalPct) ? c.totalPct : isNum(user) && isNum(sys) ? user + sys : null;
     set("r-cpu", "<b>" + F.pct(tot) + "<small>%</small></b><span>User " + F.pct(user, 1) + " · Sys " + F.pct(sys, 1) + "</span>");
-    set("r-gpu", "<b>" + F.pct(V.now(g.pct, L.gpuPct)) + "<small>%</small></b>" + (h.gpuCores ? "<span>" + h.gpuCores + " cores</span>" : ""));
+    // like the Memory row: the GPU's memory in use, then its cores. (Its pixels / shapes halves nearly always match
+    // the big number, so they're in the window and Help, not here.)
+    set("r-gpu", "<b>" + F.pct(V.now(g.pct, L.gpuPct)) + "<small>%</small></b>" + (isNum(g.memBytes) ? "<span>Memory " + F.gb(g.memBytes, 1) + " GB</span>" : "") +
+      (h.gpuCores ? "<span>" + h.gpuCores + " cores</span>" : ""));
     set("r-disk", two(V.now(d.readBps, L.diskReadBps), "read", V.now(d.writeBps, L.diskWriteBps), "write"));
     set("r-net", two(V.now(n.inBps, L.netInBps), "in", V.now(n.outBps, L.netOutBps), "out"));
     // watts with a battery; the energy impact score on Macs without one

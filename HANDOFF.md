@@ -1,8 +1,44 @@
 # Vitals — handoff
 
-_Last updated 2026-10-31 by Claude: three visual fixes (full Energy chart, labelled arrows, who started a process)
-committed 9b446dd on `main`, pushed, installed and relaunched in the background 21:30 on Vinnie's "commit push and ship
-please". Open: check the watts while plugged in (needs a screenshot from him)._
+_Last updated 2026-10-31 by Claude: lid-shut sampling, the window's 5 min / 1 hour / 12 hours switch and more GPU
+detail built and checked, waiting on Vinnie's OK to ship. Shipped before that: 9b446dd. Open: check the watts while plugged in (needs a screenshot)._
+
+## 2026-10-31: more GPU detail (Vinnie: "like the CPU tab and memory tab"; built and checked, NOT committed yet)
+- `GPU.stats()` (Devices.swift) reads the IOAccelerator's Device / Renderer / Tiler Utilization % and "In use system
+  memory" in one pass; the snapshot's `gpu` adds `rendererPct`, `tilerPct`, `memBytes` (DATA.md).
+- Popover GPU row: % big, then "Memory X GB" and "N cores" (same shape as the Memory row). Pixels / Shapes (renderer /
+  tiler) were tried there but crowd the chart at worst-case widths and nearly always match the big number, so they
+  live in the window's GPU readout (Pixels, Shapes, Memory) and Help's GPU term instead.
+- Checked: worst-case width "Memory 99.9 GB" starts at 251 px vs the plot's right edge 222; selftest, test-pages pass.
+
+## 2026-10-31: 5 min / 1 hour / 12 hours switch in the full window (built and checked, NOT committed yet)
+- Vinnie OK'd the mockup; the popover stays at 5 minutes. History in memory only (starts over with Vitals; my default,
+  he didn't object).
+- `LongHistory.swift`: a point a minute, per-series averages of non-null samples, nil minutes for sleep (capped), clock
+  going back starts a new minute, last point = the minute in progress, 720 max. `Sampler` adds every tick (so it fills
+  with the window closed and the lid shut) and sends `long` only while the window shows (`setWindowOpen` → `wantLong`),
+  also in `withFreshRows`. `--render window` sets it too. Cost while the window shows: ~2 ms to build + encode a full
+  12 h block (~69 KB) per tick, measured with a scratch bench; nothing extra otherwise.
+- Pages: `Strip.setRange(cap, divs)` (app.js; default CAP 150 / fifths, so the popover is untouched). window.html: the
+  `.seg` switch in the header, `RANGES`, `C` = what the charts and hover read (L or `longView(LONG)`), readouts keep
+  reading L. A snapshot without `long` keeps the last one. Hover time "−45 min" / "−2 h 05 min" on long ranges; axis
+  and gridlines per range (6 gaps: 10 min / 2 h); footer names the range.
+- Selftest: 7 "long:" checks. Headless (scratch range.js on sample.js, which now has a 12 h `long` with a sleep gap):
+  readouts identical across ranges, axis/grid/footer/hover right, back to 5 min unchanged, no script errors.
+- Checked: a 12 h redraw (whole window update) ~3.5 ms headless vs ~2.3 ms at 5 min; header fits at 1000 px (window
+  min is 1100). The window coming back while the popover is open now kicks a sample (`updateLive`), so the long
+  charts aren't the cached ones shifted.
+- Gotcha: a Mac without a battery has a mostly empty 12 h Energy chart (energy impact is only read while a page shows).
+
+## 2026-10-31: keep sampling with the lid shut (Vinnie picked A; built and checked, NOT committed yet)
+- Vinnie: "when the mac is shut but still awake" the popover's charts should be full when he opens it. `AppDelegate`
+  still tracks the rest reasons (screens, locked, session) but `slowsSampling` makes only "session" (another user in
+  front) drop to once a minute. Screens asleep or locked: every 2 s as usual, plus a
+  `beginActivity(.userInitiatedAllowingIdleSystemSleep)` token so App Nap doesn't stretch the timer (idle system sleep
+  still allowed). Cost with no page: ~1.5 ms CPU per tick (0.07% of a core).
+- Selftest: two new rest checks. Not checked on the Mac: a real lid-shut stretch (needs Vinnie; `--status-log` shows
+  "rest screens on → every 2 s").
+- His follow-up: a longer overview (hours) inside the full window only; the popover stays at 5 minutes. Mockup first.
 
 ## 2026-10-31: three visual fixes (Vinnie: "implement all of those"; shipped 9b446dd)
 - Energy chart full: `Power.watts()` (`Devices.swift`) reads only the battery's `PowerTelemetryData` property (cached
@@ -367,7 +403,8 @@ please". Open: check the watts while plugged in (needs a screenshot from him)._
   corrects the clock). A counter below its last value restarts from zero; `lastSeen` merges, so an interface down at
   midnight keeps its baseline.
 - 3 Popover page released 60 s after the popover closes (reopen inside the minute stays instant).
-- 4 Resting: screens asleep, screen locked (com.apple.screenIsLocked) or session inactive → one sample a minute;
+- 4 Resting (changed 2026-10-31, see the top: now only another user's session in front rests; lid shut / locked keep 2 s):
+  screens asleep, screen locked (com.apple.screenIsLocked) or session inactive → one sample a minute;
   back to 2 s with a sample at once on wake. More than 10 s between samples = a gap: null chart points, no disk/net
   rates, and the CPU/GPU 30 s busy clocks restart.
 - `--selftest` (SelfTest.swift, ~25 s, no windows): baseline cases, busy clock across a sleep, and a real Sampler

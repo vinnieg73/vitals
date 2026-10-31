@@ -20,6 +20,10 @@ final class Sampler: @unchecked Sendable {
     // The strip charts: every sample, the last 5 minutes (DATA.md `live`).
     private static let liveLength = 150
     private var live: [String: [Any]] = [:]
+    // The window's long charts: one point a minute, 12 hours (LongHistory). Filled every tick; sent only while the
+    // window shows, since the popover doesn't draw it.
+    private var longHist = LongHistory()
+    private var wantLong = false   // queue only
 
     private var iface: (bsd: String, name: String)?
     private var ifaceCheckedAt = Date.distantPast
@@ -60,7 +64,7 @@ final class Sampler: @unchecked Sendable {
     }
 
     func setWantNetwork(_ on: Bool) { queue.async { self.processes.wantNetwork = on } }
-    func setWindowOpen(_ on: Bool) { setWantNetwork(on) }
+    func setWindowOpen(_ on: Bool) { setWantNetwork(on); queue.async { self.wantLong = on } }
     func setWantProcesses(_ on: Bool) {
         queue.async {
             guard on != self.wantProcesses else { return }
@@ -102,6 +106,7 @@ final class Sampler: @unchecked Sendable {
         out["totals"] = ["processes": procs.processes, "threads": procs.threads]
         // The battery and fan too: the snapshot's were read when a page last showed, maybe hours ago.
         out["energy"] = energySection(fresh: true, impact: num(procs.rows.reduce(0) { $0 + ($1.energy ?? 0) }, 1))
+        if wantLong { out["long"] = longHist.json() }
         return out
     }
 
@@ -159,7 +164,7 @@ final class Sampler: @unchecked Sendable {
 
         let memory = memorySection()
         let cpu = cpuSection()
-        let gpuPct = GPU.utilization()
+        let gpu = GPU.stats(), gpuPct = gpu.pct
         let procs: ProcessSampler.Result
         let freshProcs = wantProcesses || lastProcs == nil
         lastForPage = wantProcesses
@@ -244,6 +249,7 @@ final class Sampler: @unchecked Sendable {
         }
         var liveOut: [String: Any] = live
         liveOut["stepSec"] = 2
+        longHist.add(point, at: now)
 
         let uptime = Sysctl.bootTime().map { Int(now.timeIntervalSince($0)) }
         let hostOut: [String: Any] = [
@@ -252,12 +258,13 @@ final class Sampler: @unchecked Sendable {
             "os": host.os, "uptimeSec": uptime ?? NSNull(),
         ]
 
-        return [
+        var out: [String: Any] = [
             "time": Self.timeString(now),
             "host": hostOut,
             "memory": memory,
             "cpu": cpu,
-            "gpu": ["pct": num(gpuPct, 0)],
+            "gpu": ["pct": num(gpuPct, 0), "rendererPct": num(gpu.rendererPct, 0), "tilerPct": num(gpu.tilerPct, 0),
+                    "memBytes": gpu.memBytes.map { $0 as Any } ?? NSNull()],
             "energy": energy,
             "disk": disk,
             "network": net,
@@ -265,6 +272,8 @@ final class Sampler: @unchecked Sendable {
             "totals": ["processes": procs.processes, "threads": procs.threads],
             "processes": procs.rows.map { $0.json() },
         ]
+        if wantLong { out["long"] = longHist.json() }
+        return out
     }
 
     private static let timeFormatter: ISO8601DateFormatter = {
