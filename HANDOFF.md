@@ -1,7 +1,7 @@
 # Vitals — handoff
 
 _Last updated 2026-10-31 by Claude: lid-shut sampling, the window's 5 min / 1 hour / 12 hours switch and more GPU
-detail built and checked, waiting on Vinnie's OK to ship. Shipped before that: 9b446dd. Open: check the watts while plugged in (needs a screenshot)._
+detail shipped in 3c3cdbe (Vinnie: "commit push and ship"), installed. Open: a real lid-shut stretch on the Mac. Open: check the watts while plugged in (needs a screenshot)._
 
 ## 2026-10-31: more GPU detail (Vinnie: "like the CPU tab and memory tab"; built and checked, NOT committed yet)
 - `GPU.stats()` (Devices.swift) reads the IOAccelerator's Device / Renderer / Tiler Utilization % and "In use system
@@ -11,7 +11,7 @@ detail built and checked, waiting on Vinnie's OK to ship. Shipped before that: 9
   live in the window's GPU readout (Pixels, Shapes, Memory) and Help's GPU term instead.
 - Checked: worst-case width "Memory 99.9 GB" starts at 251 px vs the plot's right edge 222; selftest, test-pages pass.
 
-## 2026-10-31: 5 min / 1 hour / 12 hours switch in the full window (built and checked, NOT committed yet)
+## 2026-10-31: 5 min / 1 hour / 12 hours switch in the full window (shipped 3c3cdbe)
 - Vinnie OK'd the mockup; the popover stays at 5 minutes. History in memory only (starts over with Vitals; my default,
   he didn't object).
 - `LongHistory.swift`: a point a minute, per-series averages of non-null samples, nil minutes for sleep (capped), clock
@@ -30,7 +30,7 @@ detail built and checked, waiting on Vinnie's OK to ship. Shipped before that: 9
   charts aren't the cached ones shifted.
 - Gotcha: a Mac without a battery has a mostly empty 12 h Energy chart (energy impact is only read while a page shows).
 
-## 2026-10-31: keep sampling with the lid shut (Vinnie picked A; built and checked, NOT committed yet)
+## 2026-10-31: keep sampling with the lid shut (Vinnie picked A; shipped 3c3cdbe)
 - Vinnie: "when the mac is shut but still awake" the popover's charts should be full when he opens it. `AppDelegate`
   still tracks the rest reasons (screens, locked, session) but `slowsSampling` makes only "session" (another user in
   front) drop to once a minute. Screens asleep or locked: every 2 s as usual, plus a
