@@ -1,9 +1,10 @@
 # Vitals — handoff
 
-_Last updated 2026-10-31 by Claude: three visual fixes (full Energy chart, labelled arrows, who started a process) built
-and checked, waiting on Vinnie's OK to ship. Before that: watts, fan line, no battery line, all shipped (b1d5a4f)._
+_Last updated 2026-10-31 by Claude: three visual fixes (full Energy chart, labelled arrows, who started a process)
+committed 9b446dd on `main`, pushed, installed and relaunched in the background 21:30 on Vinnie's "commit push and ship
+please". Open: check the watts while plugged in (needs a screenshot from him)._
 
-## 2026-10-31: three visual fixes (Vinnie: "implement all of those"; built and checked, NOT committed yet)
+## 2026-10-31: three visual fixes (Vinnie: "implement all of those"; shipped 9b446dd)
 - Energy chart full: `Power.watts()` (`Devices.swift`) reads only the battery's `PowerTelemetryData` property (cached
   service, locked), every tick, page or not. `--bench` without rows 1.4 → 1.5 ms. Battery details and fan stay page-only.
   Selftest: "watts every tick even with no page".
