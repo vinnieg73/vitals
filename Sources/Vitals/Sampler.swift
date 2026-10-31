@@ -102,6 +102,8 @@ final class Sampler: @unchecked Sendable {
         out["totals"] = ["processes": procs.processes, "threads": procs.threads]
         if var energy = out["energy"] as? [String: Any] {
             energy["impact"] = num(procs.rows.reduce(0) { $0 + ($1.energy ?? 0) }, 1)
+            power = Power.read()
+            energy["watts"] = num(power?.watts, 1)
             out["energy"] = energy
         }
         return out
@@ -202,8 +204,10 @@ final class Sampler: @unchecked Sendable {
             "readTodayBytes": today["diskR"] ?? NSNull(), "writtenTodayBytes": today["diskW"] ?? NSNull(),
         ]
 
-        // Energy
-        if wantProcesses || power == nil {
+        // Energy. The battery is read only while a page shows (and once at launch): watts are null otherwise,
+        // like energy impact, so the chart shows a gap rather than a stale value.
+        let freshPower = wantProcesses || power == nil
+        if freshPower {
             power = Power.read()
             if let rpm = Fan.rpm(), rpm.isFinite, rpm < 100_000 { fanRPM = Int(rpm.rounded()) } else { fanRPM = NSNull() }
         }
@@ -214,7 +218,7 @@ final class Sampler: @unchecked Sendable {
             "adapterWatts": p.adapterWatts ?? NSNull(), "cycles": p.cycles ?? NSNull(),
             "healthPct": p.healthPct ?? NSNull(), "minutesLeft": p.minutesLeft ?? NSNull(),
             "thermal": Power.thermal(), "fanRPM": fanRPM,
-            "impact": impact,
+            "impact": impact, "watts": freshPower ? num(p.watts, 1) : NSNull(),
         ]
 
         // Memory Used (app + wired + compressed, as Activity Monitor) as a % of RAM, one decimal.
@@ -229,6 +233,7 @@ final class Sampler: @unchecked Sendable {
             "cpuUserPct": cpu["userPct"] ?? NSNull(), "cpuSystemPct": cpu["systemPct"] ?? NSNull(),
             "gpuPct": num(gpuPct, 0), "diskReadBps": readBps, "diskWriteBps": writeBps,
             "netInBps": net["inBps"] ?? NSNull(), "netOutBps": net["outBps"] ?? NSNull(), "energyImpact": impact,
+            "powerW": energy["watts"] ?? NSNull(),
         ]
         if gap {
             // The charts place points by index, one slot per 2 s: fill the time away with empty slots so what came

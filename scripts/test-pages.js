@@ -32,7 +32,7 @@ function gapSnapshot(base, real, gap) {
   });
   s.disk.readBps = null; s.disk.writeBps = null;
   s.network.inBps = null; s.network.outBps = null;
-  s.energy.impact = null;
+  s.energy.impact = null; s.energy.watts = null;
   return s;
 }
 

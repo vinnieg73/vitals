@@ -54,7 +54,9 @@ unknown; the page shows "–".
     minutesLeft,                             // on battery: IOPS time to empty; plugged in: estimate at current draw, or null
     thermal: "nominal" | "fair" | "serious" | "critical",   // ProcessInfo.thermalState
     fanRPM,                                  // null if unreadable (page then just omits the fan)
-    impact                                   // sum of the top-level processes' energy right now
+    impact,                                  // sum of the top-level processes' energy right now (unitless score; 100 ≈ one core busy)
+    watts                                    // the whole Mac's draw in W, one decimal: AppleSmartBattery PowerTelemetryData
+                                             // SystemLoad (mW). Null with no battery, and while no page shows (read with the rows)
   },
 
   disk: {
@@ -77,7 +79,8 @@ unknown; the page shows "–".
     cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
     diskReadBps: [..], diskWriteBps: [..],
     netInBps: [..], netOutBps: [..],
-    energyImpact: [..]                       // sum of the top-level processes' energy (same units as Proc.energy)
+    energyImpact: [..],                      // sum of the top-level processes' energy (same units as Proc.energy)
+    powerW: [..]                             // energy.watts. The Energy charts show this when it has numbers, else energyImpact
   },
 
   totals: { processes, threads },

@@ -82,7 +82,7 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
   V.onUpdate(function (s) {
     var m = s.memory || {}, c = s.cpu || {}, g = s.gpu || {}, d = s.disk || {}, n = s.network || {}, e = s.energy || {}, h = s.host || {};
     var L = V.liveOf(s), ms = V.memState(s);
-    var MS = V.memSev(s, L), data = [[L.memUsedPct], [L.cpuSystemPct, L.cpuUserPct], [L.gpuPct], [L.diskReadBps, L.diskWriteBps], [L.netInBps, L.netOutBps], [L.energyImpact]];
+    var MS = V.memSev(s, L), data = [[L.memUsedPct], [L.cpuSystemPct, L.cpuUserPct], [L.gpuPct], [L.diskReadBps, L.diskWriteBps], [L.netInBps, L.netOutBps], [V.useWatts(s, L) ? L.powerW : L.energyImpact]];
     strips.forEach(function (st, i) {
       st.size(plots[i].clientWidth, plots[i].clientHeight);
       st.draw(data[i][0], data[i][1], i === 0 && ms !== "ok" ? ms : "", i === 0 ? MS : null);
@@ -99,9 +99,10 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     set("r-gpu", "<b>" + F.pct(V.now(g.pct, L.gpuPct)) + "<small>%</small></b>" + (h.gpuCores ? "<span>" + h.gpuCores + " cores</span>" : ""));
     set("r-disk", two(V.now(d.readBps, L.diskReadBps), V.now(d.writeBps, L.diskWriteBps)));
     set("r-net", two(V.now(n.inBps, L.netInBps), V.now(n.outBps, L.netOutBps)));
-    var imp = V.now(e.impact, L.energyImpact);
-    set("r-energy", "<b>" + (isNum(imp) ? imp.toFixed(1) : "–") + "</b><span>" +
-      (isNum(e.batteryPct) ? "Battery " + F.pct(e.batteryPct) + "%" : "Energy impact") + "</span>");
+    // watts with a battery; the energy impact score on Macs without one
+    var useW = V.useWatts(s, L), pw = useW ? V.now(e.watts, L.powerW) : V.now(e.impact, L.energyImpact);
+    set("r-energy", "<b>" + (isNum(pw) ? pw.toFixed(1) : "–") + (useW ? "<small> W</small>" : "") + "</b><span>" +
+      (useW ? "Power draw" : "Energy score") + "</span>" + (isNum(e.batteryPct) ? "<span>Battery " + F.pct(e.batteryPct) + "%</span>" : ""));
 
     var tot5 = m.totalBytes || h.memBytes || 1;
     set("top5", top5(s).map(function (t) {

@@ -150,7 +150,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   "use strict";
   var V = Vitals, F = V.F, $ = function (id) { return document.getElementById(id); };
   var GiB = V.GiB, isNum = V.isNum, CAP = V.CAP;
-  var snap = null, L = null, MS = [];
+  var snap = null, L = null, MS = [], useW = false;
 
   /* ================= strip charts ================= */
   function u(v, unit) { return v + "<small> " + unit + "</small>"; }
@@ -168,6 +168,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   function scaleLabel(v, unit) {
     if (unit === "%") return v + "%";
     if (unit === "Bps") { var p = F.rateParts(v); return p[0].replace(/\.0$/, "") + " " + p[1]; }
+    if (unit === "W") return +v.toFixed(1) + " W";
     return String(+v.toFixed(1));
   }
   function sevCls(st) { return st === "crit" ? "c" : st === "warn" ? "w" : ""; }
@@ -192,9 +193,10 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     { id: "net", opt: { type: "mirror", floor: 1e5, pad: 8 }, unit: "Bps",
       data: function () { return [L.netInBps, L.netOutBps]; },
       tag: function (i) { return pair(L.netInBps[i], L.netOutBps[i]); } },
+    // watts with a battery (renderReadouts sets useW and the unit); the energy impact score without one
     { id: "energy", opt: { type: "single", floor: 10, pad: 8 }, unit: "",
-      data: function () { return [L.energyImpact]; },
-      tag: function (i) { return isNum(L.energyImpact[i]) ? L.energyImpact[i].toFixed(1) : "–"; } }
+      data: function () { return [useW ? L.powerW : L.energyImpact]; },
+      tag: function (i) { var v = (useW ? L.powerW : L.energyImpact)[i]; return isNum(v) ? v.toFixed(1) + (useW ? " W" : "") : "–"; } }
   ];
   CH.forEach(function (c) {
     var row = $("ch-" + c.id);
@@ -220,6 +222,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 
   function drawCharts(s) {
     L = V.liveOf(s); MS = V.memSev(s, L);
+    useW = V.useWatts(s, L); CH[5].unit = useW ? "W" : "";
     var ms = V.memState(s);
     layout();
     CH.forEach(function (c) {
@@ -306,9 +309,9 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 
     var thermal = { nominal: "Nominal", fair: "Fair", serious: "Serious", critical: "Critical" }[e.thermal] || "–";
     var hasBatt = isNum(e.batteryPct);
-    $("sub-energy").textContent = e.pluggedIn ? "On power" + (e.adapterWatts ? " · " + e.adapterWatts + " W" : "") : hasBatt ? "On battery" : "";
-    var imp = V.now(e.impact, L.energyImpact);
-    CH[5].ro.innerHTML = bigOne(isNum(imp) ? imp.toFixed(1) : "–", "", "Energy impact") +
+    $("sub-energy").textContent = e.pluggedIn ? "On power" + (e.adapterWatts ? " · " + e.adapterWatts + " W charger" : "") : hasBatt ? "On battery" : "";
+    var pw = useW ? V.now(e.watts, L.powerW) : V.now(e.impact, L.energyImpact);
+    CH[5].ro.innerHTML = bigOne(isNum(pw) ? pw.toFixed(1) : "–", useW ? "W" : "", useW ? "Power draw, whole Mac" : "Energy score") +
       kv([hasBatt && ["Battery", u(F.pct(e.batteryPct), "%")], hasBatt && ["Time left", isNum(e.minutesLeft) ? F.hm(e.minutesLeft).replace(" min", " m") : "–"], ["Thermal", thermal]]) +
       kv([hasBatt && ["Health", u(F.pct(e.healthPct), "%")], hasBatt && ["Cycles", F.int(e.cycles)],
         isNum(e.fanRPM) && ["Fan", e.fanRPM > 0 ? u(F.int(e.fanRPM), "rpm") : "Off"]]);

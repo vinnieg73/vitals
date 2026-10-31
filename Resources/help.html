@@ -129,7 +129,7 @@ p.body b{color:var(--ink);font-weight:600}
     return '<div class="term' + (alert ? " alert sev-" + alert : "") + '"><div class="tt">' + t + '</div><div class="td">' + d + '</div><div class="tn">' + yours + "</div></div>";
   }
   V.onUpdate(function (s) {
-    var m = s.memory || {}, c = s.cpu || {}, d = s.disk || {}, h = s.host || {};
+    var m = s.memory || {}, c = s.cpu || {}, d = s.disk || {}, h = s.host || {}, e = s.energy || {};
     var ms = V.memState(s), sev = ms === "ok" ? "" : ms;
     var topEnergy = V.flat(s.processes).filter(function (p) { return p.kind !== "group" && !(p.children && p.children.length); })
       .sort(function (a, b) { return (b.energy || 0) - (a.energy || 0); })[0];
@@ -145,7 +145,9 @@ p.body b{color:var(--ink);font-weight:600}
       term("Wired", "Memory macOS itself needs and can't move or free. You can't change it.", "Yours: <b>" + F.gb(m.wiredBytes) + " GB</b>"),
       term("App memory", "What your apps are using right now. This is the part you can free by quitting things.", "Yours: <b>" + F.gb(m.appBytes) + " GB</b>"),
       term("Cached files", "Recently used files kept in memory for speed. macOS gives it back the moment an app needs it.", "Yours: <b>" + F.gb(m.cachedBytes) + " GB</b>"),
-      term("Energy impact", "A rough score of how much power an app draws. Higher drains the battery faster. Over 20 is a lot.",
+      term("Power draw", "How much power your whole Mac is using right now, in watts (W), as the Energy chart shows it. Everyday work is roughly 5 to 15 W; heavy work goes well past that. On battery, higher drains it faster. Macs without a battery can't measure this, so their Energy chart shows the energy score instead.",
+        "Yours: <b>" + (V.isNum(e.watts) ? e.watts.toFixed(1) + " W" : "–") + "</b>"),
+      term("Energy impact", "A rough score for one app, in the Energy column of the app list. It has no unit: 100 is about one CPU core kept fully busy. Higher drains the battery faster. Over 20 for one app is a lot.",
         "Highest: <b>" + (topEnergy ? F.esc(V.friendly(topEnergy)) + ", " + F.pct(topEnergy.energy, 1) : "–") + "</b>"),
       term("Load average", "How many jobs are waiting for the CPU, averaged over 1, 5 and 15 minutes. Under " + (cores || "your core count") + " (your core count) is fine.",
         "Yours: <b>" + (c.load || []).map(function (x) { return F.pct(x, 1); }).join(" · ") + "</b>"),

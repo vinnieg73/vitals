@@ -364,7 +364,12 @@
     }
     var c = s.cpu || {}, d = s.disk || {}, n = s.network || {}, e = s.energy || {};
     return { stepSec: 2, pressurePct: [m.pressurePct], memUsedPct: [used], swapUsedBytes: [m.swapUsedBytes], cpuUserPct: [c.userPct], cpuSystemPct: [c.systemPct],
-      gpuPct: [(s.gpu || {}).pct], diskReadBps: [d.readBps], diskWriteBps: [d.writeBps], netInBps: [n.inBps], netOutBps: [n.outBps], energyImpact: [e.impact] };
+      gpuPct: [(s.gpu || {}).pct], diskReadBps: [d.readBps], diskWriteBps: [d.writeBps], netInBps: [n.inBps], netOutBps: [n.outBps], energyImpact: [e.impact], powerW: [e.watts] };
+  }
+  // The Energy charts show real watts (the whole Mac's draw) when the feed has them: Macs with a battery. Macs
+  // without one, and feeds from before watts existed, show the energy impact score instead.
+  function useWatts(s, L) {
+    return isNum((s.energy || {}).watts) || ((L || {}).powerW || []).some(isNum);
   }
   // current value, or the newest point of its live series when the current one is null. Never a point from
   // before a gap: after a sleep that would show a speed from before it as if it were now.
@@ -378,7 +383,7 @@
   var Vitals = window.Vitals = {
     F: F, note: note, flat: flat, items: items, friendly: friendly, memState: memState, memSev: memSev, swapCls: swapCls, swapWarnAt: swapWarnAt,
     post: post, native: native,
-    Strip: Strip, niceMax: niceMax, liveOf: liveOf, now: now, lastNum: lastNum, CAP: CAP,
+    Strip: Strip, niceMax: niceMax, liveOf: liveOf, useWatts: useWatts, now: now, lastNum: lastNum, CAP: CAP,
     GiB: GiB, MiB: MiB, isNum: isNum,
     get last() { return last; },
     onUpdate: function (fn) { listeners.push(fn); if (last) fn(last); },

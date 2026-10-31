@@ -40,7 +40,7 @@
       history: series(120, 3, function (t, r) { return 31 + Math.sin(t * 9) * 5 + (r() - .5) * 12; })
     },
     gpu: { pct: 9, history: series(120, 5, function (t, r) { return 8 + (r() - .5) * 6 + (t > .7 && t < .75 ? 7 : 0); }) },
-    energy: { batteryPct: 100, pluggedIn: true, charging: false, fullyCharged: true, adapterWatts: 96, cycles: 47, healthPct: 100,
+    energy: { watts: 14.2, batteryPct: 100, pluggedIn: true, charging: false, fullyCharged: true, adapterWatts: 96, cycles: 47, healthPct: 100,
       minutesLeft: 380, thermal: "nominal", fanRPM: 0, impact: null },
     disk: { volume: "Macintosh HD", totalBytes: 494.4e9, usedBytes: 400.1e9, freeBytes: 94.3e9, readBps: 14.2e6, writeBps: 38.6e6,
       readTodayBytes: 61.2e9, writtenTodayBytes: 97.4e9,
@@ -99,14 +99,15 @@
     diskWriteBps: live(13, function (t, r) { var b = r() < .12 ? 30 + r() * 45 : 0; return (24 + r() * 16 + b + 20 * bump(t, .7, .02)) * 1e6; }, snap.disk.writeBps),
     netInBps: live(17, function (t, r) { var b = r() < .1 ? 2 + r() * 3.5 : 0; return (1.4 + r() * 1.6 + b + 3 * bump(t, .55, .03)) * 1e6; }, snap.network.inBps),
     netOutBps: live(19, function (t, r) { var b = r() < .06 ? .5 + r() * .8 : 0; return (.18 + r() * .25 + b) * 1e6; }, snap.network.outBps),
-    energyImpact: live(23, function (t, r) { return 82 + (r() - .5) * 12 + 26 * bump(t, .7, .025) + 10 * bump(t, .22, .02); }, snap.energy.impact, 10)
+    energyImpact: live(23, function (t, r) { return 82 + (r() - .5) * 12 + 26 * bump(t, .7, .025) + 10 * bump(t, .22, .02); }, snap.energy.impact, 10),
+    powerW: live(31, function (t, r) { return 11.5 + (r() - .5) * 2 + 9 * bump(t, .7, .025) + 3.5 * bump(t, .22, .02); }, snap.energy.watts, 10)
   };
   // like the real feed: the first point of a rate series has nothing to compare against
   ["diskReadBps", "diskWriteBps", "netInBps", "netOutBps"].forEach(function (k) { snap.live[k][0] = null; });
   var KEYS = Object.keys(snap.live).filter(function (k) { return k !== "stepSec"; });
 
   // ?fresh: right after launch, one point per series (?fresh=12 keeps 12)
-  // ?gaps: energy impact null while no page was showing (a long run of nulls), plus a short gap in CPU
+  // ?gaps: energy impact and watts null while no page was showing (a long run of nulls), plus a short gap in CPU
   var q = location.search + location.hash;
   var fresh = /fresh(?:=(\d+))?/.exec(q);
   if (fresh) {
@@ -119,6 +120,10 @@
     for (var i = 0; i < E.length - 18; i++) E[i] = null;
     for (i = E.length - 3; i < E.length; i++) E[i] = null;
     snap.energy.impact = null;
+    var W = snap.live.powerW;
+    for (i = 0; i < W.length - 18; i++) W[i] = null;
+    for (i = W.length - 3; i < W.length; i++) W[i] = null;
+    snap.energy.watts = null;
     var C = snap.live.cpuUserPct, Cs = snap.live.cpuSystemPct;
     for (i = 60; i < 75 && i < C.length; i++) { C[i] = null; Cs[i] = null; }
   }
@@ -149,11 +154,12 @@
       n.inBps = (1.4 + r() * 1.6 + (r() < .1 ? 2 + r() * 3.5 : 0)) * 1e6;
       n.outBps = (.18 + r() * .25 + (r() < .06 ? .5 + r() * .8 : 0)) * 1e6;
       if (e.impact != null || r() < .3) e.impact = Math.round((84 + (r() - .5) * 10) * 10) / 10;
+      if (e.watts != null || r() < .3) e.watts = Math.round((12 + (r() - .5) * 2.4) * 10) / 10;
       m.usedBytes = Math.max(15.6, Math.min(17.2, m.usedBytes / G + (r() - .5) * .12)) * G;
       push("pressurePct", m.pressurePct); push("memUsedPct", Math.round(m.usedBytes / m.totalBytes * 1000) / 10); push("swapUsedBytes", m.swapUsedBytes);
       push("cpuUserPct", c.userPct); push("cpuSystemPct", c.systemPct); push("gpuPct", snap.gpu.pct);
       push("diskReadBps", d.readBps); push("diskWriteBps", d.writeBps); push("netInBps", n.inBps); push("netOutBps", n.outBps);
-      push("energyImpact", e.impact);
+      push("energyImpact", e.impact); push("powerW", e.watts);
     }
   };
 })();

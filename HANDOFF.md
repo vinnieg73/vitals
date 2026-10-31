@@ -1,7 +1,34 @@
 # Vitals — handoff
 
-_Last updated 2026-10-25 by Claude: the popover's Memory row shows RAM used / total (asked for by Vinnie), committed bff0c17
-on `main`, pushed, installed and relaunched 2026-10-25 23:09._
+_Last updated 2026-10-31 by Claude: Energy card shows real watts (Vinnie's pick); built and checked, waiting on his OK to
+commit, push and install._
+
+## 2026-10-31: Energy card shows watts (Vinnie picked option A; built and checked, NOT yet committed or installed)
+- Why: the card read "129.1 / Battery 79%" with no unit. That was `energy.impact`, a unitless score: the sum over
+  top-level processes of `cpuPct + 0.02 × wakeups/s` (`Processes.swift` ~L164), 100 ≈ one core busy, and it leaves out
+  root / `_windowserver` rows. Help's "over 20 is a lot" was meant for one app, not the total.
+- Now: `Power.Reading.watts` (`Devices.swift`) = `PowerTelemetryData.SystemLoad` mW → W, one decimal, on battery or
+  plugged in. `energy.watts` and a new live series `powerW` (`Sampler.swift`), read only while a page shows (same as
+  impact; null otherwise, so the chart gaps). `withFreshRows` refreshes watts too, so opening the popover isn't "–".
+- Pages: `V.useWatts(s, L)` (app.js) is true when the feed has watts. Popover row "8.0 W / Power draw / Battery 73%";
+  window big "8.0 W, Power draw, whole Mac", chart scale in W. No battery (desktop Macs) → the old score, labelled
+  "Energy score". The app list's Energy column stays the per-app score. Help: new "Power draw" term; "Energy impact"
+  now says it's per app, no unit, 100 ≈ one core.
+- sample.js has `energy.watts` + `live.powerW`; `?gaps` nulls them too. test-pages.js's gap snapshot nulls watts.
+- Checked 2026-10-31 on battery: `--dump` watts 16 vs ioreg SystemLoad 15967 mW; `--selftest` all passed (new check:
+  watts present and sane where there's a battery); `node scripts/test-pages.js` all passed; off-screen renders of popover
+  and window look right; headless check of the no-battery fallback shows "Energy score", no script errors.
+- The window's Energy subtitle now says "On power · 96 W charger", so the charger's rating isn't read as the draw.
+  `docs/shots/strip-{window,popover}{,-dark}.png` re-rendered (`--warm 40`) to show the new card.
+- Not checked: SystemLoad while plugged in (the old time-left estimate already used it plugged in, so expected fine).
+
+## 2026-10-30: "RAM suddenly halved" checked, not a Vitals bug (no code change)
+- Vinnie saw RAM used drop by about half. At 20:00Z `vm_stat` gave anonymous − purgeable 5.7, wired 2.8, compressor
+  1.2 = 9.6 GiB, which is what Vitals' formula gives. Vitals had been running since Oct 27 (no restart, no reset).
+- Cause, most likely: a throwaway iOS simulator (Pocket Cactus work does `simctl create` throwaways) shut down and was
+  deleted around 19:57Z. Sim crash reports (`"platform":7`) ran until 19:56:57; three sim device folders are gone; load
+  average fell from ~69 to 17. No jetsam kills, no big app quit, no macOS update; the Claude app last restarted 04:57Z.
+- Swap stayed at ~4.2 GB: normal, macOS only pulls it back when needed. Gotcha: `log` is a zsh builtin, use `/usr/bin/log`.
 
 ## 2026-10-25: RAM used / total in the popover
 - `Resources/popover.html`: the Memory row reads "76% used", then "RAM 13.7 / 18 GB", then the swap line. Used is

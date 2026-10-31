@@ -287,6 +287,9 @@ enum SelfTest {
         check("kick: right after a sample without a page, the page still gets a snapshot", count() == 2, "\(count()) samples")
         check("kick: ...with fresh process rows", impact(restEnd) is NSNull && impact(got) is NSNumber,
               "impact \(String(describing: impact(restEnd))) -> \(String(describing: impact(got)))")
+        let e = got["energy"] as? [String: Any] ?? [:], w = (e["watts"] as? NSNumber)?.doubleValue
+        check("kick: ...and the whole Mac's watts, where there's a battery", !(e["batteryPct"] is NSNumber) || (w.map { $0 > 0.3 && $0 < 400 } ?? false),
+              "watts \(String(describing: e["watts"]))")
         check("kick: ...but no rates over a few ms", got["time"] as? String == restEnd["time"] as? String && read(got) != nil
               && read(got) == read(restEnd) && points(got) == points(restEnd),
               "readBps \(String(describing: read(restEnd))) -> \(String(describing: read(got))), points \(points(restEnd) ?? -1) -> \(points(got) ?? -1)")
