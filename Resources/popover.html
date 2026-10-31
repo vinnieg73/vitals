@@ -30,6 +30,7 @@ body{background:var(--menu);padding:6px;font-size:13px;overflow:hidden;min-width
 .top{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px;padding:3px 10px 4px}
 .top .tn{display:flex;align-items:center;gap:7px;min-width:0;white-space:nowrap;overflow:hidden}
 .top .tn span{overflow:hidden;text-overflow:ellipsis}
+.top .tn .by{flex-shrink:3;font-size:11px;color:var(--ink-3)}
 .top .tb2{grid-column:1 / -1;height:3px;border-radius:2px;background:var(--track);margin-top:4px;overflow:hidden}
 .top .tb2 i{display:block;height:100%;background:var(--g2)}
 hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
@@ -69,13 +70,14 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
   var plots = document.querySelectorAll(".pch .plot");
   var strips = specs.map(function (o, i) { return new V.Strip(plots[i], o); });
 
-  function two(a, b) {
+  // two speeds with what each one is, as the window says it ("read" / "write", "in" / "out")
+  function two(a, aLab, b, bLab) {
     var pa = F.rateParts(a), pb = F.rateParts(b);
-    return '<span class="r2"><i>▲</i>' + pa[0] + "<small>" + pa[1] + '</small></span><span class="r2"><i>▼</i>' + pb[0] + "<small>" + pb[1] + "</small></span>";
+    return '<span class="r2"><i>▲</i>' + pa[0] + "<small>" + pa[1] + " " + aLab + '</small></span><span class="r2"><i>▼</i>' + pb[0] + "<small>" + pb[1] + " " + bLab + "</small></span>";
   }
   function set(id, html) { var el = $(id); if (el.innerHTML !== html) el.innerHTML = html; }
   function top5(s) {
-    return V.items(s).map(function (it) { return { name: it.name, bytes: it.memBytes, sessions: it.sessions }; })
+    return V.items(s).map(function (it) { return { name: it.name, by: it.by, bytes: it.memBytes, sessions: it.sessions }; })
       .sort(function (a, b) { return (b.bytes || 0) - (a.bytes || 0); }).slice(0, 5);
   }
 
@@ -97,8 +99,8 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     var tot = isNum(c.totalPct) ? c.totalPct : isNum(user) && isNum(sys) ? user + sys : null;
     set("r-cpu", "<b>" + F.pct(tot) + "<small>%</small></b><span>User " + F.pct(user, 1) + " · Sys " + F.pct(sys, 1) + "</span>");
     set("r-gpu", "<b>" + F.pct(V.now(g.pct, L.gpuPct)) + "<small>%</small></b>" + (h.gpuCores ? "<span>" + h.gpuCores + " cores</span>" : ""));
-    set("r-disk", two(V.now(d.readBps, L.diskReadBps), V.now(d.writeBps, L.diskWriteBps)));
-    set("r-net", two(V.now(n.inBps, L.netInBps), V.now(n.outBps, L.netOutBps)));
+    set("r-disk", two(V.now(d.readBps, L.diskReadBps), "read", V.now(d.writeBps, L.diskWriteBps), "write"));
+    set("r-net", two(V.now(n.inBps, L.netInBps), "in", V.now(n.outBps, L.netOutBps), "out"));
     // watts with a battery; the energy impact score on Macs without one
     // the label rides on the big number ("W draw", like Memory's "% used"), then the fan (only where it can be
     // read; "off" when it isn't spinning). No battery line: macOS's own menu bar icon already shows it.
@@ -109,7 +111,9 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     var tot5 = m.totalBytes || h.memBytes || 1;
     set("top5", top5(s).map(function (t) {
       var dots = t.sessions && t.sessions.length ? '<span class="dots">' + t.sessions.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</span>" : "";
-      return '<div class="top"><span class="tn"><span>' + F.esc(t.name) + "</span>" + dots + "</span><span>" + F.mem(t.bytes) +
+      // a loose process says who started it ("Claude Code · folder", or an app), in gray after its name
+      var by = t.by ? '<span class="by">' + F.esc(t.by) + "</span>" : "";
+      return '<div class="top"><span class="tn"><span>' + F.esc(t.name) + "</span>" + dots + by + "</span><span>" + F.mem(t.bytes) +
         '</span><span class="tb2"><i style="width:' + Math.min(100, (t.bytes || 0) / tot5 * 100).toFixed(1) + '%"></i></span></div>';
     }).join(""));
   });

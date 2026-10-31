@@ -100,13 +100,27 @@ final class Sampler: @unchecked Sendable {
         var out = snap
         out["processes"] = procs.rows.map { $0.json() }
         out["totals"] = ["processes": procs.processes, "threads": procs.threads]
-        if var energy = out["energy"] as? [String: Any] {
-            energy["impact"] = num(procs.rows.reduce(0) { $0 + ($1.energy ?? 0) }, 1)
-            power = Power.read()
-            energy["watts"] = num(power?.watts, 1)
-            out["energy"] = energy
-        }
+        // The battery and fan too: the snapshot's were read when a page last showed, maybe hours ago.
+        out["energy"] = energySection(fresh: true, impact: num(procs.rows.reduce(0) { $0 + ($1.energy ?? 0) }, 1))
         return out
+    }
+
+    /// The energy block. The battery's details and the fan are read when `fresh` (a page shows, or the first sample);
+    /// the watts every time (one property), so the Energy chart is full when a page opens, like the others.
+    private func energySection(fresh: Bool, impact: Any) -> [String: Any] {
+        if fresh || power == nil {
+            power = Power.read()
+            if let rpm = Fan.rpm(), rpm.isFinite, rpm < 100_000 { fanRPM = Int(rpm.rounded()) } else { fanRPM = NSNull() }
+        }
+        let p = power ?? Power.Reading()
+        return [
+            "batteryPct": p.batteryPct ?? NSNull(), "pluggedIn": p.pluggedIn ?? NSNull(),
+            "charging": p.charging ?? NSNull(), "fullyCharged": p.fullyCharged ?? NSNull(),
+            "adapterWatts": p.adapterWatts ?? NSNull(), "cycles": p.cycles ?? NSNull(),
+            "healthPct": p.healthPct ?? NSNull(), "minutesLeft": p.minutesLeft ?? NSNull(),
+            "thermal": Power.thermal(), "fanRPM": fanRPM,
+            "impact": impact, "watts": num(Power.watts(), 1),
+        ]
     }
     func saveState() { queue.sync { daily.save() } }
 
@@ -204,22 +218,7 @@ final class Sampler: @unchecked Sendable {
             "readTodayBytes": today["diskR"] ?? NSNull(), "writtenTodayBytes": today["diskW"] ?? NSNull(),
         ]
 
-        // Energy. The battery is read only while a page shows (and once at launch): watts are null otherwise,
-        // like energy impact, so the chart shows a gap rather than a stale value.
-        let freshPower = wantProcesses || power == nil
-        if freshPower {
-            power = Power.read()
-            if let rpm = Fan.rpm(), rpm.isFinite, rpm < 100_000 { fanRPM = Int(rpm.rounded()) } else { fanRPM = NSNull() }
-        }
-        let p = power ?? Power.Reading()
-        let energy: [String: Any] = [
-            "batteryPct": p.batteryPct ?? NSNull(), "pluggedIn": p.pluggedIn ?? NSNull(),
-            "charging": p.charging ?? NSNull(), "fullyCharged": p.fullyCharged ?? NSNull(),
-            "adapterWatts": p.adapterWatts ?? NSNull(), "cycles": p.cycles ?? NSNull(),
-            "healthPct": p.healthPct ?? NSNull(), "minutesLeft": p.minutesLeft ?? NSNull(),
-            "thermal": Power.thermal(), "fanRPM": fanRPM,
-            "impact": impact, "watts": freshPower ? num(p.watts, 1) : NSNull(),
-        ]
+        let energy = energySection(fresh: wantProcesses, impact: impact)
 
         // Memory Used (app + wired + compressed, as Activity Monitor) as a % of RAM, one decimal.
         let memUsedPct: Any = {

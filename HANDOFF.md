@@ -1,7 +1,25 @@
 # Vitals — handoff
 
-_Last updated 2026-10-31 by Claude: Energy card shows real watts (Vinnie's pick), committed ad9b10c on `main`, pushed,
-installed and relaunched in the background 2026-10-31 19:49 on his "commit push and ship please"._
+_Last updated 2026-10-31 by Claude: three visual fixes (full Energy chart, labelled arrows, who started a process) built
+and checked, waiting on Vinnie's OK to ship. Before that: watts, fan line, no battery line, all shipped (b1d5a4f)._
+
+## 2026-10-31: three visual fixes (Vinnie: "implement all of those"; built and checked, NOT committed yet)
+- Energy chart full: `Power.watts()` (`Devices.swift`) reads only the battery's `PowerTelemetryData` property (cached
+  service, locked), every tick, page or not. `--bench` without rows 1.4 → 1.5 ms. Battery details and fan stay page-only.
+  Selftest: "watts every tick even with no page".
+- Popover Disk / Network say "read" / "write" and "in" / "out" after the unit (like the window).
+- Names: Swift step 3 in `group()` gives top-level loose processes `startedBy` ("Claude Code · <cwd folder>" or the app,
+  up the ppid chain, 12 hops) and renames a runtime (`isRuntime`: node, python*, ruby, bun, deno) after its script
+  (`scriptName`: a node_modules file → its package, index/main/cli/dist/bin/src/lib → the folder, `-m mod` → mod; flags
+  and bare words skipped). Shown gray after the name in the popover's "Memory by app" and the window's list; searchable.
+  Selftest has 11 script-name cases. sample.js has a "vite" row started by Claude Code.
+- Window Energy subtitle is now "On 96 W charger" (the "On power · 96 W charger" form was cut off).
+- Fix found in review: a page opening within 0.5 s of a background tick got the snapshot's battery and fan, read when
+  a page last showed (maybe hours ago). `energySection(fresh:impact:)` in `Sampler.swift` is now shared, and
+  `withFreshRows` calls it with fresh: true.
+- Width checked headless at worst case (999.9 MB/s read, 999 KB/s write, 12,345 rpm, 188.8 W): every popover row's
+  text stays right of the plot (Memory is still the widest).
+- Gotcha: a session started in ~/Code reads "Claude Code · Code" (the folder's name).
 
 ## 2026-10-31: battery % out of the popover (Vinnie: he has it in the menu bar already; shipped on his "ship it")
 - `Resources/popover.html` Energy row is now "24.7 W draw" then "Fan 2,495 rpm" / "Fan off". The window still shows

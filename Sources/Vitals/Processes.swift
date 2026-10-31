@@ -22,6 +22,8 @@ final class Row {
     var diskR: Double?, diskW: Double?, netIn: Double?, netOut: Double?
     var model: String?
     var note: String?
+    /// For a loose process at the top of the list: who started it ("Claude Code · folder", or an app's name).
+    var startedBy: String?
     /// When the process started (mach ticks), so Quit can tell it apart from a later process with the same pid.
     var started: UInt64?
     var children: [Row] = []
@@ -58,7 +60,7 @@ final class Row {
             "energy": num(energy, 1),
             "idleWakeupsPs": num(idleWake, 1), "diskReadBps": num(diskR, 0), "diskWriteBps": num(diskW, 0),
             "netInBps": num(netIn, 0), "netOutBps": num(netOut, 0),
-            "model": model ?? NSNull(), "note": note ?? NSNull(),
+            "model": model ?? NSNull(), "note": note ?? NSNull(), "startedBy": startedBy ?? NSNull(),
             // A string, so the page passes it back exactly.
             "started": started.map { String($0) as Any } ?? NSNull(),
             "children": children.map { $0.json() },
@@ -271,6 +273,22 @@ final class ProcessSampler {
             row.sum(of: children)
         }
 
+        // 3. Loose processes: say who started them (the nearest Claude Code session or app up the parent chain),
+        //    and name a script runtime ("node", "python3") after the script it runs, so "node" reads "vite".
+        for row in top where row.kind == "process" {
+            guard let pid = row.pid else { continue }
+            var p = ppids[pid] ?? 0, hops = 0
+            while p > 1, hops < 12 {
+                if let s = sessions[p] { row.startedBy = "Claude Code · " + s.name; break }
+                if let app = apps[p] { row.startedBy = app.localizedName; break }
+                p = ppids[p] ?? 0; hops += 1
+            }
+            if row.user == myName, Self.isRuntime(row.name), let args = Self.argv(pid), let script = Self.scriptName(args) {
+                row.note = "runs on " + row.name
+                row.name = script
+            }
+        }
+
         if !sessionRows.isEmpty {
             let g = Row(id: "group:claude-code", pid: nil, name: "Claude Code", kind: "group", user: userName(me))
             g.children = sessionRows.sorted(by: Self.byMemory)
@@ -330,19 +348,67 @@ final class ProcessSampler {
     }
 
     /// argv[0] of a process, from KERN_PROCARGS2 (only works for your own processes).
-    static func argv0(_ pid: pid_t) -> String? {
+    static func argv0(_ pid: pid_t) -> String? { argv(pid)?.first.flatMap { $0.isEmpty ? nil : $0 } }
+
+    /// A process's arguments, from KERN_PROCARGS2 (only works for your own processes).
+    static func argv(_ pid: pid_t) -> [String]? {
         var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
         var size = 0
         guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 8 else { return nil }
         var buf = [UInt8](repeating: 0, count: size)
         guard sysctl(&mib, 3, &buf, &size, nil, 0) == 0 else { return nil }
-        // Layout: argc (Int32), exec path, NUL padding, argv[0], ...
+        // Layout: argc (Int32), exec path, NUL padding, argv[0], argv[1], ... (NUL-separated), then the environment.
+        let argc = buf.withUnsafeBytes { Int($0.load(as: Int32.self)) }
         var i = MemoryLayout<Int32>.size
         while i < size, buf[i] != 0 { i += 1 }
         while i < size, buf[i] == 0 { i += 1 }
-        let start = i
-        while i < size, buf[i] != 0 { i += 1 }
-        return i > start ? String(decoding: buf[start..<i], as: UTF8.self) : nil
+        var out: [String] = []
+        while out.count < argc, i < size {
+            let start = i
+            while i < size, buf[i] != 0 { i += 1 }
+            out.append(String(decoding: buf[start..<i], as: UTF8.self))
+            i += 1
+        }
+        return out.isEmpty ? nil : out
+    }
+
+    static func isRuntime(_ name: String) -> Bool {
+        name.range(of: #"^(node|python[0-9.]*|Python|ruby|bun|deno)$"#, options: .regularExpression) != nil
+    }
+
+    /// What a runtime is running, from its arguments: `node …/.bin/vite --port 5181` → "vite" (a package's own file
+    /// is named after the package),
+    /// `python3 -m http.server` → "http.server", `node server/index.js` → "server". nil if there's no script.
+    static func scriptName(_ args: [String]) -> String? {
+        var rest = args.dropFirst()
+        while let a = rest.first {
+            rest = rest.dropFirst()
+            if a == "-m" { return rest.first }
+            if ["-e", "-p", "-c", "--eval", "--print"].contains(a) { return nil }   // inline code, no script
+            if ["-r", "--require", "--import", "--loader", "--experimental-loader", "-W", "-X"].contains(a) { rest = rest.dropFirst(); continue }
+            if a.hasPrefix("-") { continue }
+            // A bare word is a flag's value ("--conditions node") or a subcommand ("deno run"): the script is a path.
+            let ext = (a as NSString).pathExtension.lowercased()
+            guard a.contains("/") || ["js", "mjs", "cjs", "ts", "mts", "py", "rb"].contains(ext) else { continue }
+            // Inside node_modules it's a package's own file: name it after the package (".bin/vite" → vite).
+            let parts = a.split(separator: "/").map(String.init)
+            if let k = parts.lastIndex(of: "node_modules"), k + 1 < parts.count {
+                var pkg = parts[k + 1]
+                if (pkg == ".bin" || pkg.hasPrefix("@")), k + 2 < parts.count { pkg = parts[k + 2] }
+                return (pkg as NSString).deletingPathExtension
+            }
+            var url = URL(fileURLWithPath: a)
+            var name = url.deletingPathExtension().lastPathComponent
+            // index.js and friends say nothing: use the folder, skipping the usual build folders
+            while ["index", "main", "cli", "dist", "bin", "src", "lib"].contains(name.lowercased()) {
+                url = url.deletingLastPathComponent()
+                let up = url.lastPathComponent
+                guard !up.isEmpty, up != "/" else { return nil }
+                name = up
+            }
+            return name.isEmpty ? nil : name
+        }
+        return nil
     }
 
     static func cwd(_ pid: pid_t) -> String? {

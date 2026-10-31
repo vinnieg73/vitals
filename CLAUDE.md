@@ -15,3 +15,5 @@ See README.md, HANDOFF.md, BRIEF-mac.md and DATA.md.
 - The "biggest space users" folder scan was removed 2026-10-20 (no page showed it; it cost ~45 s of CPU per launch). Don't bring it back without a page that shows it.
 - `kern.boottime` moves by a second or so when macOS corrects the clock (often after a wake): never treat an exact boot-time change as a reboot.
 - KVO on a status button's `effectiveAppearance` fires again when you set its image: redraw only when the light/dark match really changes, or it loops (~95% of a core, 2026-10-19). An off-screen button doesn't show this; only the real menu bar does.
+- Popover sub-lines must stay short: "Battery 76% · Fan 2,543 rpm" on one line ran into the strip chart. Check the widest values headless before shipping a new line.
+- Node flags can take a separate value (`--conditions node`): when finding the script a runtime runs, take the first argument that looks like a path, not the first non-flag.

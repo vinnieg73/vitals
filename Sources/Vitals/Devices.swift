@@ -16,7 +16,20 @@ enum Power {
         var cycles: Int?
         var healthPct: Int?
         var minutesLeft: Int?
-        var watts: Double?       // the whole Mac's power draw right now (battery telemetry; nil on Macs without one)
+    }
+
+    /// The whole Mac's power draw right now in W (battery telemetry SystemLoad, on battery or plugged in; on battery
+    /// it matches |Amperage| × Voltage). nil on Macs without a battery. Reads one property, not the whole battery,
+    /// so it's cheap enough for every tick.
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var battery: io_service_t = 0
+    nonisolated(unsafe) private static var batteryLooked = false
+    static func watts() -> Double? {
+        lock.lock(); defer { lock.unlock() }
+        if !batteryLooked { batteryLooked = true; battery = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery")) }
+        guard battery != 0, let tele = Registry.property(battery, "PowerTelemetryData") as? [String: Any],
+              let mW = tele["SystemLoad"] as? Int, mW > 0, mW < 1_000_000 else { return nil }
+        return (Double(mW) / 100).rounded() / 10
     }
 
     static func read() -> Reading {
@@ -48,11 +61,9 @@ enum Power {
                 ?? (data["FullChargeCapacity"] as? Int)
             if let design, let full, design > 0 { r.healthPct = min(100, Int((Double(full) / Double(design) * 100).rounded())) }
             if r.batteryPct == nil, let c = b["CurrentCapacity"] as? Int { r.batteryPct = c }
-            // SystemLoad is the whole Mac's draw in mW, on battery or plugged in (on battery it matches
-            // |Amperage| × Voltage). Plugged in it also gives how long the battery would last at that draw.
-            let tele = b["PowerTelemetryData"] as? [String: Any] ?? [:]
-            if let mW = tele["SystemLoad"] as? Int, mW > 0, mW < 1_000_000 { r.watts = (Double(mW) / 100).rounded() / 10 }
+            // Plugged in: how long the battery would last at the Mac's current draw.
             if r.pluggedIn == true {
+                let tele = b["PowerTelemetryData"] as? [String: Any] ?? [:]
                 let remaining = (b["AppleRawCurrentCapacity"] as? Int) ?? (data["RemainingCapacity"] as? Int)
                 if let mAh = remaining, let mV = b["Voltage"] as? Int, let loadMW = tele["SystemLoad"] as? Int, loadMW > 500 {
                     let wh = Double(mAh) * Double(mV) / 1e6

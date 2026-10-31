@@ -63,6 +63,7 @@
         proc(1202, "Safari Web Content", "process", "vinnie", 0.41 * G, 3.0, 9001, 19, 3.2, 0.1e6, 0.1e6, 300e3, 10e3),
         Object.assign(proc(611, "Safari", "app", "vinnie", 0.47 * G, 2.8, 14048, 56, 4.7, 0.9e6, 0.6e6, 200e3, 30e3), { note: "the app itself" })]),
       proc(402, "WindowServer", "process", "_windowserver", 612 * M, 18.0, 79533, 24, 9.1, 0.1e6, 0.2e6, 0, 0),
+      Object.assign(proc(2201, "vite", "process", "vinnie", 584 * M, 1.2, 610, 14, 0.9, 0, 0, 2e3, 1e3), { note: "runs on node", startedBy: "Claude Code · pf-visuals" }),
       proc(530, "mds_stores", "process", "root", 240 * M, 6.0, 11565, 9, 3.4, 2.4e6, 1.9e6, 0, 0),
       proc(733, "Messages", "app", "vinnie", 210 * M, 0.3, 2462, 18, 0.2, 0, 0, 4e3, 2e3),
       proc(640, "Finder", "app", "vinnie", 180 * M, 0.2, 3493, 11, 0.1, 0.1e6, 0, 0, 0),

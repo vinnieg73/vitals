@@ -56,7 +56,7 @@ unknown; the page shows "–".
     fanRPM,                                  // null if unreadable (page then just omits the fan)
     impact,                                  // sum of the top-level processes' energy right now (unitless score; 100 ≈ one core busy)
     watts                                    // the whole Mac's draw in W, one decimal: AppleSmartBattery PowerTelemetryData
-                                             // SystemLoad (mW). Null with no battery, and while no page shows (read with the rows)
+                                             // SystemLoad (mW), read every tick (one property). Null with no battery
   },
 
   disk: {
@@ -100,7 +100,9 @@ Proc = {
   idleWakeupsPs,       // Activity Monitor's "Idle Wake Ups", per second; groups = sum
   diskReadBps, diskWriteBps, netInBps, netOutBps,
   model,               // sessions only: "Opus" | "Sonnet" | "Haiku" | "Fable" | null
-  note,                // optional short gray words from Swift (e.g. "virtual machine"); the page also has its own table
+  note,                // optional short gray words from Swift (e.g. "virtual machine", "runs on node"); the page also has its own table
+  startedBy,           // top-level loose processes only: "Claude Code · <session folder>" or the app that started it (parent
+                       // chain, 12 hops), else null. A node / python3 / ruby / bun / deno row is named after its script.
   children: [ Proc ]   // helpers under their app; Claude Code sessions under group:claude-code
 }
 ```

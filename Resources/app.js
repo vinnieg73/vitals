@@ -162,7 +162,7 @@
         SUM.forEach(function (k) { v[k] = vm[k]; });
         out.push(v, rest);
       } else {
-        var it = { id: p.id, rowId: p.id, name: p.name, desc: note(p), proc: p, sessions: p.id === "group:claude-code" ? (p.children || []) : null };
+        var it = { id: p.id, rowId: p.id, name: p.name, desc: note(p), by: p.startedBy || null, proc: p, sessions: p.id === "group:claude-code" ? (p.children || []) : null };
         SUM.forEach(function (k) { it[k] = p[k]; });
         out.push(it);
       }

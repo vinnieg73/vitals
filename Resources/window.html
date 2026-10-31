@@ -85,6 +85,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 .pt td.s{font-weight:500}
 .pt .nmc{display:flex;align-items:center;gap:6px;min-width:0}
 .pt .nmc .t{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pt .nmc .by{overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:3;color:var(--ink-3);font-size:.92em}
 .pt .chev{width:12px;flex:none;color:var(--ink-3);font-size:9px;cursor:pointer;display:inline-flex;justify-content:center;transition:transform .15s}
 .pt .chev.open{transform:rotate(90deg)}
 .pt tr.kid .nmc{padding-left:20px}
@@ -309,7 +310,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 
     var thermal = { nominal: "Nominal", fair: "Fair", serious: "Serious", critical: "Critical" }[e.thermal] || "–";
     var hasBatt = isNum(e.batteryPct);
-    $("sub-energy").textContent = e.pluggedIn ? "On power" + (e.adapterWatts ? " · " + e.adapterWatts + " W charger" : "") : hasBatt ? "On battery" : "";
+    $("sub-energy").textContent = e.pluggedIn ? (e.adapterWatts ? "On " + e.adapterWatts + " W charger" : "On power") : hasBatt ? "On battery" : "";
     var pw = useW ? V.now(e.watts, L.powerW) : V.now(e.impact, L.energyImpact);
     CH[5].ro.innerHTML = bigOne(isNum(pw) ? pw.toFixed(1) : "–", useW ? "W" : "", useW ? "Power draw, whole Mac" : "Energy score") +
       kv([hasBatt && ["Battery", u(F.pct(e.batteryPct), "%")], hasBatt && ["Time left", isNum(e.minutesLeft) ? F.hm(e.minutesLeft).replace(" min", " m") : "–"], ["Thermal", thermal]]) +
@@ -336,7 +337,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   }
   function match(p) {
     if (!query) return true;
-    return (p.name + " " + V.note(p) + " " + (p.pid == null ? "" : p.pid) + " " + (p.model || "")).toLowerCase().indexOf(query) >= 0;
+    return (p.name + " " + V.note(p) + " " + (p.startedBy || "") + " " + (p.pid == null ? "" : p.pid) + " " + (p.model || "")).toLowerCase().indexOf(query) >= 0;
   }
   function cell(p, k) {
     switch (k) {
@@ -356,7 +357,8 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var hasKids = p.children && p.children.length;
     var chev = kid ? "" : hasKids ? '<span class="chev' + (open[p.id] ? " open" : "") + '" data-id="' + F.esc(p.id) + '">▶</span>' : '<span class="chev"></span>';
     var dots = p.id === "group:claude-code" && hasKids && !open[p.id] ? '<span class="dots">' + p.children.map(function (k) { return '<i class="mdot m-' + F.esc(k.model || "") + '"></i>'; }).join("") + "</span>" : "";
-    return '<div class="nmc">' + chev + lead + '<span class="t">' + F.esc(p.name) + "</span>" + dots + "</div>";
+    var by = p.startedBy ? '<span class="by">' + F.esc(p.startedBy) + "</span>" : "";
+    return '<div class="nmc">' + chev + lead + '<span class="t">' + F.esc(p.name) + "</span>" + dots + by + "</div>";
   }
   function rowHtml(p, kid, i) {
     var cls = (kid ? "kid" : "") + (i % 2 ? " odd" : "") + (p.id === selected ? " sel" : "");

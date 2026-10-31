@@ -22,6 +22,7 @@ enum SelfTest {
         tidy()
         gaps()
         nettop()
+        scripts()
         kicks()
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
@@ -246,6 +247,29 @@ enum SelfTest {
         check("nettop: rates from an hour ago are not", n.rates() == nil)
     }
 
+    /// A runtime ("node", "python3") is named after the script it runs.
+    private static func scripts() {
+        let cases: [([String], String?)] = [
+            (["node", "/Users/v/pf/node_modules/.bin/vite", "--port", "5181"], "vite"),
+            (["node", "--experimental-import-meta-resolve", "--require", "/x/suppress-warnings.cjs", "--conditions", "node",
+              "/x/node_modules/vitest/dist/workers/forks.js"], "vitest"),
+            (["node", "/x/node_modules/@scope/tool/bin/run.js"], "tool"),
+            (["python3", "-m", "http.server", "8000"], "http.server"),
+            (["python3", "manage.py", "runserver"], "manage"),
+            (["node", "server/index.js"], "server"),
+            (["deno", "run", "-A", "./tools/build.ts"], "build"),
+            (["node", "-e", "console.log(1)"], nil),
+            (["python3", "-"], nil),
+            (["node"], nil),
+        ]
+        for (args, want) in cases {
+            let got = ProcessSampler.scriptName(args)
+            check("script name: \(args.joined(separator: " ")) → \(want ?? "none")", got == want, "got \(got ?? "none")")
+        }
+        check("script name: runtimes are spotted", ["node", "python3", "python3.12", "Python", "bun"].allSatisfy(ProcessSampler.isRuntime)
+              && !["nodemon", "vite", "zsh"].contains(where: ProcessSampler.isRuntime))
+    }
+
     /// Time away becomes empty chart slots, one per 2 s, never more than the 5-minute chart.
     private static func gaps() {
         let cases: [(Double, Int)] = [(2, 0), (10, 0), (11, 6), (60, 30), (299, 150), (8 * 3600, 150), (1e300, 150), (.nan, 0), (-50, 0)]
@@ -316,6 +340,9 @@ enum SelfTest {
         check("sampler: no unused 1-hour history in the snapshot", history.isEmpty, history.joined(separator: ", "))
         let energy = snap0["energy"] as? [String: Any] ?? [:]
         check("sampler: battery and fan read once even with no page", energy["thermal"] is String && energy.keys.contains("fanRPM"))
+        let watts = ((snap0["live"] as? [String: Any])?["powerW"] as? [Any])?.filter { $0 is NSNumber }.count ?? 0
+        check("sampler: watts every tick even with no page, where there's a battery", Power.watts() == nil || watts >= 3,
+              "\(watts) points")
 
         s.setResting(true)
         Thread.sleep(forTimeInterval: 0.3)
