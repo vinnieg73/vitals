@@ -3,6 +3,10 @@
 _Last updated 2026-10-31 by Claude: Energy card shows real watts (Vinnie's pick), committed ad9b10c on `main`, pushed,
 installed and relaunched in the background 2026-10-31 19:49 on his "commit push and ship please"._
 
+## 2026-10-31: battery % out of the popover (Vinnie: he has it in the menu bar already; shipped on his "ship it")
+- `Resources/popover.html` Energy row is now "24.7 W draw" then "Fan 2,495 rpm" / "Fan off". The window still shows
+  battery, time left, health and cycles. Popover doc shots re-rendered.
+
 ## 2026-10-31: fan speed in the popover (Vinnie: "ship it"; committed, pushed, installed)
 - Vinnie asked for fan speed in the popover without making it busier. `Resources/popover.html` Energy row: big
   "24.7 W draw" (the label rides on the number like Memory's "% used"), then "Battery 75%", then "Fan 2,495 rpm" /
