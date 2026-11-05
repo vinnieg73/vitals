@@ -1,9 +1,10 @@
 # Vitals — handoff
 
 _Last updated 2026-11-05 by Claude: watts to the battery ("W for Mac" / "To battery") and open-at-login shipped on Vinnie's
-"also ship that please"; see the git log for the hash. Open: a real lid-shut stretch; confirm Open at Login shows ticked._
+"also ship that please"; shipped as 461f122 + the notFound fix, installed; the Mac's background items list shows Vitals enabled and allowed.
+Open: a real lid-shut stretch._
 
-## 2026-11-05: Vitals always opens at login (Vinnie: "The vitals app needs to always launch on startup"; shipped with the battery watts)
+## 2026-11-05: Vitals always opens at login (Vinnie: "The vitals app needs to always launch on startup"; shipped 461f122; first install read `notFound`, so it needed the follow-up fix; now enabled in Login Items)
 - `AppDelegate.keepLoginItemOn()` at the end of launch: registers `SMAppService.mainApp` when its status is
   `.notRegistered` or `.notFound` (a never-registered copy reads `notFound` here) and he hasn't unticked Open at Login from the menu (UserDefaults `loginTurnedOffByUser`, set by
   `toggleLogin`). Only runs from /Applications/Vitals.app, so test builds never register themselves; `--selftest`,
