@@ -106,10 +106,12 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     set("r-net", two(V.now(n.inBps, L.netInBps), "in", V.now(n.outBps, L.netOutBps), "out"));
     // watts with a battery; the energy impact score on Macs without one
     // the label rides on the big number ("W draw", like Memory's "% used"), then the fan (only where it can be
-    // read; "off" when it isn't spinning). No battery line: macOS's own menu bar icon already shows it.
+    // read; "off" when it isn't spinning), then while plugged in what the charger is putting in ("Charging 85 W";
+    // "Charger 30 W" when it only runs the Mac). No battery line: macOS's own menu bar icon already shows it.
     var useW = V.useWatts(s, L), pw = useW ? V.now(e.watts, L.powerW) : V.now(e.impact, L.energyImpact);
     set("r-energy", "<b>" + (isNum(pw) ? pw.toFixed(1) : "–") + "<small>" + (useW ? " W draw" : " score") + "</small></b>" +
-      (isNum(e.fanRPM) ? "<span>Fan " + (e.fanRPM > 0 ? F.int(e.fanRPM) + " rpm" : "off") + "</span>" : ""));
+      (isNum(e.fanRPM) ? "<span>Fan " + (e.fanRPM > 0 ? F.int(e.fanRPM) + " rpm" : "off") + "</span>" : "") +
+      (e.pluggedIn && isNum(e.chargerW) ? "<span>" + (e.charging ? "Charging " : "Charger ") + Math.round(e.chargerW) + " W</span>" : ""));
 
     var tot5 = m.totalBytes || h.memBytes || 1;
     set("top5", top5(s).map(function (t) {

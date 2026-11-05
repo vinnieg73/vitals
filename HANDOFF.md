@@ -1,7 +1,17 @@
 # Vitals — handoff
 
-_Last updated 2026-10-31 by Claude: lid-shut sampling, the window's 5 min / 1 hour / 12 hours switch and more GPU
-detail shipped in 3c3cdbe (Vinnie: "commit push and ship"), installed. Open: a real lid-shut stretch on the Mac. Open: check the watts while plugged in (needs a screenshot)._
+_Last updated 2026-11-05 by Claude: charging watts in the popover and window built and checked, waiting on Vinnie's
+OK to ship. Shipped before that: 3c3cdbe. Open: a real lid-shut stretch on the Mac._
+
+## 2026-11-05: charging watts (Vinnie: "go ahead with that please"; built and checked, NOT committed yet)
+- `Power.telemetry()` reads PowerTelemetryData once for both SystemLoad (the Mac's draw, `watts`) and SystemPowerIn
+  (what the charger puts in: the Mac's draw plus into the battery). The energy block adds `chargerW`, null unless
+  plugged in; read every tick like the watts.
+- Popover Energy row: a third line "Charging 85 W" while charging, "Charger 30 W" when plugged in but not charging
+  (full or held at a limit). Window Energy readout: while plugged in the "Charging" / "Charger" row takes the Time
+  left row (plugged in that was only a what-if estimate), so both columns stay 3 rows. Help term "Charging".
+- Checked: live dump on Vinnie's Mac while charging: watts 22.5, chargerW 84.7 (100 W charger). Worst-case width
+  "Charging 140 W" starts at 254 px vs the plot's right edge 222; selftest (new charger check), test-pages pass.
 
 ## 2026-10-31: more GPU detail (Vinnie: "like the CPU tab and memory tab"; shipped 3c3cdbe)
 - `GPU.stats()` (Devices.swift) reads the IOAccelerator's Device / Renderer / Tiler Utilization % and "In use system

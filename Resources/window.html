@@ -344,7 +344,9 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     $("sub-energy").textContent = e.pluggedIn ? (e.adapterWatts ? "On " + e.adapterWatts + " W charger" : "On power") : hasBatt ? "On battery" : "";
     var pw = useW ? V.now(e.watts, L.powerW) : V.now(e.impact, L.energyImpact);
     CH[5].ro.innerHTML = bigOne(isNum(pw) ? pw.toFixed(1) : "–", useW ? "W" : "", useW ? "Power draw, whole Mac" : "Energy score") +
-      kv([hasBatt && ["Battery", u(F.pct(e.batteryPct), "%")], hasBatt && ["Time left", isNum(e.minutesLeft) ? F.hm(e.minutesLeft).replace(" min", " m") : "–"], ["Thermal", thermal]]) +
+      // plugged in, what the charger puts in takes the Time left row (that's only a what-if then), so both columns stay 3 rows
+      kv([hasBatt && ["Battery", u(F.pct(e.batteryPct), "%")],
+        e.pluggedIn && isNum(e.chargerW) ? [e.charging ? "Charging" : "Charger", u(Math.round(e.chargerW), "W")] : hasBatt && ["Time left", isNum(e.minutesLeft) ? F.hm(e.minutesLeft).replace(" min", " m") : "–"], ["Thermal", thermal]]) +
       kv([hasBatt && ["Health", u(F.pct(e.healthPct), "%")], hasBatt && ["Cycles", F.int(e.cycles)],
         isNum(e.fanRPM) && ["Fan", e.fanRPM > 0 ? u(F.int(e.fanRPM), "rpm") : "Off"]]);
   }

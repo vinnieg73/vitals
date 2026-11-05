@@ -111,20 +111,21 @@ final class Sampler: @unchecked Sendable {
     }
 
     /// The energy block. The battery's details and the fan are read when `fresh` (a page shows, or the first sample);
-    /// the watts every time (one property), so the Energy chart is full when a page opens, like the others.
+    /// the watts (the Mac's and the charger's) every time (one property), so the Energy chart is full when a page opens, like the others.
     private func energySection(fresh: Bool, impact: Any) -> [String: Any] {
         if fresh || power == nil {
             power = Power.read()
             if let rpm = Fan.rpm(), rpm.isFinite, rpm < 100_000 { fanRPM = Int(rpm.rounded()) } else { fanRPM = NSNull() }
         }
-        let p = power ?? Power.Reading()
+        let p = power ?? Power.Reading(), tele = Power.telemetry()
         return [
             "batteryPct": p.batteryPct ?? NSNull(), "pluggedIn": p.pluggedIn ?? NSNull(),
             "charging": p.charging ?? NSNull(), "fullyCharged": p.fullyCharged ?? NSNull(),
             "adapterWatts": p.adapterWatts ?? NSNull(), "cycles": p.cycles ?? NSNull(),
             "healthPct": p.healthPct ?? NSNull(), "minutesLeft": p.minutesLeft ?? NSNull(),
             "thermal": Power.thermal(), "fanRPM": fanRPM,
-            "impact": impact, "watts": num(Power.watts(), 1),
+            "impact": impact, "watts": num(tele.load, 1),
+            "chargerW": p.pluggedIn == true ? num(tele.fromCharger, 1) : NSNull(),
         ]
     }
     func saveState() { queue.sync { daily.save() } }

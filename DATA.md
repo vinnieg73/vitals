@@ -59,6 +59,8 @@ unknown; the page shows "–".
     impact,                                  // sum of the top-level processes' energy right now (unitless score; 100 ≈ one core busy)
     watts                                    // the whole Mac's draw in W, one decimal: AppleSmartBattery PowerTelemetryData
                                              // SystemLoad (mW), read every tick (one property). Null with no battery
+    chargerW                                 // what the charger puts in right now in W, one decimal: PowerTelemetryData
+                                             // SystemPowerIn (the Mac's draw + into the battery). Null unless plugged in
   },
 
   disk: {

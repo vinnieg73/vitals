@@ -24,12 +24,19 @@ enum Power {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var battery: io_service_t = 0
     nonisolated(unsafe) private static var batteryLooked = false
-    static func watts() -> Double? {
+    static func watts() -> Double? { telemetry().load }
+
+    /// `load` as above, and `fromCharger`: what the charger is putting in right now in W (SystemPowerIn: the Mac's
+    /// draw plus whatever goes into the battery), nil on battery. One property read for both.
+    static func telemetry() -> (load: Double?, fromCharger: Double?) {
         lock.lock(); defer { lock.unlock() }
         if !batteryLooked { batteryLooked = true; battery = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery")) }
-        guard battery != 0, let tele = Registry.property(battery, "PowerTelemetryData") as? [String: Any],
-              let mW = tele["SystemLoad"] as? Int, mW > 0, mW < 1_000_000 else { return nil }
-        return (Double(mW) / 100).rounded() / 10
+        guard battery != 0, let tele = Registry.property(battery, "PowerTelemetryData") as? [String: Any] else { return (nil, nil) }
+        func w(_ key: String) -> Double? {
+            guard let mW = tele[key] as? Int, mW > 0, mW < 1_000_000 else { return nil }
+            return (Double(mW) / 100).rounded() / 10
+        }
+        return (w("SystemLoad"), w("SystemPowerIn"))
     }
 
     static func read() -> Reading {

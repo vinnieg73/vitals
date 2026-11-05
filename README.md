@@ -11,7 +11,8 @@ A menu bar app that shows what Activity Monitor shows, with every stat up front 
   GPU reads % busy, the GPU's memory in use and its core count; the full window adds Pixels and Shapes, how busy
   its drawing and geometry halves are;
   Energy reads the whole Mac's power draw in watts ("W draw"), from the battery's own meter, then fan speed (rpm,
-  or "off"; left out on Macs with no readable fan). No battery % there: macOS's own icon shows it. Disk and
+  or "off"; left out on Macs with no readable fan), then while plugged in what the charger is putting in
+  ("Charging 85 W", or "Charger 30 W" once the battery is full). No battery % there: macOS's own icon shows it. Disk and
   Network say "read" / "write" and "in" / "out". In "Memory by app" (and the window's list) a loose process says in
   gray who started it ("Claude Code · folder", or an app), and `node` / `python3` are named after their script. Macs without a battery show the
   energy impact score there instead: no unit, 100 ≈ one CPU core fully busy, the same score as the app list's Energy column). **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window. Its charts switch between the last 5 minutes, the last hour and

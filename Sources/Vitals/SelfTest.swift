@@ -342,6 +342,10 @@ enum SelfTest {
         let e = got["energy"] as? [String: Any] ?? [:], w = (e["watts"] as? NSNumber)?.doubleValue
         check("kick: ...and the whole Mac's watts, where there's a battery", !(e["batteryPct"] is NSNumber) || (w.map { $0 > 0.3 && $0 < 400 } ?? false),
               "watts \(String(describing: e["watts"]))")
+        let cw = (e["chargerW"] as? NSNumber)?.doubleValue
+        check("kick: ...and the charger's watts only while plugged in", e["pluggedIn"] as? Bool == true
+              ? (cw.map { $0 > 0.3 && $0 < 400 } ?? (Power.telemetry().fromCharger == nil)) : e["chargerW"] is NSNull,
+              "pluggedIn \(String(describing: e["pluggedIn"])), chargerW \(String(describing: e["chargerW"]))")
         check("kick: ...but no rates over a few ms", got["time"] as? String == restEnd["time"] as? String && read(got) != nil
               && read(got) == read(restEnd) && points(got) == points(restEnd),
               "readBps \(String(describing: read(restEnd))) -> \(String(describing: read(got))), points \(points(restEnd) ?? -1) -> \(points(got) ?? -1)")
