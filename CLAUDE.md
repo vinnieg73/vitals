@@ -18,3 +18,4 @@ See README.md, HANDOFF.md, BRIEF-mac.md and DATA.md.
 - Popover sub-lines must stay short: "Battery 76% · Fan 2,543 rpm" on one line ran into the strip chart. Check the widest values headless before shipping a new line.
 - Node flags can take a separate value (`--conditions node`): when finding the script a runtime runs, take the first argument that looks like a path, not the first non-flag.
 - zsh doesn't split words on `set -- $v` (a loop over "page file mode" strings wrote `docs/shots/.png`): spell each command out, or use bash.
+- Never run `/Applications/Vitals.app/Contents/MacOS/Vitals <flag>` to test a new flag before installing: an older build ignores unknown flags and starts a second menu bar copy (two icons, 2026-11-05). Test flags on the cache build (`~/Library/Caches/VitalsBuild/Vitals.app`), then install.
