@@ -1,9 +1,9 @@
 # Vitals — handoff
 
-_Last updated 2026-11-05 by Claude: charging watts in the popover and window built and checked, waiting on Vinnie's
-OK to ship. Shipped before that: 3c3cdbe. Open: a real lid-shut stretch on the Mac._
+_Last updated 2026-11-05 by Claude: charging watts in the popover and window shipped in f0a6efe (Vinnie: "looks good ship it
+please"), installed. Shipped before that: 3c3cdbe. Open: a real lid-shut stretch on the Mac._
 
-## 2026-11-05: charging watts (Vinnie: "go ahead with that please"; built and checked, NOT committed yet)
+## 2026-11-05: charging watts (Vinnie: "go ahead with that please"; shipped f0a6efe)
 - `Power.telemetry()` reads PowerTelemetryData once for both SystemLoad (the Mac's draw, `watts`) and SystemPowerIn
   (what the charger puts in: the Mac's draw plus into the battery). The energy block adds `chargerW`, null unless
   plugged in; read every tick like the watts.
