@@ -170,6 +170,7 @@ enum SelfTest {
         check("login: off shows no check", AppDelegate.loginItem(.notRegistered) == ("Open at Login", .off))
         let pending = AppDelegate.loginItem(.requiresApproval)
         check("login: opens by itself when it's not registered", AppDelegate.shouldRegisterLogin(.notRegistered, turnedOffByUser: false))
+        check("login: a never-registered copy (notFound) counts as not registered", AppDelegate.shouldRegisterLogin(.notFound, turnedOffByUser: false))
         check("login: ...but not after he turned it off", !AppDelegate.shouldRegisterLogin(.notRegistered, turnedOffByUser: true))
         check("login: ...and leaves a pending or enabled one alone", !AppDelegate.shouldRegisterLogin(.enabled, turnedOffByUser: false)
               && !AppDelegate.shouldRegisterLogin(.requiresApproval, turnedOffByUser: false))

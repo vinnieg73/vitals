@@ -98,10 +98,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         try? SMAppService.mainApp.register()
     }
 
-    /// Register when it's not registered and he hasn't turned it off. `requiresApproval` means he's been asked
-    /// already (macOS shows it as waiting in Login Items): leave it alone, never nag.
+    /// Register when it's not registered and he hasn't turned it off. A copy that was never registered reads
+    /// `notFound` (seen on his Mac, 2026-11-05), not `notRegistered`: both mean "not in Login Items yet". `enabled` is
+    /// done, and `requiresApproval` means he's been asked already (macOS shows it as waiting): leave it, never nag.
     nonisolated static func shouldRegisterLogin(_ status: SMAppService.Status, turnedOffByUser: Bool) -> Bool {
-        status == .notRegistered && !turnedOffByUser
+        (status == .notRegistered || status == .notFound) && !turnedOffByUser
     }
 
     /// Screens asleep (also the lid shut with the Mac kept awake) or the screen locked: Vitals keeps sampling every

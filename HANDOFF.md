@@ -5,7 +5,7 @@ _Last updated 2026-11-05 by Claude: watts to the battery ("W for Mac" / "To batt
 
 ## 2026-11-05: Vitals always opens at login (Vinnie: "The vitals app needs to always launch on startup"; shipped with the battery watts)
 - `AppDelegate.keepLoginItemOn()` at the end of launch: registers `SMAppService.mainApp` when its status is
-  `.notRegistered` and he hasn't unticked Open at Login from the menu (UserDefaults `loginTurnedOffByUser`, set by
+  `.notRegistered` or `.notFound` (a never-registered copy reads `notFound` here) and he hasn't unticked Open at Login from the menu (UserDefaults `loginTurnedOffByUser`, set by
   `toggleLogin`). Only runs from /Applications/Vitals.app, so test builds never register themselves; `--selftest`,
   `--dump` and `--render` never reach it. `requiresApproval` is left alone (no nagging).
 - `Vitals --login-status` prints the SMAppService status (read only). Careful: an OLD installed build ignores that flag and
