@@ -40,7 +40,7 @@
       history: series(120, 3, function (t, r) { return 31 + Math.sin(t * 9) * 5 + (r() - .5) * 12; })
     },
     gpu: { pct: 9, rendererPct: 8, tilerPct: 9, memBytes: 0.92 * G, history: series(120, 5, function (t, r) { return 8 + (r() - .5) * 6 + (t > .7 && t < .75 ? 7 : 0); }) },
-    energy: { watts: 14.2, chargerW: 61.8, batteryPct: 82, pluggedIn: true, charging: true, fullyCharged: false, adapterWatts: 96, cycles: 47, healthPct: 100,
+    energy: { watts: 14.2, chargerW: 61.8, batteryW: 47.6, batteryPct: 82, pluggedIn: true, charging: true, fullyCharged: false, adapterWatts: 96, cycles: 47, healthPct: 100,
       minutesLeft: 380, thermal: "nominal", fanRPM: 0, impact: null },
     disk: { volume: "Macintosh HD", totalBytes: 494.4e9, usedBytes: 400.1e9, freeBytes: 94.3e9, readBps: 14.2e6, writeBps: 38.6e6,
       readTodayBytes: 61.2e9, writtenTodayBytes: 97.4e9,

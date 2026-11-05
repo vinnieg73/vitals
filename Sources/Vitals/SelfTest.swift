@@ -169,6 +169,10 @@ enum SelfTest {
         check("login: on shows a check", AppDelegate.loginItem(.enabled) == ("Open at Login", .on))
         check("login: off shows no check", AppDelegate.loginItem(.notRegistered) == ("Open at Login", .off))
         let pending = AppDelegate.loginItem(.requiresApproval)
+        check("login: opens by itself when it's not registered", AppDelegate.shouldRegisterLogin(.notRegistered, turnedOffByUser: false))
+        check("login: ...but not after he turned it off", !AppDelegate.shouldRegisterLogin(.notRegistered, turnedOffByUser: true))
+        check("login: ...and leaves a pending or enabled one alone", !AppDelegate.shouldRegisterLogin(.enabled, turnedOffByUser: false)
+              && !AppDelegate.shouldRegisterLogin(.requiresApproval, turnedOffByUser: false))
         check("login: waiting on Settings says so", pending.1 == .mixed && pending.0.contains("Settings"), pending.0)
 
         // An odd shortcut nobody uses (⌃⌥⇧⌘F19), taken twice by this process.
@@ -342,10 +346,10 @@ enum SelfTest {
         let e = got["energy"] as? [String: Any] ?? [:], w = (e["watts"] as? NSNumber)?.doubleValue
         check("kick: ...and the whole Mac's watts, where there's a battery", !(e["batteryPct"] is NSNumber) || (w.map { $0 > 0.3 && $0 < 400 } ?? false),
               "watts \(String(describing: e["watts"]))")
-        let cw = (e["chargerW"] as? NSNumber)?.doubleValue
-        check("kick: ...and the charger's watts only while plugged in", e["pluggedIn"] as? Bool == true
-              ? (cw.map { $0 > 0.3 && $0 < 400 } ?? (Power.telemetry().fromCharger == nil)) : e["chargerW"] is NSNull,
-              "pluggedIn \(String(describing: e["pluggedIn"])), chargerW \(String(describing: e["chargerW"]))")
+        let bw = (e["batteryW"] as? NSNumber)?.doubleValue
+        check("kick: ...and the watts going into the battery, only while plugged in", e["pluggedIn"] as? Bool == true
+              ? (bw.map { $0 >= 0 && $0 < 400 } ?? (Power.telemetry().load == nil)) : e["batteryW"] is NSNull,
+              "pluggedIn \(String(describing: e["pluggedIn"])), batteryW \(String(describing: e["batteryW"]))")
         check("kick: ...but no rates over a few ms", got["time"] as? String == restEnd["time"] as? String && read(got) != nil
               && read(got) == read(restEnd) && points(got) == points(restEnd),
               "readBps \(String(describing: read(restEnd))) -> \(String(describing: read(got))), points \(points(restEnd) ?? -1) -> \(points(got) ?? -1)")

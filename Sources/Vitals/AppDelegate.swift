@@ -85,6 +85,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         sampler.setWantProcesses(false)
         sampler.start()
         watchForRest()
+        keepLoginItemOn()
+    }
+
+    /// Vitals always opens at login (Vinnie, 2026-11-05) unless he turned it off from the menu. Only the installed
+    /// copy does this: a test build run from somewhere else never registers itself.
+    private static let loginOffKey = "loginTurnedOffByUser"
+    private func keepLoginItemOn() {
+        guard Bundle.main.bundlePath == "/Applications/Vitals.app" else { return }
+        let off = UserDefaults.standard.bool(forKey: Self.loginOffKey)
+        guard Self.shouldRegisterLogin(SMAppService.mainApp.status, turnedOffByUser: off) else { return }
+        try? SMAppService.mainApp.register()
+    }
+
+    /// Register when it's not registered and he hasn't turned it off. `requiresApproval` means he's been asked
+    /// already (macOS shows it as waiting in Login Items): leave it alone, never nag.
+    nonisolated static func shouldRegisterLogin(_ status: SMAppService.Status, turnedOffByUser: Bool) -> Bool {
+        status == .notRegistered && !turnedOffByUser
     }
 
     /// Screens asleep (also the lid shut with the Mac kept awake) or the screen locked: Vitals keeps sampling every
@@ -571,6 +588,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems(); return }
         do {
             if service.status == .enabled { try service.unregister() } else { try service.register() }
+            // His choice from the menu sticks: off stays off, on goes back to always.
+            UserDefaults.standard.set(service.status != .enabled && service.status != .requiresApproval, forKey: Self.loginOffKey)
         } catch {
             if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems(); return }
             let alert = NSAlert(error: error)

@@ -1,7 +1,30 @@
 # Vitals — handoff
 
-_Last updated 2026-11-05 by Claude: charging watts in the popover and window shipped in f0a6efe (Vinnie: "looks good ship it
-please"), installed. Shipped before that: 3c3cdbe. Open: a real lid-shut stretch on the Mac._
+_Last updated 2026-11-05 by Claude: watts to the battery ("W for Mac" / "To battery") and open-at-login shipped on Vinnie's
+"also ship that please"; see the git log for the hash. Open: a real lid-shut stretch; confirm Open at Login shows ticked._
+
+## 2026-11-05: Vitals always opens at login (Vinnie: "The vitals app needs to always launch on startup"; shipped with the battery watts)
+- `AppDelegate.keepLoginItemOn()` at the end of launch: registers `SMAppService.mainApp` when its status is
+  `.notRegistered` and he hasn't unticked Open at Login from the menu (UserDefaults `loginTurnedOffByUser`, set by
+  `toggleLogin`). Only runs from /Applications/Vitals.app, so test builds never register themselves; `--selftest`,
+  `--dump` and `--render` never reach it. `requiresApproval` is left alone (no nagging).
+- `Vitals --login-status` prints the SMAppService status (read only). Careful: an OLD installed build ignores that flag and
+  starts a normal second copy; only run it on a build that has the flag (a test build in the cache shows `notFound`).
+- Gotcha: removing Vitals in System Settings → Login Items makes it `.notRegistered` again, so the next launch re-adds
+  it; to opt out use the menu's Open at Login (that sets the flag).
+- Selftest: 3 new "login:" checks for the rule.
+
+## 2026-11-05: watts to the battery next to what the Mac uses (Vinnie: "show the wattage going to the battery and the wattage being used to run the macbook"; shipped with the login change)
+- The big Energy number was already what runs the Mac (SystemLoad). New: `energy.batteryW` = PowerTelemetryData
+  BatteryPower (what goes into the battery), sent plugged in only, 0 when full / held at a limit, null on battery.
+  Checked on his Mac: 30.2 W Mac + 54.5 W to battery = 84.7 W from the charger (SystemPowerIn); full battery reads 0.
+- Popover third line is now "To battery 54 W" ("Battery full" / "Not charging" at 0) instead of "Charging 85 W"; the window's
+  Time left slot shows "To battery". `chargerW` stays in the data (DATA.md) but no page shows it any more. Help
+  term "To battery" replaces "Charging".
+- Vinnie then asked to "see both numbers presented in the drop down": the big number's label is now "W for Mac" (was
+  "W draw"; "W to run Mac" fit only 7 px from the chart, "W for Mac" starts at 246 vs plot edge 222), so the two read as a
+  pair: "22.5 W for Mac" / "To battery 54 W".
+- Not checked: the sign of BatteryPower on battery (it's only used plugged in).
 
 ## 2026-11-05: charging watts (Vinnie: "go ahead with that please"; shipped f0a6efe)
 - `Power.telemetry()` reads PowerTelemetryData once for both SystemLoad (the Mac's draw, `watts`) and SystemPowerIn

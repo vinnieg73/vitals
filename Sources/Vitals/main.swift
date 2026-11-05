@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 
 // Vitals: what Activity Monitor shows, every stat up front, in the menu bar.
 //   Vitals                                                  the menu bar app
@@ -6,12 +7,17 @@ import AppKit
 //   Vitals --render <page> <out.png> [light|dark] [--warm <s>]  page off screen to PNG
 //                                                           (page "menubar": every menu bar icon state)
 //                                                           (--warm: sample live for <s> seconds first)
+//   Vitals --login-status                                   print whether Open at Login is on (read only) and exit
 //   Vitals --selftest                                       check the baseline, busy-clock and sampler rules, exit 1 on a failure
 //   Vitals --soak <minutes> [page]                          live page off screen; prints memory every 30 s
 
 let args = CommandLine.arguments
 if args.contains("--dump") {
     Dump.run()
+}
+if args.contains("--login-status") {
+    print(String(describing: SMAppService.mainApp.status))
+    exit(0)
 }
 if args.contains("--selftest") {
     SelfTest.run()

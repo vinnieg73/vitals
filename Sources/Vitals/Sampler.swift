@@ -126,6 +126,8 @@ final class Sampler: @unchecked Sendable {
             "thermal": Power.thermal(), "fanRPM": fanRPM,
             "impact": impact, "watts": num(tele.load, 1),
             "chargerW": p.pluggedIn == true ? num(tele.fromCharger, 1) : NSNull(),
+            // plugged in: what goes into the battery (0 once it's full or held at a limit); null on battery
+            "batteryW": p.pluggedIn == true && tele.load != nil ? num(tele.toBattery ?? 0, 1) : NSNull(),
         ]
     }
     func saveState() { queue.sync { daily.save() } }

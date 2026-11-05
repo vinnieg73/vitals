@@ -88,7 +88,7 @@ p.body b{color:var(--ink);font-weight:600}
   </div>
 
   <h2 id="icon">Menu bar icon</h2>
-  <p class="body">A small icon that always keeps the same width, so it never pushes your other icons around. Click it for the numbers and the top memory users. Right-click or ⌃-click it for Open at Login, Help and Quit. If another app already uses ⌃⌥⌘V, that menu says so.</p>
+  <p class="body">A small icon that always keeps the same width, so it never pushes your other icons around. Click it for the numbers and the top memory users. Right-click or ⌃-click it for Open at Login, Help and Quit. Vitals opens at login by itself; untick Open at Login there if you don't want that. If another app already uses ⌃⌥⌘V, that menu says so.</p>
   <img class="states lt" src="menubar-states-light.png" alt="Menu bar icon states"><img class="states dk" src="menubar-states-dark.png" alt="Menu bar icon states">
   <div class="st t"><div class="k">Calm</div><div class="x">Three dials: CPU, GPU and RAM, left to right. Each needle shows how busy that part is. RAM is memory used, the same number as the window.</div></div>
   <div class="st t"><div class="k">Strained</div><div class="x">That dial and its name turn amber. RAM: pressure 70%+, or swap over 45% of your RAM (8 GB on an 18 GB Mac). CPU or GPU: 85%+ for 30 seconds. If the Mac is hot or the disk is under 10% free, the dials give way to a thermometer or drive with an amber dot.</div></div>
@@ -145,10 +145,10 @@ p.body b{color:var(--ink);font-weight:600}
       term("Wired", "Memory macOS itself needs and can't move or free. You can't change it.", "Yours: <b>" + F.gb(m.wiredBytes) + " GB</b>"),
       term("App memory", "What your apps are using right now. This is the part you can free by quitting things.", "Yours: <b>" + F.gb(m.appBytes) + " GB</b>"),
       term("Cached files", "Recently used files kept in memory for speed. macOS gives it back the moment an app needs it.", "Yours: <b>" + F.gb(m.cachedBytes) + " GB</b>"),
-      term("Power draw", "How much power your whole Mac is using right now, in watts (W), as the Energy chart shows it. Everyday work is roughly 5 to 15 W; heavy work goes well past that. On battery, higher drains it faster. Macs without a battery can't measure this, so their Energy chart shows the energy score instead.",
+      term("Power draw", "How much power your whole Mac is using to run right now, in watts (W), as the Energy chart shows it (the drop-down says \"W for Mac\"). Everyday work is roughly 5 to 15 W; heavy work goes well past that. On battery, higher drains it faster. Macs without a battery can't measure this, so their Energy chart shows the energy score instead.",
         "Yours: <b>" + (V.isNum(e.watts) ? e.watts.toFixed(1) + " W" : "–") + "</b>"),
-      term("Charging", "While plugged in, how much power the charger is putting in right now, in watts. It covers what the Mac uses plus whatever goes into the battery, so it's usually well under the charger's rating, and it drops as the battery fills. Once the battery is full (or held at a limit) it reads \"Charger\" instead: then it only runs the Mac.",
-        "Yours: <b>" + (e.pluggedIn && V.isNum(e.chargerW) ? Math.round(e.chargerW) + " W" : V.isNum(e.batteryPct) && !e.pluggedIn ? "on battery" : "–") + "</b>"),
+      term("To battery", "While plugged in, how much power is going into the battery right now, in watts. The charger supplies that on top of what your Mac uses to run (the Power draw above), so the charger's own output is the two added together. It drops as the battery fills, and reads 0 once it's full or held at a limit.",
+        "Yours: <b>" + (e.pluggedIn && V.isNum(e.batteryW) ? e.batteryW.toFixed(1) + " W" : V.isNum(e.batteryPct) && !e.pluggedIn ? "on battery" : "–") + "</b>"),
       term("GPU", "The graphics chip. Pixels is how busy the part that colors pixels and runs effects is; Shapes is the part that works out shapes and where they go on screen. Memory is what the GPU holds right now, out of the same RAM your apps use (Apple chips share it).",
         "Yours: <b>" + F.pct(g.pct) + "% · Pixels " + F.pct(g.rendererPct) + "% · Shapes " + F.pct(g.tilerPct) + "% · " + F.gb(g.memBytes, 1) + " GB</b>"),
       term("Energy impact", "A rough score for one app, in the Energy column of the app list. It has no unit: 100 is about one CPU core kept fully busy. Higher drains the battery faster. Over 20 for one app is a lot.",
