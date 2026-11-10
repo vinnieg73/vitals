@@ -31,6 +31,14 @@ the folder, the last "model" text in it), so every session sharing a folder got 
   (the Fable ones that showed Sonnet now show Fable). Selftest: 17 "sessions:" checks on made-up files in a temp
   folder. Page tests: a session with no model is still counted and drawn gray (window and popover).
 
+## 2026-11-10 review items Vinnie approved (built after the model dots)
+- **Heat / low-disk icon, no dot.** The thermometer or drive that takes over from the dials is itself amber, red
+  when critical, like a strained dial (`StatusIcon.symbol`). The colors are fixed, so it reads the same on a light
+  and a dark menu bar. The item's width is unchanged (the dials' 58 pt picture; 64 pt with the button's padding).
+  The icon is still only set when its state changes (`deliver`), and the light/dark observer still only redraws on
+  a real flip. Help's two pictures were redrawn (`--render menubar`). Selftest: 6 "icon:" checks (they run last:
+  making a real status bar button lets AppKit nap the timers the sampler checks wait on).
+
 ## 2026-11-10 review (shipped in 2204b93)
 Vinnie: "Read this entire project and find everything that's broken, inconsistent, inefficient, or no longer needed.
 Fix what you're sure about and list the rest for me to review." Every tracked file was read. Nothing he would see

@@ -6,7 +6,8 @@ import AppKit
 ///   normally: three dials, CPU / GPU / RAM, each with its name under it (needles at CPU %, GPU % and
 ///             memory used %). All calm: a template image that follows the menu bar's color. A strained
 ///             dial and its name turn amber, red when critical; several can be colored at once.
-///   heat or disk strained (no dial for them): that area's symbol + an amber or red dot, over the dials.
+///   heat or disk strained (no dial for them): that area's symbol instead of the dials, itself amber, or red
+///             when critical, the way a strained dial is. No dot or badge (Vinnie, 2026-10-28).
 enum StatusIcon {
     enum Area: Int, CaseIterable {
         case memory, heat, disk, cpu, gpu // no battery: the system's own battery icon covers it
@@ -173,7 +174,7 @@ enum StatusIcon {
                 .joined(separator: ", ")
         }
         if let area = state.takeover {
-            button.image = symbol(area, critical: state.level(area) == .critical, appearance: appearance)
+            button.image = symbol(area, critical: state.level(area) == .critical)
         } else {
             button.image = dials(state, appearance: appearance)
         }
@@ -228,25 +229,21 @@ enum StatusIcon {
         NSBezierPath(ovalIn: NSRect(x: c.x - 1.6, y: c.y - 1.6, width: 3.2, height: 3.2)).fill()
     }
 
-    /// The area's SF Symbol with an amber (or red, when critical) dot after it.
-    static func symbol(_ area: Area, critical: Bool, appearance: NSAppearance) -> NSImage {
-        let img = NSImage(size: NSSize(width: 28, height: 16), flipped: false) { _ in
-            appearance.performAsCurrentDrawingAppearance {
-                let color: NSColor = critical ? red : .labelColor
-                let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
-                    .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
-                if let sym = NSImage(systemSymbolName: area.symbol, accessibilityDescription: area.name)?
-                    .withSymbolConfiguration(config) {
-                    let s = sym.size
-                    let scale = min(1, 18 / s.width, 16 / s.height)
-                    let w = s.width * scale, h = s.height * scale
-                    sym.draw(in: NSRect(x: 9 - w / 2, y: 8 - h / 2, width: w, height: h))
-                }
-                (critical ? red : amber).setFill()
-                NSBezierPath(ovalIn: NSRect(x: 21, y: 5.5, width: 5, height: 5)).fill()
+    /// The area's SF Symbol, drawn amber (red when critical). The colors are fixed, so it looks the same on a light
+    /// and a dark menu bar; the item keeps its fixed width around it.
+    static func symbol(_ area: Area, critical: Bool) -> NSImage {
+        let color = critical ? red : amber
+        return NSImage(size: NSSize(width: 28, height: 16), flipped: false) { _ in
+            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+                .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
+            if let sym = NSImage(systemSymbolName: area.symbol, accessibilityDescription: area.name)?
+                .withSymbolConfiguration(config) {
+                let s = sym.size
+                let scale = min(1, 24 / s.width, 16 / s.height)
+                let w = s.width * scale, h = s.height * scale
+                sym.draw(in: NSRect(x: 14 - w / 2, y: 8 - h / 2, width: w, height: h))
             }
             return true
         }
-        return img
     }
 }

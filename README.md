@@ -5,7 +5,7 @@ A menu bar app that shows what Activity Monitor shows, with every stat up front 
 - **Menu bar**: icon only, always the same width (58 pt). Three dials, CPU, GPU and RAM, each needle at how busy
   that part is (RAM = memory used %). A strained dial and its name turn amber, red when critical (RAM: memory
   pressure/swap; CPU or GPU: 85%+ for 30 s). Heat or low disk space take over from the dials with a thermometer or
-  drive and an amber or red dot. Battery is left to the system's own icon. Preview: `Resources/menubar-states-{light,dark}.png`
+  drive, itself amber or red (no dot or badge). Battery is left to the system's own icon. Preview: `Resources/menubar-states-{light,dark}.png`
   (the pictures Help shows; redraw with `Vitals --render menubar <out.png> [light|dark]`).
 - **Click it** to open a popover with the short version (Memory reads % used, RAM used / total and swap used / total, in GB of 1024³ like Activity Monitor;
   GPU reads % busy, the GPU's memory in use and its core count; the full window adds Pixels and Shapes, how busy

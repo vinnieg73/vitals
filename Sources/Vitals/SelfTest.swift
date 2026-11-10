@@ -28,6 +28,7 @@ enum SelfTest {
         longHistory()
         kicks()
         sampler()
+        icon()   // last: it makes a real status bar button, and AppKit then naps the timers the checks above wait on
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
     }
@@ -148,6 +149,49 @@ enum SelfTest {
         check("dials: a 1% move doesn't redraw", a.looksLike(StatusIcon.State(cpu: 41, gpu: 9, ram: 71)))
         check("dials: a 2% move redraws", !a.looksLike(StatusIcon.State(cpu: 42, gpu: 10, ram: 70)))
         check("dials: a color change redraws", !a.looksLike(StatusIcon.State(cpu: 40, gpu: 10, ram: 70, levels: [.memory: .warn])))
+    }
+
+    /// Heat and low disk space: the symbol itself is amber or red (no dot beside it), and the item is one width
+    /// whatever it shows.
+    private static func icon() {
+        // Every solid pixel of the drawn image, as (red, green, blue) 0-255.
+        func solid(_ img: NSImage) -> [(Int, Int, Int)] {
+            let w = Int(img.size.width) * 3, h = Int(img.size.height) * 3
+            guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4,
+                                             hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+                  let context = NSGraphicsContext(bitmapImageRep: rep) else { return [] }
+            rep.size = img.size
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = context
+            img.draw(in: NSRect(origin: .zero, size: img.size))
+            NSGraphicsContext.restoreGraphicsState()
+            var out: [(Int, Int, Int)] = []
+            for y in 0..<h { for x in 0..<w {
+                guard let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.6 else { continue }
+                out.append((Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255)))
+            } }
+            return out
+        }
+        func isAmber(_ p: (Int, Int, Int)) -> Bool { p.0 > 190 && (110...200).contains(p.1) && p.2 < 90 }
+        func isRed(_ p: (Int, Int, Int)) -> Bool { p.0 > 170 && p.1 < 100 && p.2 < 100 }
+        for area in [StatusIcon.Area.heat, .disk] {
+            let warn = solid(StatusIcon.symbol(area, critical: false)), crit = solid(StatusIcon.symbol(area, critical: true))
+            check("icon: strained \(area.name) is an amber symbol, nothing else", warn.count > 30 && warn.allSatisfy(isAmber),
+                  "\(warn.count) solid pixels, \(warn.filter { !isAmber($0) }.count) not amber")
+            check("icon: critical \(area.name) is a red symbol, nothing else", crit.count > 30 && crit.allSatisfy(isRed),
+                  "\(crit.count) solid pixels, \(crit.filter { !isRed($0) }.count) not red")
+        }
+        // The same button the menu bar uses, off screen: no state is wider than the dials, and none has text.
+        let button = NSStatusBarButton(frame: NSRect(x: 0, y: 0, width: 100, height: 24))
+        let widths = StatusIcon.allStates.map { state -> CGFloat in
+            StatusIcon.apply(state, to: button)
+            return button.fittingSize.width
+        }
+        let titles = StatusIcon.allStates.map { state -> String in StatusIcon.apply(state, to: button); return button.title }
+        let fixed = StatusIcon.fixedLength(for: button), dials = StatusIcon.dials(StatusIcon.allStates[0], appearance: button.effectiveAppearance)
+        check("icon: one width whatever it shows (the dials', a 58 pt picture)", dials.size.width == 58 && widths[0] == fixed
+              && widths.allSatisfy { $0 <= fixed }, "fixed \(fixed), widths \(widths)")
+        check("icon: never any text", titles.allSatisfy { $0.isEmpty }, "\(titles)")
     }
 
     /// Quit only ever reaches the process the sheet asked about; Open at Login shows "needs approval";

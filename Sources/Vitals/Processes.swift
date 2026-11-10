@@ -670,7 +670,7 @@ final class SessionModels {
         return (family(id), id)
     }
 
-    /// "claude-fable-5-2" → "Fable": the families the pages have a dot color for.
+    /// "claude-fable-…" → "Fable": the families the pages have a dot color for.
     static func family(_ id: String) -> String? {
         let s = id.lowercased()
         for (k, v) in [("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku"), ("fable", "Fable")] where s.contains(k) { return v }
