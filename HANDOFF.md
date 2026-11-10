@@ -49,7 +49,7 @@ Checked:
 - Pages, in the cloud with headless Chromium: `node scripts/test-pages.js` 17/17 before and after; 14 screenshots
   (window at 5 min / 12 hours with a hover / a row selected / `?gaps` / `?fresh=12`, popover, Help; light and dark)
   are pixel-identical before and after; every CSS color still used is defined and none is left unused.
-- Mac (2026-11-10, cache build, not installed): build 0 warnings, --selftest 108/108 pass, page tests 17/17, renders OK light and dark, unknown flag exits 2.
+- Mac (2026-11-10, cache build; committed 2204b93, pushed, installed to /Applications): build 0 warnings, --selftest 108/108 pass, page tests 17/17, renders OK light and dark, unknown flag exits 2.
 
 ## Waiting on Vinnie
 1. His typed OK to commit, push and install the review fixes above.
