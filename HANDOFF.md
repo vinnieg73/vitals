@@ -65,6 +65,12 @@ the folder, the last "model" text in it), so every session sharing a folder got 
   terminate), so an install saves the charts and the "today" baselines too. Selftest: 16 "history:" checks on temp
   files. Page test: a gap in the 12-hour chart is two separate lines.
 
+- **Old files and branches removed.** `design/`, `docs/mockups/` and `BRIEF-mac.md` are out of the repo (nothing
+  but the dated log in docs/HISTORY.md mentioned them; they stay in git history up to commit bca07f7). The local
+  `renders/` folder was emptied (still gitignored, still where README's `--render` example writes). The merged
+  branches are deleted, each proven an ancestor of origin/main first: local fix/audit-efficiency, fix/audit-tidy,
+  fix/audit-top4, fix/audit-usability; on GitHub those four plus fix/audit-2026-10-23 and icon/dark. Only `main` is left.
+
 ## 2026-11-10 review (shipped in 2204b93)
 Vinnie: "Read this entire project and find everything that's broken, inconsistent, inefficient, or no longer needed.
 Fix what you're sure about and list the rest for me to review." Every tracked file was read. Nothing he would see

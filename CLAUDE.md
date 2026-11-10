@@ -1,7 +1,8 @@
 # Vitals
 
 See README.md (what it is, build, test), HANDOFF.md (where things stand now) and DATA.md (the feed the pages get).
-docs/HISTORY.md is the dated log of older changes; BRIEF-mac.md is the original brief, out of date, kept as a record.
+docs/HISTORY.md is the dated log of older changes. (The original brief, BRIEF-mac.md, and the first-round mockups in
+design/ and docs/mockups/ were removed 2026-11-10; they are in git history up to commit bca07f7.)
 
 ## Lessons
 - `nettop` without `-n` does reverse DNS lookups and takes ~5 s per run; with `-n` it's ~0.03 s.
