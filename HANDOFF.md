@@ -1,7 +1,7 @@
 # Vitals — handoff
 
-_Last updated 2026-11-10 by Claude: whole-project review fixes committed (2204b93), pushed and installed after Vinnie's
-OK; the review items he left to us are being built next (see "Waiting on Vinnie")._
+_Last updated 2026-11-10 by Claude: the Claude Code model dots are now each session's own model (shipped, below).
+The review items Vinnie approved ("go ahead with all changes and follow your recommendations") are being built next._
 
 ## What it is
 A menu bar app for Vinnie's Mac that shows what Activity Monitor shows with every stat up front: three dials in the menu
@@ -11,9 +11,25 @@ the data the Swift side sends the pages; CLAUDE.md holds the lessons learned; do
 every change before today.
 
 ## Where things stand
-- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main`. Last pushed commit d0651f6 (2026-11-10).
-- Installed: /Applications/Vitals.app, built from 2204b93 (review fixes). Opens at login by itself (Login Items shows it enabled).
+- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main`, pushed.
+- Installed: /Applications/Vitals.app, built from the model-dots commit. Opens at login by itself (Login Items shows it enabled).
 - Everything Vinnie has asked for is shipped. Nothing is half done.
+
+## 2026-11-10 model dots (shipped)
+Vinnie: "the dots that show what model is running need to be accurate. they are currently wrongly showing sonnet when
+i know those threads are running fable currently". Cause: the model was guessed per folder (the newest transcript in
+the folder, the last "model" text in it), so every session sharing a folder got one dot, and a subagent's line could win.
+- Now `SessionModels` (Processes.swift) reads each session's own files: `~/.claude/sessions/<pid>.json` (checked
+  against when that pid really started) names the session's own transcript, and the model is the latest main-chain
+  assistant line in it (no subagent or "<synthetic>" lines). Full rule in DATA.md.
+- Never a guess that could be wrong: with no session file, the folder's newest transcript only counts for the one
+  session in that folder, and only if written after it started. Otherwise the model is unknown and the dot is gray
+  (the session is still listed and counted).
+- Cost is flat: rechecked every 20 s, and a transcript that grew is read only from where the last read ended (they
+  reach hundreds of MB). `--dump --bench` is the same before and after (33 to 38 ms per tick on a busy Mac).
+- Checked 2026-11-10 on the cache build: every running session's dot compared with its own transcript, all match
+  (the Fable ones that showed Sonnet now show Fable). Selftest: 17 "sessions:" checks on made-up files in a temp
+  folder. Page tests: a session with no model is still counted and drawn gray (window and popover).
 
 ## 2026-11-10 review (shipped in 2204b93)
 Vinnie: "Read this entire project and find everything that's broken, inconsistent, inefficient, or no longer needed.

@@ -196,6 +196,7 @@ final class ProcessSampler {
         var kids: [pid_t: [Row]] = [:]
         var sessions: [pid_t: Row] = [:]
         var tools: [pid_t: Row] = [:]
+        var sessionFolders: [SessionModels.Session] = []
         let appBundles: [(pid_t, String)] = apps.compactMap { pid, app in app.bundleURL.map { (pid, $0.path + "/") } }
         let myName = userName(me)
 
@@ -208,13 +209,16 @@ final class ProcessSampler {
                 row.kind = "session"
                 let cwd = Self.cwd(pid)
                 row.name = cwd.map { ($0 as NSString).lastPathComponent } ?? "claude"
-                row.model = cwd.flatMap { self.sessions.model(cwd: $0) }
+                sessionFolders.append(SessionModels.Session(pid: pid, cwd: cwd))
                 sessions[pid] = row
             } else {
                 if let argv0 { row.name = argv0 }
                 tools[pid] = row
             }
         }
+        // Each session's own model (its own transcript), never a guess from the folder it shares with others.
+        let models = self.sessions.models(for: sessionFolders)
+        for (pid, row) in sessions { row.model = models[pid] }
         for (pid, row) in tools {
             var p = ppids[pid] ?? 0, hops = 0
             while p > 1, sessions[p] == nil, hops < 8 { p = ppids[p] ?? 0; hops += 1 }
@@ -427,56 +431,249 @@ private extension String {
     var nonEmpty: String? { isEmpty ? nil : self }
 }
 
-/// Which model a Claude Code session in a folder is using: the newest "model" field in that
-/// folder's newest transcript under ~/.claude/projects. Cached by file and modification time.
+/// Which model each running Claude Code session is using, from that session's own transcript.
+///
+/// Every live session keeps `~/.claude/sessions/<pid>.json` (pid, sessionId, cwd, procStart = when the process
+/// started, as `ps -o lstart` prints it in UTC). Its transcript is `~/.claude/projects/<encoded cwd>/<sessionId>.jsonl`,
+/// and its model is the latest line there with type "assistant" that is not a subagent's ("isSidechain") and whose
+/// model is not "<synthetic>". A session with no such file (or none that is really its own: a reused pid) is only
+/// guessed from its folder's newest transcript when it is the one session in that folder and the transcript was
+/// written after it started; otherwise its model is unknown (nil) and the pages draw a gray dot.
+///
+/// Everything is rechecked at most every 20 s, and a transcript that grew is only read from where the last read
+/// ended, so the cost stays flat however long the transcripts get (hundreds of MB).
 final class SessionModels {
-    private let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
-    private var cache: [String: (file: String, mtime: Date, model: String?)] = [:]
-    private var checked: [String: Date] = [:]
-    private let modelRegex = try! NSRegularExpression(pattern: #""model"\s*:\s*"(claude-[a-z]+)"#)
+    struct Session { let pid: pid_t; let cwd: String? }
 
-    func model(cwd: String) -> String? {
-        // Rescan a folder at most every 20 s.
-        if let t = checked[cwd], Date().timeIntervalSince(t) < 20 { return cache[cwd]?.model }
-        checked[cwd] = Date()
-        let dirName = String(cwd.map { $0.isASCII && ($0.isLetter || $0.isNumber) ? $0 : "-" })
-        let dir = root.appendingPathComponent(dirName)
-        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey]) else {
-            return cache[cwd]?.model
+    static let rescan: TimeInterval = 20
+    /// How far back the first read of a transcript looks for a model before calling it unknown.
+    static let firstReadLimit: UInt64 = 64 * 1024 * 1024
+    /// A line longer than this is skipped unread (a pasted image, a huge tool result); a model's own line is far shorter.
+    static let longestLine = 8 * 1024 * 1024
+
+    private let root: URL
+    private let processStart: (pid_t) -> Date?
+    private struct Transcript { var size: UInt64; var mtime: Date; var offset: UInt64; var model: String? }
+    private var transcripts: [String: Transcript] = [:]
+    private var answers: [pid_t: String] = [:]
+    private var scannedAt: Date?
+    private var scannedPids: Set<pid_t> = []
+    private var lastOwn: [pid_t: (started: Date, cwd: String, transcript: URL?)] = [:]
+
+    /// `root` is the `.claude` folder; `processStart` says when a pid really started (both swapped out by --selftest).
+    init(root: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude"),
+         processStart: @escaping (pid_t) -> Date? = SessionModels.startDate) {
+        self.root = root
+        self.processStart = processStart
+    }
+
+    /// The model family ("Opus", "Sonnet", "Haiku", "Fable") per pid; a pid that's missing is unknown.
+    func models(for sessions: [Session], now: Date = Date()) -> [pid_t: String] {
+        let pids = Set(sessions.map(\.pid))
+        if let t = scannedAt, pids == scannedPids, now >= t, now.timeIntervalSince(t) < Self.rescan { return answers }
+        scannedAt = now
+        scannedPids = pids
+
+        // How many sessions live in each folder (the one the process is in, and the one its session file names).
+        // A session file caught halfway through being rewritten keeps what it said last time (same process only).
+        let owns = sessions.map { s -> (cwd: String, transcript: URL?)? in
+            let started = processStart(s.pid)
+            if let o = own(s, started: started) {
+                if let started { lastOwn[s.pid] = (started, o.cwd, o.transcript) }
+                return o
+            }
+            if let l = lastOwn[s.pid], l.started == started, unreadable(s.pid) { return (l.cwd, l.transcript) }
+            lastOwn[s.pid] = nil
+            return nil
         }
+        lastOwn = lastOwn.filter { pids.contains($0.key) }
+        var perFolder: [String: Int] = [:]
+        for (s, o) in zip(sessions, owns) {
+            for folder in Set([s.cwd, o?.cwd].compactMap { $0 }) { perFolder[folder, default: 0] += 1 }
+        }
+
+        var out: [pid_t: String] = [:]
+        var used: Set<String> = []
+        for (s, o) in zip(sessions, owns) {
+            var file = o?.transcript
+            if file == nil, let folder = o?.cwd ?? s.cwd, perFolder[folder] == 1, let started = processStart(s.pid) {
+                file = newestTranscript(in: folder, since: started)
+            }
+            guard let file else { continue }
+            used.insert(file.path)
+            if let m = latest(in: file) { out[s.pid] = m }
+        }
+        transcripts = transcripts.filter { used.contains($0.key) }
+        answers = out
+        return out
+    }
+
+    // MARK: the session's own files
+
+    /// What `sessions/<pid>.json` says, if that file is really this process's: its folder, and its transcript if
+    /// that exists yet.
+    private func own(_ s: Session, started: Date?) -> (cwd: String, transcript: URL?)? {
+        guard let started, let d = sessionFile(s.pid),
+              (d["pid"] as? NSNumber)?.int32Value == s.pid,
+              let id = d["sessionId"] as? String, !id.isEmpty,
+              id.unicodeScalars.allSatisfy({ $0.isASCII && (CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_") }),
+              let cwd = d["cwd"] as? String, !cwd.isEmpty else { return nil }
+        // A pid gets reused: the file must be from the process that has it now.
+        if let text = d["procStart"] as? String {
+            guard Self.sameStart(text, started) else { return nil }
+        } else if let ms = (d["startedAt"] as? NSNumber)?.doubleValue {
+            guard ms / 1000 >= started.timeIntervalSince1970 - 2 else { return nil }
+        } else {
+            return nil
+        }
+        for folder in [cwd, s.cwd].compactMap({ $0 }) {
+            let t = root.appendingPathComponent("projects/\(Self.folderName(folder))/\(id).jsonl")
+            if FileManager.default.fileExists(atPath: t.path) { return (cwd, t) }
+        }
+        return (cwd, nil)
+    }
+
+    private func sessionFile(_ pid: pid_t) -> [String: Any]? {
+        guard let data = try? Data(contentsOf: root.appendingPathComponent("sessions/\(pid).json")), data.count < 1_000_000 else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
+    /// The session file is there but can't be read as JSON right now (it's being rewritten).
+    private func unreadable(_ pid: pid_t) -> Bool {
+        FileManager.default.fileExists(atPath: root.appendingPathComponent("sessions/\(pid).json").path) && sessionFile(pid) == nil
+    }
+
+    /// The folder's newest transcript, if it was written after `since` (so it isn't an earlier session's).
+    private func newestTranscript(in folder: String, since: Date) -> URL? {
+        let dir = root.appendingPathComponent("projects/\(Self.folderName(folder))")
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey]) else { return nil }
         let newest = files.filter { $0.pathExtension == "jsonl" }
             .compactMap { u -> (URL, Date)? in
                 (try? u.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate).map { (u, $0) }
             }
             .max { $0.1 < $1.1 }
-        guard let (file, mtime) = newest else { return cache[cwd]?.model }
-        if let c = cache[cwd], c.file == file.path, c.mtime == mtime { return c.model }
-        let m = Self.readModel(file, regex: modelRegex) ?? (cache[cwd]?.file == file.path ? cache[cwd]?.model : nil)
-        cache[cwd] = (file.path, mtime, m)
-        return m
+        guard let (file, mtime) = newest, mtime >= since - 2 else { return nil }
+        return file
     }
 
-    private static func readModel(_ url: URL, regex: NSRegularExpression) -> String? {
+    /// How Claude Code names a folder under projects/: every character that isn't an ASCII letter or digit is "-".
+    static func folderName(_ cwd: String) -> String {
+        String(String.UnicodeScalarView(cwd.utf16.map { u -> Unicode.Scalar in
+            let ok = (48...57).contains(u) || (65...90).contains(u) || (97...122).contains(u)
+            return ok ? Unicode.Scalar(UInt8(u)) : "-"
+        }))
+    }
+
+    /// When a process started, to the microsecond (works for your own processes).
+    static func startDate(_ pid: pid_t) -> Date? {
+        var bsd = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsd, size) == size, bsd.pbi_start_tvsec > 0 else { return nil }
+        return Date(timeIntervalSince1970: Double(bsd.pbi_start_tvsec) + Double(bsd.pbi_start_tvusec) / 1e6)
+    }
+
+    /// Does "Mon Nov  9 23:51:44 2026" (`ps -o lstart`, whole seconds; UTC as Claude Code writes it, local time
+    /// accepted too) name the moment `started`?
+    static func sameStart(_ text: String, _ started: Date) -> Bool {
+        let parts = text.split(whereSeparator: { $0 == " " }).map(String.init)
+        guard parts.count == 5, let day = Int(parts[2]), let year = Int(parts[4]),
+              let month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].firstIndex(of: parts[1]) else { return false }
+        let hms = parts[3].split(separator: ":").compactMap { Int($0) }
+        guard hms.count == 3 else { return false }
+        for zone in [TimeZone(identifier: "UTC")!, TimeZone.current] {
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = zone
+            let c = DateComponents(year: year, month: month + 1, day: day, hour: hms[0], minute: hms[1], second: hms[2])
+            if let d = cal.date(from: c), abs(d.timeIntervalSince(started)) <= 2 { return true }
+        }
+        return false
+    }
+
+    // MARK: reading a transcript
+
+    /// The latest model in a transcript. Unchanged file: the answer from last time. Grown file: only the new lines
+    /// are read (none with a model = still the old answer). New file: read backwards from the end.
+    private func latest(in file: URL) -> String? {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: file.path),
+              let size = (attrs[.size] as? NSNumber)?.uint64Value, let mtime = attrs[.modificationDate] as? Date else {
+            return transcripts[file.path]?.model
+        }
+        let known = transcripts[file.path]
+        if let known, known.size == size, known.mtime == mtime { return known.model }
+        let grown = known.map { size >= $0.offset } ?? false
+        guard let r = Self.scan(file, from: grown ? known!.offset : 0, limit: grown ? nil : Self.firstReadLimit) else {
+            return known?.model
+        }
+        let model = r.hit ? r.model : (grown ? known!.model : nil)
+        transcripts[file.path] = Transcript(size: size, mtime: mtime, offset: r.end, model: model)
+        return model
+    }
+
+    /// Reads `url` backwards from its last finished line down to byte `from` (the start of a line) and stops at the
+    /// first line that carries a main-chain model. `hit` is false if there was none; `end` is where the last
+    /// finished line ends (the next read starts there). nil if the file can't be read.
+    static func scan(_ url: URL, from lower: UInt64, limit: UInt64?) -> (hit: Bool, model: String?, end: UInt64)? {
         guard let h = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? h.close() }
-        let end = (try? h.seekToEnd()) ?? 0
-        // Read backwards in 256 KB chunks (up to 2 MB) until a model shows up.
-        var offset = end
+        guard let size = try? h.seekToEnd(), size >= lower else { return nil }
         let chunk: UInt64 = 256 * 1024
-        while offset > 0, end - offset < 2 * 1024 * 1024 {
-            let start = offset > chunk ? offset - chunk : 0
-            try? h.seek(toOffset: start)
-            guard let data = try? h.read(upToCount: Int(offset - start + 200)) else { return nil }
-            let text = String(decoding: data, as: UTF8.self)
-            let ns = text as NSString
-            if let m = regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).last {
-                let id = ns.substring(with: m.range(at: 1))
-                for (k, v) in [("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku"), ("fable", "Fable")] where id.contains(k) {
-                    return v
+        var pos = size
+        var end: UInt64?            // set at the newest newline: everything after it is a line still being written
+        var tail = Data()           // the later part of a line that starts before the bytes read so far
+        var tooLong = false
+        while pos > lower {
+            if let limit, size - pos >= limit { break }
+            let start = pos - lower > chunk ? pos - chunk : lower
+            guard (try? h.seek(toOffset: start)) != nil, let data = try? h.read(upToCount: Int(pos - start)),
+                  data.count == Int(pos - start) else { return nil }
+            var hi = data.count
+            while let nl = lastNewline(in: data, before: hi) {
+                if end == nil {
+                    end = start + UInt64(nl) + 1
+                } else if !tooLong, let model = mainChainModel(data.subdata(in: (nl + 1)..<hi) + tail) {
+                    return (true, model.family, end!)
+                }
+                tail = Data()
+                tooLong = false
+                hi = nl
+            }
+            if end != nil {
+                if start == lower {
+                    if !tooLong, let model = mainChainModel(data.subdata(in: 0..<hi) + tail) { return (true, model.family, end!) }
+                } else if !tooLong {
+                    if tail.count + hi > longestLine { tooLong = true; tail = Data() } else { tail = data.subdata(in: 0..<hi) + tail }
                 }
             }
-            offset = start
+            pos = start
         }
+        return (false, nil, end ?? lower)
+    }
+
+    private static func lastNewline(in data: Data, before hi: Int) -> Int? {
+        data.withUnsafeBytes { (buf: UnsafeRawBufferPointer) -> Int? in
+            var i = hi - 1
+            while i >= 0 { if buf[i] == 0x0A { return i }; i -= 1 }
+            return nil
+        }
+    }
+
+    private static let assistantMark = Data("\"assistant\"".utf8), modelMark = Data("\"model\"".utf8)
+
+    /// If `line` is a main-chain assistant message, its model family (nil inside = a model the pages don't know).
+    /// nil outside = not such a line (a user or tool line, a subagent's, a synthetic one, or not JSON).
+    static func mainChainModel(_ line: Data) -> (family: String?, id: String)? {
+        guard line.count > 2, line.range(of: assistantMark) != nil, line.range(of: modelMark) != nil,
+              let o = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+              o["type"] as? String == "assistant", (o["isSidechain"] as? Bool) != true,
+              let message = o["message"] as? [String: Any], let id = message["model"] as? String,
+              !id.isEmpty, !id.hasPrefix("<") else { return nil }
+        return (family(id), id)
+    }
+
+    /// "claude-fable-5-2" → "Fable": the families the pages have a dot color for.
+    static func family(_ id: String) -> String? {
+        let s = id.lowercased()
+        for (k, v) in [("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku"), ("fable", "Fable")] where s.contains(k) { return v }
         return nil
     }
 }

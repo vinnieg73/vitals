@@ -15,7 +15,7 @@ A menu bar app that shows what Activity Monitor shows, with every stat up front 
   ("To battery 54 W"; "Battery full" or "Not charging" at 0). The big number is what the Mac itself uses, so the
   charger's output is the two added together; the window's Energy readout shows "To battery" too, in place of "Time left" while plugged in. No battery % there: macOS's own icon shows it. Disk and
   Network say "read" / "write" and "in" / "out". In "Memory by app" (and the window's list) a loose process says in
-  gray who started it ("Claude Code · folder", or an app), and `node` / `python3` are named after their script. Macs without a battery show the
+  gray who started it ("Claude Code · folder", or an app), and `node` / `python3` are named after their script. Each Claude Code session's dot is its own model (from that session's own transcript; gray when not known). Macs without a battery show the
   energy impact score there instead: no unit, 100 ≈ one CPU core fully busy, the same score as the app list's Energy column). **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window. Its charts switch between the last 5 minutes, the last hour and
   the last 12 hours (a point a minute, gaps where the Mac slept); the history starts over when Vitals restarts.
 - **Right-click or ⌃-click** it for Open at Login (Vitals turns it on by itself the first time the installed copy in /Applications runs, unless you unticked it; if macOS wants your OK, it opens Login Items in System Settings),
@@ -38,7 +38,7 @@ doesn't index a second copy of the app.
 
 ```bash
 Vitals.app/Contents/MacOS/Vitals --dump                                         # one snapshot as JSON
-Vitals.app/Contents/MacOS/Vitals --selftest                                     # baseline, busy-clock and sampler rules (~25 s)
+Vitals.app/Contents/MacOS/Vitals --selftest                                     # baseline, busy-clock, model-dot and sampler rules (~25 s)
 Vitals.app/Contents/MacOS/Vitals --render window renders/window-dark.png dark   # page to PNG, off screen
 Vitals.app/Contents/MacOS/Vitals --render window out.png light --warm 40        # ...after 40 s of live samples
 Vitals.app/Contents/MacOS/Vitals --soak 6 window                                # live page off screen, memory every 30 s

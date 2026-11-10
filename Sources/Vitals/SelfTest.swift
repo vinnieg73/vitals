@@ -24,6 +24,7 @@ enum SelfTest {
         gaps()
         nettop()
         scripts()
+        sessionModels()
         longHistory()
         kicks()
         sampler()
@@ -292,6 +293,118 @@ enum SelfTest {
         }
         check("script name: runtimes are spotted", ["node", "python3", "python3.12", "Python", "bun"].allSatisfy(ProcessSampler.isRuntime)
               && !["nodemon", "vite", "zsh"].contains(where: ProcessSampler.isRuntime))
+    }
+
+    /// Claude Code model dots: each session's own transcript decides, never the newest one in a shared folder.
+    /// Runs on made-up files in a temporary folder (never the real ~/.claude).
+    private static func sessionModels() {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("vitals-selftest-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: root) }
+        let t0 = Date(timeIntervalSince1970: 1_794_268_304)
+        let t0Text = "Mon Nov  9 23:51:44 2026"   // t0 the way `ps -o lstart` prints it in UTC
+        var starts: [pid_t: Date] = [:]
+        let m = SessionModels(root: root, processStart: { starts[$0] })
+
+        func line(_ type: String, model: String? = nil, sidechain: Bool = false, text: String = "hi") -> String {
+            var msg: [String: Any] = ["role": type, "content": [["type": "text", "text": text]]]
+            if let model { msg["model"] = model }
+            let o: [String: Any] = ["type": type, "isSidechain": sidechain, "uuid": UUID().uuidString, "message": msg]
+            return String(decoding: (try? JSONSerialization.data(withJSONObject: o)) ?? Data(), as: UTF8.self) + "\n"
+        }
+        func transcript(_ folder: String, _ id: String) -> URL {
+            root.appendingPathComponent("projects/\(SessionModels.folderName(folder))/\(id).jsonl")
+        }
+        func write(_ folder: String, _ id: String, _ text: String, mtime: Date? = nil) {
+            let u = transcript(folder, id)
+            try? fm.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? Data(text.utf8).write(to: u)
+            if let mtime { try? fm.setAttributes([.modificationDate: mtime], ofItemAtPath: u.path) }
+        }
+        func append(_ folder: String, _ id: String, _ text: String) {
+            guard let h = try? FileHandle(forWritingTo: transcript(folder, id)) else { return }
+            _ = try? h.seekToEnd(); try? h.write(contentsOf: Data(text.utf8)); try? h.close()
+        }
+        func pidFile(_ pid: pid_t, id: String, cwd: String, procStart: String) {
+            let u = root.appendingPathComponent("sessions/\(pid).json")
+            try? fm.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let o: [String: Any] = ["pid": Int(pid), "sessionId": id, "cwd": cwd, "procStart": procStart, "startedAt": 1_794_268_307_843]
+            try? JSONSerialization.data(withJSONObject: o).write(to: u)
+        }
+        func show(_ r: [pid_t: String]) -> String { r.keys.sorted().map { "\($0)=\(r[$0]!)" }.joined(separator: " ") }
+
+        let alpha = "/fixture/alpha app", beta = "/fixture/beta", gamma = "/fixture/gamma", delta = "/fixture/delta"
+        check("sessions: a folder's transcripts are found the way Claude Code names them",
+              SessionModels.folderName("/Users/x/My Code/app_1.2") == "-Users-x-My-Code-app-1-2")
+        check("sessions: a start time reads in UTC, a wrong or broken one doesn't", SessionModels.sameStart(t0Text, t0 + 0.4)
+              && !SessionModels.sameStart(t0Text, t0 + 3600) && !SessionModels.sameStart("yesterday", t0))
+
+        // Two sessions share a folder. The second's transcript is the newest and ends with a subagent's line, a
+        // synthetic one and a user line that quotes a model: none of those is its model.
+        write(alpha, "sess-a", line("user") + line("assistant", model: "claude-sonnet-9-9"))
+        write(alpha, "sess-b", line("user") + line("assistant", model: "claude-fable-9-9")
+              + line("assistant", model: "claude-haiku-9-9", sidechain: true) + line("assistant", model: "<synthetic>")
+              + line("user", text: #"{"type":"assistant","message":{"model":"claude-opus-9-9"}}"#))
+        write(alpha, "sess-r", line("assistant", model: "claude-haiku-9-9"))
+        for pid in [101, 102, 103, 104, 105, 106, 107] as [pid_t] { starts[pid] = t0 + 0.3 }
+        pidFile(101, id: "sess-a", cwd: alpha, procStart: t0Text)
+        pidFile(102, id: "sess-b", cwd: alpha, procStart: t0Text)
+        pidFile(103, id: "sess-a", cwd: alpha, procStart: "Mon Nov  9 22:51:44 2026")   // left by an earlier process with this pid
+        // 104: no session file, in the shared folder. 105: no session file, alone in its folder; the only
+        // transcript there is from before it started.
+        write(beta, "old", line("assistant", model: "claude-opus-9-9"), mtime: t0 - 3600)
+        // 106: the model's line, then 700 KB of other lines, one line over the length limit, and a line still being written.
+        let filler = String(repeating: line("user", text: String(repeating: "x", count: 900)), count: 700)
+        write(gamma, "sess-long", line("assistant", model: "claude-fable-9-9") + filler
+              + line("user", text: String(repeating: "y", count: SessionModels.longestLine + 1000)) + filler
+              + line("assistant", model: "claude-opus-9-9").dropLast())
+        pidFile(106, id: "sess-long", cwd: gamma, procStart: t0Text)
+        // 107: its latest answer came from a model the pages have no color for.
+        write(delta, "sess-u", line("assistant", model: "claude-sonnet-9-9") + line("assistant", model: "claude-nova-1"))
+        pidFile(107, id: "sess-u", cwd: delta, procStart: t0Text)
+
+        let all: [SessionModels.Session] = [.init(pid: 101, cwd: alpha), .init(pid: 102, cwd: alpha), .init(pid: 103, cwd: alpha),
+                                             .init(pid: 104, cwd: alpha), .init(pid: 105, cwd: beta), .init(pid: 106, cwd: gamma),
+                                             .init(pid: 107, cwd: delta)]
+        var now = t0 + 100
+        var r = m.models(for: all, now: now)
+        check("sessions: two sessions in one folder each get their own model", r[101] == "Sonnet" && r[102] == "Fable", show(r))
+        check("sessions: subagent, synthetic and quoted lines are ignored", r[102] == "Fable", show(r))
+        check("sessions: a session file left by an earlier process with the same pid is ignored", r[103] == nil, show(r))
+        check("sessions: no session file in a shared folder is unknown, not a guess", r[104] == nil, show(r))
+        check("sessions: alone in a folder, a transcript from before it started is not its own", r[105] == nil, show(r))
+        check("sessions: found behind 1.4 MB of later lines and one over-long line; an unfinished last line waits",
+              r[106] == "Fable", show(r))
+        check("sessions: a latest model the pages don't know is unknown, not the one before it", r[107] == nil, show(r))
+
+        // The session switches model, the unfinished line gets finished, and the lone session writes its transcript.
+        append(alpha, "sess-a", line("user") + line("assistant", model: "claude-opus-9-9"))
+        append(gamma, "sess-long", "\n")
+        write(beta, "new", line("assistant", model: "claude-haiku-9-9"), mtime: t0 + 60)
+        now += 5
+        r = m.models(for: all, now: now)
+        check("sessions: files are not read again within 20 s", r[101] == "Sonnet" && r[106] == "Fable" && r[105] == nil, show(r))
+        now += 16
+        r = m.models(for: all, now: now)
+        check("sessions: a switch of model mid-run shows (the latest answer wins)", r[101] == "Opus" && r[102] == "Fable", show(r))
+        check("sessions: a line that got finished counts", r[106] == "Opus", show(r))
+        check("sessions: alone in its folder with a transcript written since it started, that one is used", r[105] == "Haiku", show(r))
+
+        // More lines without a model keep the answer; a resumed session's file names the resumed transcript.
+        append(alpha, "sess-b", line("user") + line("assistant", model: "claude-haiku-9-9", sidechain: true))
+        pidFile(101, id: "sess-r", cwd: alpha, procStart: t0Text)
+        now += 21
+        r = m.models(for: all, now: now)
+        check("sessions: new lines without a model keep the answer", r[102] == "Fable", show(r))
+        check("sessions: a resumed session reads the transcript its file names", r[101] == "Haiku", show(r))
+        // The session file caught halfway through a rewrite: the answer from before stands.
+        try? Data("{\"pid\": 10".utf8).write(to: root.appendingPathComponent("sessions/102.json"))
+        now += 21
+        r = m.models(for: all, now: now)
+        check("sessions: a session file caught mid-rewrite keeps the answer", r[102] == "Fable" && r[101] == "Haiku", show(r))
+        // A session that's gone is forgotten at once, and a new pid is looked up at once.
+        r = m.models(for: Array(all.prefix(2)), now: now + 1)
+        check("sessions: a changed set of sessions is looked up at once", r.count == 2 && r[101] == "Haiku" && r[102] == "Fable", show(r))
     }
 
     /// The window's 12-hour charts: a point a minute, averaged per series, gaps for minutes nobody sampled.

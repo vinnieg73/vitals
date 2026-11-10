@@ -122,6 +122,30 @@ function gapSnapshot(base, real, gap) {
     const pop = await page.evaluate(() => ({ disk: document.getElementById("r-disk").textContent, net: document.getElementById("r-net").textContent }));
     check("popover: speeds after a gap aren't the ones from before it", !/77\.7/.test(pop.disk) && !/6\.6/.test(pop.net), JSON.stringify(pop));
 
+    /* ---------- a Claude Code session whose model isn't known: still counted, a neutral gray dot ---------- */
+    const unknown = JSON.parse(JSON.stringify(base));
+    const code = unknown.processes.find((p) => p.id === "group:claude-code");
+    code.children[0].model = null;
+    const readDots = () => page.evaluate(() => {
+      const probe = document.createElement("i");
+      probe.style.background = "var(--ink-4)";
+      document.body.appendChild(probe);
+      const gray = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      const dots = Array.from(document.querySelectorAll(".dots .mdot"));
+      return { n: dots.length, gray: dots.filter((d) => getComputedStyle(d).backgroundColor === gray).length,
+        plain: dots.filter((d) => d.className.trim() === "mdot m-").length };
+    });
+    for (const p of ["window.html", "popover.html"]) {
+      await page.goto(url(p));
+      await page.waitForFunction(() => window.Vitals && window.Vitals.last);
+      await page.evaluate((s) => window.Vitals.update(s), unknown);
+      const d = await readDots();
+      const name = p.replace(".html", "");
+      check(name + ": a session with no known model is still counted", d.n === code.children.length, JSON.stringify({ n: d.n }));
+      check(name + ": ...and its dot is neutral gray, the others keep their color", d.gray === 1 && d.plain === 1, JSON.stringify({ n: d.n, gray: d.gray, plain: d.plain }));
+    }
+
     /* ---------- every page still loads cleanly with the sample feed ---------- */
     for (const p of ["window.html", "popover.html", "help.html"]) {
       await page.goto(url(p));

@@ -112,7 +112,7 @@ Proc = {
   cpuPct, cpuTimeSec, threads,
   energy,              // Activity Monitor-style energy impact: cpuPct + 0.02 × wakeups per second (groups = sum)
   diskReadBps, diskWriteBps, netInBps, netOutBps,
-  model,               // sessions only: "Opus" | "Sonnet" | "Haiku" | "Fable" | null
+  model,               // sessions only: "Opus" | "Sonnet" | "Haiku" | "Fable" | null (not known: the pages draw a gray dot)
   note,                // optional short gray words from Swift (e.g. "virtual machine", "runs on node"); the page also has its own table
   started,             // when the process started (mach ticks, as a string so the page hands it back exactly with
                        // quitProcess); null for a synthetic group and for root's / other users' processes
@@ -124,6 +124,15 @@ Proc = {
 
 Grouping wanted: an app's helper processes under the app (by responsible pid / bundle path). The Claude desktop app
 gets its virtualization VM process as a child named "Sandbox virtual machine". Every `claude` CLI process becomes a
-`session` child of one synthetic "Claude Code" group, named by its working folder's last path component, with
-`model` from the newest `"model"` field in that folder's newest transcript under ~/.claude/projects (map
-claude-opus-* → Opus, claude-sonnet-* → Sonnet, claude-haiku-* → Haiku, claude-fable-* → Fable).
+`session` child of one synthetic "Claude Code" group, named by its working folder's last path component.
+
+`model` is that session's own, never a guess from a folder it shares (`SessionModels` in Processes.swift). Each live
+session keeps `~/.claude/sessions/<pid>.json` (`pid`, `sessionId`, `cwd`, `procStart`); the file only counts if
+`procStart` is when that pid really started (a pid gets reused). Its transcript is
+`~/.claude/projects/<cwd with every non-letter/digit as "-">/<sessionId>.jsonl`, and the model is the latest line there
+with `type` "assistant", `isSidechain` not true (a subagent's doesn't count) and a `message.model` that isn't
+"<synthetic>": claude-opus-* → Opus, claude-sonnet-* → Sonnet, claude-haiku-* → Haiku, claude-fable-* → Fable, anything
+else null. So a switch of model shows with the session's next answer, and a resumed session reads the transcript its
+file names. With no session file of its own (or no transcript yet), the folder's newest transcript is used only if
+this is the one session in that folder and the transcript was written after the session started; otherwise `model`
+is null. Rechecked every 20 s; a transcript that grew is read only from where the last read ended.
