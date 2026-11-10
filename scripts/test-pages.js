@@ -122,6 +122,67 @@ function gapSnapshot(base, real, gap) {
     const pop = await page.evaluate(() => ({ disk: document.getElementById("r-disk").textContent, net: document.getElementById("r-net").textContent }));
     check("popover: speeds after a gap aren't the ones from before it", !/77\.7/.test(pop.disk) && !/6\.6/.test(pop.net), JSON.stringify(pop));
 
+    /* ---------- amber / red come from the app's verdict (s.strain, memStrain), never worked out on the page ---------- */
+    // Held: pressure fell to 67 (under the 70 line) but the menu bar icon is still amber, so the pages are too.
+    function strained(base, pressure, word, code) {
+      const s = JSON.parse(JSON.stringify(base));
+      s.memory.pressurePct = pressure; s.memory.level = "normal"; s.memory.swapUsedBytes = 1e9;
+      s.strain.memory = word; s.strain.swap = "ok";
+      s.live.pressurePct = s.live.pressurePct.map(() => pressure);
+      s.live.swapUsedBytes = s.live.swapUsedBytes.map(() => 1e9);
+      s.live.memStrain = s.live.memStrain.map(() => code);
+      return s;
+    }
+    const memLook = () => page.evaluate(() => {
+      const win = document.querySelector("#ch-mem .ro .big"), pop = document.querySelector("#r-mem b");
+      const plot = document.querySelector("#ch-mem .plot") || document.querySelector(".pch .plot");
+      const swapDd = Array.from(document.querySelectorAll("#ch-mem .kv dt")).filter((d) => d.textContent === "Swap").map((d) => d.nextElementSibling.className)[0];
+      const swapSpan = Array.from(document.querySelectorAll("#r-mem span")).filter((d) => /^Swap/.test(d.textContent)).map((d) => d.className)[0];
+      return { big: (win || pop).className.trim(), dot: plot.querySelector("circle.nd-a").getAttribute("class"),
+        stops: Array.from(plot.querySelectorAll("stop")).map((x) => x.getAttribute("class")), swap: (swapDd == null ? swapSpan : swapDd) || "" };
+    });
+    for (const p of ["window.html", "popover.html"]) {
+      const name = p.replace(".html", "");
+      await page.goto(url(p));
+      await page.waitForFunction(() => window.Vitals && window.Vitals.last);
+      await page.evaluate((s) => window.Vitals.update(s), strained(base, 67, "warn", 1));
+      const held = await memLook();
+      check(name + ": memory stays amber while the icon holds it (pressure 67)", /\bw\b/.test(held.big) && /warn/.test(held.dot) && held.stops.every((c) => c === "st-warn"), JSON.stringify(held));
+      await page.evaluate((s) => window.Vitals.update(s), strained(base, 72, "ok", 0));
+      const calm = await memLook();
+      check(name + ": no color of its own when the app says ok (pressure 72)", calm.big === (name === "window" ? "big" : "") && !/warn|crit/.test(calm.dot) && calm.stops.every((c) => c === "st-ok"), JSON.stringify(calm));
+      const sw = strained(base, 40, "warn", 1); sw.strain.swap = "warn";
+      await page.evaluate((s) => window.Vitals.update(s), sw);
+      const swapWarn = await memLook();
+      const swCrit = strained(base, 90, "crit", 2); swCrit.strain.swap = "crit";
+      await page.evaluate((s) => window.Vitals.update(s), swCrit);
+      const swapCrit = await memLook();
+      check(name + ": the swap number takes the app's color", /\bw\b/.test(swapWarn.swap) && /\bc\b/.test(swapCrit.swap) && calm.swap.trim() === "" && /\bc\b/.test(swapCrit.big), JSON.stringify([calm.swap, swapWarn.swap, swapCrit.swap]));
+    }
+    // The 12-hour chart is colored by the stored levels: pressure hovering at 70 with one held stretch is one amber
+    // run, not stripes.
+    await page.goto(url("window.html"));
+    await page.waitForFunction(() => window.Vitals && window.Vitals.last);
+    const hover12 = strained(base, 69, "warn", 1);
+    hover12.long.pressurePct = hover12.long.pressurePct.map((v, i) => (v == null ? null : i % 2 ? 71 : 69));
+    hover12.long.swapUsedBytes = hover12.long.swapUsedBytes.map((v) => (v == null ? null : 1e9));
+    hover12.long.memStrain = hover12.long.memStrain.map((v, i) => (v == null ? null : i >= 600 ? 1 : 0));
+    await page.evaluate((s) => { window.Vitals.update(s); window.Vitals.setRange("12h"); }, hover12);
+    const long12 = await page.evaluate(() => {
+      const plot = document.querySelector("#ch-mem .plot"), r = plot.getBoundingClientRect();
+      const stops = Array.from(plot.querySelectorAll("stop")).map((x) => x.getAttribute("class"));
+      const tagAt = (slot) => {
+        document.getElementById("scope").dispatchEvent(new MouseEvent("mousemove", { clientX: r.left + slot / 719 * plot.clientWidth, clientY: r.top + 5, bubbles: true }));
+        return plot.querySelector(".htag").className;
+      };
+      const out = { runs: stops.filter((c, i) => i === 0 || c !== stops[i - 1]), early: tagAt(100), late: tagAt(700) };
+      document.getElementById("scope").dispatchEvent(new MouseEvent("mouseleave"));
+      window.Vitals.setRange("5m");
+      return out;
+    });
+    check("window: the 12-hour chart is colored by the stored levels (one amber run, no stripes)", long12.runs.join(",") === "st-ok,st-warn", JSON.stringify(long12.runs));
+    check("window: hovering a stored point shows its stored level", !/\bw\b/.test(long12.early) && /\bw\b/.test(long12.late), JSON.stringify([long12.early, long12.late]));
+
     /* ---------- a Claude Code session whose model isn't known: still counted, a neutral gray dot ---------- */
     const unknown = JSON.parse(JSON.stringify(base));
     const code = unknown.processes.find((p) => p.id === "group:claude-code");

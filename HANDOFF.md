@@ -39,6 +39,15 @@ the folder, the last "model" text in it), so every session sharing a folder got 
   a real flip. Help's two pictures were redrawn (`--render menubar`). Selftest: 6 "icon:" checks (they run last:
   making a real status bar button lets AppKit nap the timers the sampler checks wait on).
 
+- **Icon and pages agree on amber / red.** `StatusIcon.Judge` (with its hysteresis: in at pressure 70, out under
+  65, and so on) now runs once per sample inside the sampler and its answer goes out in the snapshot: `strain`
+  (memory, swap, cpu, gpu, heat, disk) plus a level per chart point (`live.memStrain`, `long.memStrain` = the
+  minute's worst). The menu bar item is drawn from that block (`StatusIcon.State(snapshot:)`) and the pages only
+  draw it: app.js no longer has thresholds of its own. So the memory number, the swap number, the chart's line and
+  hover, and the 12-hour chart (no more stripes at the line) change color at the same moment as the icon. sample.js
+  carries the same fields (it copies the memory rule for its fake data). Nothing else on the pages changed.
+  Selftest: 14 "strain:" checks, 2 sampler checks, 1 long-history check. Page tests: 8 new.
+
 ## 2026-11-10 review (shipped in 2204b93)
 Vinnie: "Read this entire project and find everything that's broken, inconsistent, inefficient, or no longer needed.
 Fix what you're sure about and list the rest for me to review." Every tracked file was read. Nothing he would see

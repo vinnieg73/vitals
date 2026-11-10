@@ -18,6 +18,7 @@ enum SelfTest {
         flags()
         baseline()
         judge()
+        strain()
         deadband()
         menus()
         tidy()
@@ -141,6 +142,60 @@ enum SelfTest {
         check("judge: time asleep doesn't count as busy", s.level(.cpu) == .ok)
         for t in stride(from: 106.0, through: 112, by: 2) { s = j.state(from: snap(90), now: t0 + t) }
         check("judge: 30 s busy after waking turns amber", s.level(.cpu) == .warn)
+    }
+
+    /// One verdict for the menu bar item and the pages: the judge's, with its hysteresis, sent in the snapshot's
+    /// `strain` block. (The pages used to work it out again with plain lines and could disagree.)
+    private static func strain() {
+        let gib = 1_073_741_824.0
+        func snap(_ pressure: Double, swap: Double = 0, level: String = "normal") -> [String: Any] {
+            ["cpu": ["totalPct": 10.0], "gpu": ["pct": 0.0],
+             "memory": ["totalBytes": 16 * gib, "usedBytes": 8 * gib, "pressurePct": pressure, "level": level, "swapUsedBytes": swap * gib]]
+        }
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        let j = StatusIcon.Judge()
+        var t = 0.0
+        /// The memory and swap words after one more sample, plus whether the icon's state says the same.
+        func step(_ s: [String: Any]) -> (mem: String, swap: String, icon: StatusIcon.Severity) {
+            t += 2
+            let state = j.state(from: s, now: t0 + t)
+            return (j.block["memory"] as? String ?? "?", j.block["swap"] as? String ?? "?", state.level(.memory))
+        }
+        var r = step(snap(69))
+        check("strain: pressure 69 is calm", r.mem == "ok" && r.icon == .ok, "\(r)")
+        r = step(snap(71))
+        check("strain: pressure 71 is strained", r.mem == "warn" && r.icon == .warn, "\(r)")
+        r = step(snap(67))
+        check("strain: back at 67 the icon holds amber, and the pages are told the same", r.mem == "warn" && r.icon == .warn, "\(r)")
+        r = step(snap(64))
+        check("strain: under 65 both let go", r.mem == "ok" && r.icon == .ok && r.swap == "ok", "\(r)")
+        // 16 GB of RAM: the swap line is 7.2 GB, let go at 6.2; critical is pressure 85 with swap at 12 GB.
+        r = step(snap(30, swap: 7.3))
+        check("strain: swap over its line colors memory and the swap number", r.mem == "warn" && r.swap == "warn", "\(r)")
+        r = step(snap(30, swap: 6.5))
+        check("strain: swap just under its line is held, for both", r.mem == "warn" && r.swap == "warn", "\(r)")
+        r = step(snap(30, swap: 6.0))
+        check("strain: 1 GB under the swap line both let go", r.mem == "ok" && r.swap == "ok", "\(r)")
+        r = step(snap(86, swap: 12.1))
+        check("strain: pressure 86 with swap at 75% of RAM is critical, the swap number too", r.mem == "crit" && r.swap == "crit" && r.icon == .critical, "\(r)")
+        r = step(snap(82, swap: 11.5))
+        check("strain: critical is held down to pressure 80", r.mem == "crit" && r.swap == "crit", "\(r)")
+        r = step(snap(78, swap: 11.5))
+        check("strain: under 80 it's strained, not critical", r.mem == "warn" && r.swap == "warn" && r.icon == .warn, "\(r)")
+        r = step(snap(30, level: "critical"))
+        check("strain: macOS saying critical is critical; the swap number stays calm with little swap", r.mem == "crit" && r.swap == "ok", "\(r)")
+
+        let keys = Set(j.block.keys)
+        check("strain: the block names every area and the swap number", keys == ["memory", "swap", "cpu", "gpu", "heat", "disk"], "\(keys.sorted())")
+        // The menu bar item is drawn from the block alone: same colors as the judge's own state.
+        var full = snap(71)
+        let judged = j.state(from: full, now: t0 + t + 2)
+        full["strain"] = j.block
+        check("strain: the icon drawn from a snapshot matches the judge", StatusIcon.State(snapshot: full) == judged && judged.level(.memory) == .warn,
+              "\(judged) vs \(StatusIcon.State(snapshot: full))")
+        var noBlock = snap(99, swap: 15, level: "critical")
+        noBlock["strain"] = nil
+        check("strain: without the block the icon colors nothing by itself", StatusIcon.State(snapshot: noBlock).levels.isEmpty)
     }
 
     /// The dials redraw only when a needle moves 2% or more, or a color changes.
@@ -474,6 +529,11 @@ enum SelfTest {
         check("long: a clock that went back starts a new minute, no padding", h.count == min(before + 1, LongHistory.length)
               && val(arr(h, "cpu"), h.count - 1) == 2)
         check("long: empty before any sample", LongHistory().count == 0 && LongHistory().json()["cpu"] == nil)
+        var w = LongHistory()
+        w.add(["memStrain": 0, "cpu": 10], at: t0)
+        w.add(["memStrain": 2, "cpu": 20], at: t0 + 10)
+        w.add(["memStrain": 1, "cpu": 30], at: t0 + 20)
+        check("long: a minute's memory strain is its worst, not its average", val(arr(w, "memStrain"), 0) == 2 && val(arr(w, "cpu"), 0) == 20)
     }
 
     /// Time away becomes empty chart slots, one per 2 s, never more than the 5-minute chart.
@@ -497,9 +557,15 @@ enum SelfTest {
         s.kick()
         Thread.sleep(forTimeInterval: 0.3)
         check("kick: skipped right after a sample", count() == 0, "\(count()) extra samples")
+        // A busy Mac can take a few hundred ms over one sample: wait for it (up to 3 s), then make sure it was just one.
+        func settle(_ want: Int) {
+            let until = Date() + 3
+            while count() < want, Date() < until { Thread.sleep(forTimeInterval: 0.05) }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
         Thread.sleep(forTimeInterval: 0.4)
         s.kick()
-        Thread.sleep(forTimeInterval: 0.6)
+        settle(1)
         check("kick: samples when the last one is over 0.5 s old", count() == 1, "\(count()) samples")
         // The unlock order: the end of the rest samples before the window is back (no page, stale rows), then the
         // window asks a moment later. It gets fresh rows, but CPU, disk and network aren't measured over those few ms.
@@ -509,7 +575,7 @@ enum SelfTest {
         let restEnd = s.sampleNow()
         s.setWantProcesses(true)
         s.kick()
-        Thread.sleep(forTimeInterval: 0.6)
+        settle(2)
         let got = lastDelivered()
         func read(_ snap: [String: Any]) -> NSNumber? { (snap["disk"] as? [String: Any])?["readBps"] as? NSNumber }
         func points(_ snap: [String: Any]) -> Int? { ((snap["live"] as? [String: Any])?["memUsedPct"] as? [Any])?.count }
@@ -553,6 +619,17 @@ enum SelfTest {
         let firstRow = (snap0["processes"] as? [[String: Any]])?.first ?? [:]
         check("sampler: nothing in the snapshot that no page reads", energy["chargerW"] == nil && firstRow["idleWakeupsPs"] == nil
               && !firstRow.isEmpty, "chargerW \(String(describing: energy["chargerW"])), row keys \(firstRow.keys.sorted())")
+        let block = snap0["strain"] as? [String: Any] ?? [:]
+        let words = block.values.compactMap { $0 as? String }
+        let live0 = snap0["live"] as? [String: Any] ?? [:]
+        let levels = live0["memStrain"] as? [Any] ?? [], usedPts = live0["memUsedPct"] as? [Any] ?? []
+        check("sampler: the snapshot carries the verdict the icon and the pages both draw", block.count == 6 && words.count == 6
+              && words.allSatisfy { ["ok", "warn", "crit"].contains($0) }, "\(block)")
+        check("sampler: ...and a memory level for every chart point, the last one the current verdict", !levels.isEmpty
+              && levels.count == usedPts.count
+              && (levels.last as? NSNumber)?.intValue == StatusIcon.State(snapshot: snap0).level(.memory).rawValue
+              && StatusIcon.State(snapshot: snap0).level(.memory).word == block["memory"] as? String,
+              "\(levels.count) levels, \(usedPts.count) points, last \(String(describing: levels.last)), block \(block)")
         let watts = ((snap0["live"] as? [String: Any])?["powerW"] as? [Any])?.filter { $0 is NSNumber }.count ?? 0
         check("sampler: watts every tick even with no page, where there's a battery", Power.watts() == nil || watts >= 3,
               "\(watts) points")

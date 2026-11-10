@@ -21,6 +21,17 @@ enum StatusIcon {
             }
         }
 
+        /// This area's key in the snapshot's `strain` block.
+        var key: String {
+            switch self {
+            case .memory: "memory"
+            case .heat: "heat"
+            case .disk: "disk"
+            case .cpu: "cpu"
+            case .gpu: "gpu"
+            }
+        }
+
         var name: String {
             switch self {
             case .memory: "memory"
@@ -35,6 +46,17 @@ enum StatusIcon {
     enum Severity: Int, Comparable {
         case ok, warn, critical
         static func < (a: Severity, b: Severity) -> Bool { a.rawValue < b.rawValue }
+
+        /// As the snapshot's `strain` block says it (DATA.md).
+        var word: String { self == .critical ? "crit" : self == .warn ? "warn" : "ok" }
+        init?(word: String) {
+            switch word {
+            case "ok": self = .ok
+            case "warn": self = .warn
+            case "crit": self = .critical
+            default: return nil
+            }
+        }
     }
 
     struct State: Equatable {
@@ -44,6 +66,26 @@ enum StatusIcon {
         var levels: [Area: Severity] = [:]
 
         func level(_ a: Area) -> Severity { levels[a] ?? .ok }
+
+        init(cpu: Int, gpu: Int, ram: Int, levels: [Area: Severity] = [:]) {
+            self.cpu = cpu; self.gpu = gpu; self.ram = ram; self.levels = levels
+        }
+
+        /// What the menu bar item shows for a snapshot: the needles from its numbers, the colors from its `strain`
+        /// block (worked out once, in the sampler, by `Judge`), the same block the pages color by.
+        init(snapshot snap: [String: Any]) {
+            func num(_ v: Any?) -> Double? { (v as? NSNumber)?.doubleValue }
+            func step(_ pct: Double) -> Int { Int(min(100, max(0, pct)).rounded()) }
+            let mem = snap["memory"] as? [String: Any] ?? [:]
+            let total = num(mem["totalBytes"]) ?? 0
+            ram = step(total > 0 ? (num(mem["usedBytes"]) ?? 0) / total * 100 : 0)
+            cpu = step(num((snap["cpu"] as? [String: Any])?["totalPct"]) ?? 0)   // null on the first sample
+            gpu = step(num((snap["gpu"] as? [String: Any])?["pct"]) ?? 0)
+            let strain = snap["strain"] as? [String: Any] ?? [:]
+            for area in Area.allCases {
+                if let sev = (strain[area.key] as? String).flatMap(Severity.init(word:)), sev > .ok { levels[area] = sev }
+            }
+        }
 
         /// Same colors and every needle within 1%: drawn, the two can't be told apart.
         func looksLike(_ o: State) -> Bool {
@@ -63,35 +105,45 @@ enum StatusIcon {
     static let amber = NSColor(srgbRed: 0xE0 / 255, green: 0x9A / 255, blue: 0x1D / 255, alpha: 1)
     static let red = NSColor(srgbRed: 0xD0 / 255, green: 0x34 / 255, blue: 0x2C / 255, alpha: 1)
 
-    /// Turns snapshots into a state. Remembers each area's last severity so a value hovering at a line
-    /// doesn't flicker (each line is lower on the way out than on the way in), and how long CPU and GPU
-    /// have been busy. Used only from the sampler's queue.
+    /// The one place that decides what is strained (amber) or critical (red): the sampler runs it once per sample
+    /// and puts the answer in the snapshot's `strain` block, which the menu bar item and the pages both draw from,
+    /// so they can't disagree. Remembers each area's last severity so a value hovering at a line doesn't flicker
+    /// (each line is lower on the way out than on the way in), and how long CPU and GPU have been busy. Used only
+    /// from the sampler's queue.
     final class Judge: @unchecked Sendable {
         private var last: [Area: Severity] = [:]
         private var busySince: [Area: Date] = [:]
         private var lastAt: Date?
+        /// The swap number's own color (the pages'): amber at the swap line, red when memory is critical and swap
+        /// is at its critical line; both let go 1 GiB lower, like the memory level they feed.
+        private(set) var swap: Severity = .ok
 
         func state(from snap: [String: Any], now: Date = Date()) -> State {
             // After a sleep or a resting stretch the "busy for 30 s" clocks start over: time asleep isn't busy time.
             if let lastAt, now.timeIntervalSince(lastAt) > 10 { busySince = [:] }
             lastAt = now
-            let mem = snap["memory"] as? [String: Any] ?? [:]
-            let total = num(mem["totalBytes"]) ?? 0
-            let used = total > 0 ? (num(mem["usedBytes"]) ?? 0) / total * 100 : 0
-            let cpu = num((snap["cpu"] as? [String: Any])?["totalPct"]) ?? 0 // null on the first sample
-            let gpu = num((snap["gpu"] as? [String: Any])?["pct"]) ?? 0
             var current: [Area: Severity] = [:]
             for area in Area.allCases { current[area] = judge(area, snap, was: last[area] ?? .ok, now: now) }
             last = current
-            return State(cpu: step(cpu), gpu: step(gpu), ram: step(used), levels: current.filter { $0.value > .ok })
+            var withLevels = snap
+            withLevels["strain"] = Self.block(current, swap: swap)
+            return State(snapshot: withLevels)
         }
 
-        private func step(_ pct: Double) -> Int { Int(min(100, max(0, pct)).rounded()) }
+        /// The snapshot's `strain` block for the last `state(from:)`: every area and the swap number, as
+        /// "ok" / "warn" / "crit".
+        var block: [String: Any] { Self.block(last, swap: swap) }
+
+        private static func block(_ levels: [Area: Severity], swap: Severity) -> [String: Any] {
+            var out: [String: Any] = ["swap": swap.word]
+            for area in Area.allCases { out[area.key] = (levels[area] ?? .ok).word }
+            return out
+        }
 
         private func judge(_ area: Area, _ snap: [String: Any], was: Severity, now: Date) -> Severity {
             switch area {
             case .memory:
-                // As the pages' memStateAt. Swap by size, not by how full the swap files are: macOS adds a
+                // Swap by size, not by how full the swap files are: macOS adds a
                 // 1 GB file only when the ones it has are nearly full, so "% full" is nearly always high.
                 // Strained: level warn, pressure 70+, or swap at max(4 GiB, 45% of RAM). Critical: level
                 // critical, or pressure 85+ with swap at 75% of RAM. Strained clears under pressure 65 and
@@ -104,9 +156,14 @@ enum StatusIcon {
                 let ram = num(m["totalBytes"]).flatMap { $0 > 0 ? $0 : nil } ?? 16 * gib // as the pages, if unknown
                 let warnAt = max(4 * gib, 0.45 * ram), critAt = 0.75 * ram
                 let crit = was == .critical, held = was >= .warn
-                if level == "critical" || (p >= (crit ? 80 : 85) && swap >= (crit ? critAt - gib : critAt)) { return .critical }
-                if level == "warn" || p >= (held ? 65 : 70) || swap >= (held ? warnAt - gib : warnAt) { return .warn }
-                return .ok
+                let now: Severity
+                if level == "critical" || (p >= (crit ? 80 : 85) && swap >= (crit ? critAt - gib : critAt)) { now = .critical }
+                else if level == "warn" || p >= (held ? 65 : 70) || swap >= (held ? warnAt - gib : warnAt) { now = .warn }
+                else { now = .ok }
+                if now == .critical && swap >= (self.swap == .critical ? critAt - gib : critAt) { self.swap = .critical }
+                else if swap >= (self.swap >= .warn ? warnAt - gib : warnAt) { self.swap = .warn }
+                else { self.swap = .ok }
+                return now
             case .heat:
                 switch (snap["energy"] as? [String: Any])?["thermal"] as? String {
                 case "critical": return .critical

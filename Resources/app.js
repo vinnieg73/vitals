@@ -118,31 +118,22 @@
     return p.name;
   }
 
-  // Swap is judged by size, not by how full it looks: macOS adds 1 GB swap files as it needs them,
-  // so used / total sits near 100% even when nothing is wrong. Warn above 45% of RAM (8 GB on 18 GB), at least 4 GB.
-  function swapWarnAt(ram) { return Math.max(4 * GiB, (ram || 16 * GiB) * 0.45); }
-  function swapCritAt(ram) { return (ram || 16 * GiB) * 0.75; }
-  function ramOf(s) { return (s.memory || {}).totalBytes || (s.host || {}).memBytes; }
-  function memStateAt(pressure, swapBytes, ram, level) {
-    if (level === "critical" || (pressure >= 85 && swapBytes >= swapCritAt(ram))) return "crit";
-    if (level === "warn" || pressure >= 70 || swapBytes >= swapWarnAt(ram)) return "warn";
-    return "ok";
-  }
-  function memState(s) {
-    var m = s.memory || {};
-    return memStateAt(m.pressurePct, m.swapUsedBytes || 0, ramOf(s), m.level);
-  }
+  // What is strained (amber) or critical (red) is decided once, by the app, with the menu bar icon's own rules
+  // (StatusIcon.Judge: each line is lower on the way out than on the way in, so nothing flickers), and sent as
+  // s.strain and, per chart point, live.memStrain / long.memStrain. The pages only draw it, so the icon and the
+  // pages can't disagree. (Swap is judged by size, not by how full it looks: macOS adds 1 GB swap files as it
+  // needs them, so used / total sits near 100% even when nothing is wrong.)
+  var STRAIN = ["ok", "warn", "crit"];
+  function strainOf(s, k) { var v = (s.strain || {})[k]; return v === "warn" || v === "crit" ? v : "ok"; }
+  function memState(s) { return strainOf(s, "memory"); }
   // "w" / "c" / "" for the swap number
-  function swapCls(s) {
-    var m = s.memory || {}, sw = m.swapUsedBytes || 0, ram = ramOf(s);
-    return memState(s) === "crit" && sw >= swapCritAt(ram) ? "c" : sw >= swapWarnAt(ram) ? "w" : "";
-  }
-  // memory strain per live point (pressure and swap), for coloring the used-% line; the last point uses the current level too
+  function swapCls(s) { var v = strainOf(s, "swap"); return v === "crit" ? "c" : v === "warn" ? "w" : ""; }
+  // memory strain per chart point, for coloring the used-% line (null where there's no point)
   function memSev(s, L) {
-    var m = s.memory || {}, P = L.pressurePct || [], S = L.swapUsedBytes || [], n = (L.memUsedPct || []).length, out = [];
+    var S = L.memStrain || [], n = (L.memUsedPct || []).length, out = [];
     for (var i = 0; i < n; i++) {
-      var k = P.length - n + i, p = P[k], sw = S[S.length - n + i];
-      out.push(!isNum(p) && !isNum(sw) ? null : memStateAt(p, isNum(sw) ? sw : 0, ramOf(s), i === n - 1 ? m.level : null));
+      var v = S[S.length - n + i];
+      out.push(isNum(v) ? STRAIN[Math.max(0, Math.min(2, Math.round(v)))] : null);
     }
     return out;
   }
@@ -369,7 +360,7 @@
       return L;
     }
     var c = s.cpu || {}, d = s.disk || {}, n = s.network || {}, e = s.energy || {};
-    return { stepSec: 2, pressurePct: [m.pressurePct], memUsedPct: [used], swapUsedBytes: [m.swapUsedBytes], cpuUserPct: [c.userPct], cpuSystemPct: [c.systemPct],
+    return { stepSec: 2, pressurePct: [m.pressurePct], memUsedPct: [used], memStrain: [STRAIN.indexOf(memState(s))], swapUsedBytes: [m.swapUsedBytes], cpuUserPct: [c.userPct], cpuSystemPct: [c.systemPct],
       gpuPct: [(s.gpu || {}).pct], diskReadBps: [d.readBps], diskWriteBps: [d.writeBps], netInBps: [n.inBps], netOutBps: [n.outBps], energyImpact: [e.impact], powerW: [e.watts] };
   }
   // The Energy charts show real watts (the whole Mac's draw) when the feed has them: Macs with a battery. Macs

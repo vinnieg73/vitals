@@ -167,7 +167,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   // the long block cut to the range; a series the feed doesn't have reads as empty
   function longView(lg, cap) {
     var out = { stepSec: 60 };
-    ["pressurePct", "memUsedPct", "swapUsedBytes", "cpuUserPct", "cpuSystemPct", "gpuPct", "diskReadBps", "diskWriteBps",
+    ["pressurePct", "memUsedPct", "memStrain", "swapUsedBytes", "cpuUserPct", "cpuSystemPct", "gpuPct", "diskReadBps", "diskWriteBps",
       "netInBps", "netOutBps", "energyImpact", "powerW"].forEach(function (k) { out[k] = ((lg || {})[k] || []).slice(-cap); });
     return out;
   }

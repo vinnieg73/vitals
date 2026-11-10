@@ -34,6 +34,8 @@
       load: [5.2, 4.8, 4.6]
     },
     gpu: { pct: 9, rendererPct: 8, tilerPct: 9, memBytes: 0.92 * G },
+    // what is strained, as the app's judge sends it (memory and swap are filled in below from the series)
+    strain: { memory: "ok", swap: "ok", cpu: "ok", gpu: "ok", heat: "ok", disk: "ok" },
     energy: { watts: 14.2, batteryW: 47.6, batteryPct: 82, pluggedIn: true, charging: true, fullyCharged: false, adapterWatts: 96, cycles: 47, healthPct: 100,
       minutesLeft: null, thermal: "nominal", fanRPM: 0, impact: null },
     disk: { volume: "Macintosh HD", totalBytes: 494.4e9, usedBytes: 400.1e9, freeBytes: 94.3e9, readBps: 14.2e6, writeBps: 38.6e6,
@@ -121,6 +123,33 @@
     energyImpact: longOf(83, function () { return null; }, snap.energy.impact),
     powerW: longOf(89, function (t, r) { return 9 + 14 * bump(t, .3, .03) + 10 * bump(t, .85, .04) + (r() - .5) * 2; }, snap.energy.watts)
   };
+  // Memory strain per point (0 ok / 1 strained / 2 critical). The app decides it (StatusIcon.Judge) and the pages
+  // only draw it; this fake feed copies the app's memory rule: strained from pressure 70 until it's under 65, or
+  // swap from max(4 GB, 45% of RAM) until 1 GB under that; critical from pressure 85 with swap at 75% of RAM.
+  function strainStep(p, sw, was) {
+    var ram = snap.memory.totalBytes, warnAt = Math.max(4 * G, .45 * ram), critAt = .75 * ram;
+    if (p >= (was === 2 ? 80 : 85) && sw >= (was === 2 ? critAt - G : critAt)) return 2;
+    return p >= (was >= 1 ? 65 : 70) || sw >= (was >= 1 ? warnAt - G : warnAt) ? 1 : 0;
+  }
+  function strainSeries(P, S) {
+    var was = 0;
+    return P.map(function (p, i) {
+      if (p == null && S[i] == null) return null;
+      was = strainStep(p, S[i] || 0, was);
+      return was;
+    });
+  }
+  var WORDS = ["ok", "warn", "crit"], LEVEL = { warn: 1, critical: 2 };
+  function strainNow() {   // the current point also counts what macOS itself says (memory.level)
+    var a = snap.live.memStrain, now = Math.max(a[a.length - 1] || 0, LEVEL[snap.memory.level] || 0);
+    a[a.length - 1] = now;
+    snap.strain.memory = WORDS[now];
+    snap.strain.swap = snap.memory.swapUsedBytes >= Math.max(4 * G, .45 * snap.memory.totalBytes) ? "warn" : "ok";
+  }
+  snap.live.memStrain = strainSeries(snap.live.pressurePct, snap.live.swapUsedBytes);
+  snap.long.memStrain = strainSeries(snap.long.pressurePct, snap.long.swapUsedBytes);
+  snap.long.memStrain[LN - 1] = Math.max(snap.long.memStrain[LN - 1] || 0, LEVEL[snap.memory.level] || 0);
+  strainNow();
   // like the real feed: the first point of a rate series has nothing to compare against
   ["diskReadBps", "diskWriteBps", "netInBps", "netOutBps"].forEach(function (k) { snap.live[k][0] = null; });
   var KEYS = Object.keys(snap.live).filter(function (k) { return k !== "stepSec"; });
@@ -174,7 +203,9 @@
       if (e.impact != null || r() < .3) e.impact = Math.round((84 + (r() - .5) * 10) * 10) / 10;
       if (e.watts != null || r() < .3) e.watts = Math.round((12 + (r() - .5) * 2.4) * 10) / 10;
       m.usedBytes = Math.max(15.6, Math.min(17.2, m.usedBytes / G + (r() - .5) * .12)) * G;
+      var was = snap.live.memStrain[snap.live.memStrain.length - 1] || 0;
       push("pressurePct", m.pressurePct); push("memUsedPct", Math.round(m.usedBytes / m.totalBytes * 1000) / 10); push("swapUsedBytes", m.swapUsedBytes);
+      push("memStrain", strainStep(m.pressurePct, m.swapUsedBytes, was)); strainNow();
       push("cpuUserPct", c.userPct); push("cpuSystemPct", c.systemPct); push("gpuPct", snap.gpu.pct);
       push("diskReadBps", d.readBps); push("diskWriteBps", d.writeBps); push("netInBps", n.inBps); push("netOutBps", n.outBps);
       push("energyImpact", e.impact); push("powerW", e.watts);

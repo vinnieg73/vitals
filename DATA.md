@@ -39,6 +39,17 @@ Any field may be `null` when unknown; the page shows "–".
     swapOutBytesSinceBoot               // vm_statistics64 swapouts * page size
   },
 
+  strain: {                             // what is strained (amber) or critical (red): decided once per sample by
+    memory, swap, cpu, gpu, heat, disk  // StatusIcon.Judge, each "ok" | "warn" | "crit". The menu bar item draws every
+  },                                    // area from it; the pages draw memory and swap (the swap number's color). The
+                                        // pages never work it out themselves, so they can't disagree with the icon.
+                                        // Lines (in / out, so nothing flickers): memory warn at level warn, pressure
+                                        // 70 / 65, or swap max(4 GiB, 45% of RAM) / 1 GiB less; crit at level critical,
+                                        // or pressure 85 / 80 with swap 75% of RAM / 1 GiB less. swap: warn at its line,
+                                        // crit when memory is crit and swap is at its crit line. cpu, gpu: warn after
+                                        // 85%+ for 30 s, until under 75%. heat: thermal serious / critical. disk: under
+                                        // 10% free (out at 12%) / under 3% (out at 4%).
+
   cpu: {
     totalPct, userPct, systemPct, idlePct,
     cores: [ { kind: "P" | "E", pct } ],     // performance cores first
@@ -80,6 +91,7 @@ Any field may be `null` when unknown; the page shows "–".
                                              // a gap is one null per 2 s away (at most 150), so index = time
     pressurePct: [..], swapUsedBytes: [..],
     memUsedPct: [..],                        // memory.usedBytes / totalBytes × 100, one decimal (Activity Monitor's Memory Used)
+    memStrain: [..],                         // strain.memory at that point: 0 ok, 1 warn, 2 crit. Colors the memory chart
     cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
     diskReadBps: [..], diskWriteBps: [..],
     netInBps: [..], netOutBps: [..],
@@ -91,8 +103,9 @@ Any field may be `null` when unknown; the page shows "–".
     stepSec: 60,                             // one point a minute, up to 720 (12 h), oldest first; the last is the minute in progress
                                              // each point = the average of that minute's non-null samples of that series;
                                              // null = no sample that minute (the Mac asleep). Same keys as live.
+                                             // memStrain is the minute's worst level, not an average.
                                              // Filled every tick, window or not; in memory only, starts over with Vitals.
-    pressurePct: [..], memUsedPct: [..], swapUsedBytes: [..], cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
+    pressurePct: [..], memUsedPct: [..], memStrain: [..], swapUsedBytes: [..], cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
     diskReadBps: [..], diskWriteBps: [..], netInBps: [..], netOutBps: [..], energyImpact: [..], powerW: [..]
   },
 

@@ -34,6 +34,9 @@ final class Sampler: @unchecked Sendable {
     private var power: Power.Reading?
     private var fanRPM: Any = NSNull()
 
+    // What is strained or critical, decided once per sample for the menu bar item and the pages alike (`strain`).
+    private let judge = StatusIcon.Judge()   // queue only
+
     private var latest: [String: Any]?   // queue only: the last snapshot delivered
     var onSnapshot: (([String: Any]) -> Void)?
 
@@ -219,6 +222,10 @@ final class Sampler: @unchecked Sendable {
         ]
 
         let energy = energySection(fresh: wantProcesses, impact: impact)
+        // The verdict (with the menu bar item's hysteresis), from the same numbers this snapshot carries.
+        let memStrain = judge.state(from: ["memory": memory, "cpu": cpu, "gpu": ["pct": num(gpuPct, 0)], "energy": energy, "disk": disk], now: now)
+            .level(.memory).rawValue
+        let strain = judge.block
 
         // Memory Used (app + wired + compressed, as Activity Monitor) as a % of RAM, one decimal.
         let memUsedPct: Any = {
@@ -227,7 +234,7 @@ final class Sampler: @unchecked Sendable {
             return (used / total * 1000).rounded() / 10
         }()
         let point: [String: Any] = [
-            "pressurePct": memory["pressurePct"] ?? NSNull(), "memUsedPct": memUsedPct,
+            "pressurePct": memory["pressurePct"] ?? NSNull(), "memUsedPct": memUsedPct, "memStrain": memStrain,
             "swapUsedBytes": memory["swapUsedBytes"] ?? NSNull(),
             "cpuUserPct": cpu["userPct"] ?? NSNull(), "cpuSystemPct": cpu["systemPct"] ?? NSNull(),
             "gpuPct": num(gpuPct, 0), "diskReadBps": readBps, "diskWriteBps": writeBps,
@@ -263,6 +270,7 @@ final class Sampler: @unchecked Sendable {
             "energy": energy,
             "disk": disk,
             "network": net,
+            "strain": strain,
             "live": liveOut,
             "totals": ["processes": procs.processes, "threads": procs.threads],
             "processes": procs.rows.map { $0.json() },

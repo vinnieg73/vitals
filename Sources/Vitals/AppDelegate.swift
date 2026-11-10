@@ -23,7 +23,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var lastJSON: String?
     private var lastState: StatusIcon.State?
     private var lastWindowOpen = false
-    private let judge = StatusIcon.Judge()
     private var appearanceWatch: NSKeyValueObservation?
     private var barLook: NSAppearance.Name?
 
@@ -71,8 +70,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         hotkey = Hotkey { [weak self] in MainActor.assumeIsolated { self?.toggleWindow() } }
 
         let drawn = DrawnState()
-        sampler.onSnapshot = { [weak self, live, judge, statusTest, drawn] snap in
-            var state = judge.state(from: snap)
+        sampler.onSnapshot = { [weak self, live, statusTest, drawn] snap in
+            // Needles from the numbers, colors from the snapshot's `strain` block: the one the pages color by.
+            var state = StatusIcon.State(snapshot: snap)
             if statusTest { state = Self.testState() }
             // At this size a needle that moved under 2% looks the same (1% is a third of a pixel at its tip): no redraw.
             let redraw = drawn.state.map { !state.looksLike($0) } ?? true

@@ -24,7 +24,12 @@ enum Dump {
         }
         let n = 20
         let c0 = cpuSeconds(), t0 = Date()
-        for _ in 0..<n { _ = AppDelegate.encode(s.sampleNow()) }
+        var slowest = 0.0   // wall time of the slowest tick: what a page would wait for its numbers
+        for _ in 0..<n {
+            let t = Date()
+            _ = AppDelegate.encode(s.sampleNow())
+            slowest = max(slowest, Date().timeIntervalSince(t))
+        }
         let perTick = (cpuSeconds() - c0) / Double(n)
         s.setWantProcesses(false)
         let c1 = cpuSeconds()
@@ -35,8 +40,8 @@ enum Dump {
         _ = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count) }
         }
-        let msg = String(format: "bench: %.1f ms CPU per tick with process rows (%.2f%% of one core at 2 s), %.1f ms without (%.2f%%); resident %.0f MB; wall %.1f s\n",
-                         perTick * 1000, perTick / 2 * 100, idleTick * 1000, idleTick / 2 * 100, Double(info.resident_size) / 1048576, Date().timeIntervalSince(t0))
+        let msg = String(format: "bench: %.1f ms CPU per tick with process rows (%.2f%% of one core at 2 s), %.1f ms without (%.2f%%); resident %.0f MB; wall %.1f s; slowest tick %.0f ms\n",
+                         perTick * 1000, perTick / 2 * 100, idleTick * 1000, idleTick / 2 * 100, Double(info.resident_size) / 1048576, Date().timeIntervalSince(t0), slowest * 1000)
         FileHandle.standardError.write(Data(msg.utf8))
     }
 }
