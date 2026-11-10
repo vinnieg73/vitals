@@ -12,8 +12,11 @@ every change before today.
 
 ## Where things stand
 - Repo: PRIVATE github.com/vinnieg73/vitals, branch `main` only, pushed. Tag `v1.0`.
-- Installed: /Applications/Vitals.app, version 1.0, built from `main` at the tag. Opens at login by itself (Login
-  Items shows it enabled).
+- Installed: /Applications/Vitals.app, version 1.0, built from 6634116 (the tag is one commit later and only
+  changes this file). Opens at login by itself (Login Items shows it enabled).
+- After the install (2026-11-10): one Vitals process, running from /Applications. Idle, nothing open, over 70 s:
+  0.5 to 1.5% of one core (about 0.8% on average, 0.6 s of CPU), 21 to 24 MB, on a busy Mac (load average 16 to 20).
+  `--dump --bench` on the cache build: 32 ms of CPU per tick with the process rows (a page open), 3 ms without.
 - Everything Vinnie has asked for is shipped. Nothing is half done.
 - Checks on the final tree (2026-11-10, cache build): build 0 warnings, `--selftest` 176 pass, page tests 34 pass,
   window / popover / help / menubar rendered light and dark with no page errors, an unknown option (`--scan`) exits 2.
