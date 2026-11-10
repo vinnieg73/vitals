@@ -1,7 +1,7 @@
 # Vitals — handoff
 
-_Last updated 2026-11-10 by Claude: whole-project review. Its fixes are in the working tree, NOT committed yet
-(waiting on Vinnie's typed OK to commit, push and install)._
+_Last updated 2026-11-10 by Claude: whole-project review fixes committed (2204b93), pushed and installed after Vinnie's
+OK; the review items he left to us are being built next (see "Waiting on Vinnie")._
 
 ## What it is
 A menu bar app for Vinnie's Mac that shows what Activity Monitor shows with every stat up front: three dials in the menu
@@ -11,11 +11,11 @@ the data the Swift side sends the pages; CLAUDE.md holds the lessons learned; do
 every change before today.
 
 ## Where things stand
-- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main`. Last pushed commit d4cb11f (2026-11-05).
-- Installed: /Applications/Vitals.app, built from d4cb11f. Opens at login by itself (Login Items shows it enabled).
+- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main`. Last pushed commit d0651f6 (2026-11-10).
+- Installed: /Applications/Vitals.app, built from 2204b93 (review fixes). Opens at login by itself (Login Items shows it enabled).
 - Everything Vinnie has asked for is shipped. Nothing is half done.
 
-## 2026-11-10 review (uncommitted)
+## 2026-11-10 review (shipped in 2204b93)
 Vinnie: "Read this entire project and find everything that's broken, inconsistent, inefficient, or no longer needed.
 Fix what you're sure about and list the rest for me to review." Every tracked file was read. Nothing he would see
 changes: the pages draw pixel for pixel the same (checked, below).
@@ -52,8 +52,9 @@ Checked:
 - Mac (2026-11-10, cache build; committed 2204b93, pushed, installed to /Applications): build 0 warnings, --selftest 108/108 pass, page tests 17/17, renders OK light and dark, unknown flag exits 2.
 
 ## Waiting on Vinnie
-1. His typed OK to commit, push and install the review fixes above.
-2. The review's list of things that are his call (sent in the thread 2026-11-10):
+1. (Done 2026-11-10: he typed OK to commit, push and install.)
+2. The review's list of things that were his call; on 2026-11-10 he said "go ahead with all changes and follow your
+   recommendations", so these are being built:
    - The heat / low-disk icon uses a colored dot. His later rule (2026-10-28) is no dots or badges for warnings.
    - The menu bar dial and the drop-down can disagree for a moment about "strained": the icon lets go of amber at
      pressure 65% (so it doesn't flicker), the pages at 70%. On the 12-hour chart this shows as stripes when pressure
