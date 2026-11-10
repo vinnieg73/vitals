@@ -102,7 +102,11 @@ hr{border:0;border-top:1px solid var(--line);margin:5px 10px}
     // the big number, so they're in the window and Help, not here.)
     set("r-gpu", "<b>" + F.pct(V.now(g.pct, L.gpuPct)) + "<small>%</small></b>" + (isNum(g.memBytes) ? "<span>Memory " + F.gb(g.memBytes, 1) + " GB</span>" : "") +
       (h.gpuCores ? "<span>" + h.gpuCores + " cores</span>" : ""));
-    set("r-disk", two(V.now(d.readBps, L.diskReadBps), "read", V.now(d.writeBps, L.diskWriteBps), "write"));
+    // under the two speeds: free space, as the window's Disk row says it, in the app's own color for the disk
+    // (s.strain.disk: amber under 10% free, red under 3%, the same verdict that puts the drive in the menu bar)
+    var free = F.sizeParts(d.freeBytes);
+    set("r-disk", two(V.now(d.readBps, L.diskReadBps), "read", V.now(d.writeBps, L.diskWriteBps), "write") +
+      (free ? '<span class="' + V.strainCls(s, "disk") + '">' + free[0] + " " + free[1] + " free</span>" : ""));
     set("r-net", two(V.now(n.inBps, L.netInBps), "in", V.now(n.outBps, L.netOutBps), "out"));
     // watts with a battery; the energy impact score on Macs without one
     // the label rides on the big number ("W for Mac": what runs the Mac itself; like Memory's "% used"), then the fan (only where it can be

@@ -154,6 +154,16 @@
   ["diskReadBps", "diskWriteBps", "netInBps", "netOutBps"].forEach(function (k) { snap.live[k][0] = null; });
   var KEYS = Object.keys(snap.live).filter(function (k) { return k !== "stepSec"; });
 
+  // ?disk=warn / ?disk=crit: a nearly full disk (8% / 2% free). The app decides the color (strain.disk: amber under
+  // 10% free, red under 3%); this fake feed copies that rule.
+  var q0 = location.search + location.hash, lowDisk = /disk=(warn|crit)/.exec(q0);
+  if (lowDisk) {
+    snap.disk.freeBytes = Math.round(snap.disk.totalBytes * (lowDisk[1] === "crit" ? .02 : .08) / 1e8) * 1e8;
+    snap.disk.usedBytes = snap.disk.totalBytes - snap.disk.freeBytes;
+  }
+  var freePart = snap.disk.freeBytes / snap.disk.totalBytes;
+  snap.strain.disk = freePart < .03 ? "crit" : freePart < .10 ? "warn" : "ok";
+
   // ?fresh: right after launch, one point per series (?fresh=12 keeps 12)
   // ?gaps: energy impact and watts null while no page was showing (a long run of nulls), plus a short gap in CPU
   var q = location.search + location.hash;

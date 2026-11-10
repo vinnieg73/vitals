@@ -356,11 +356,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   // decimal GB like Finder, number then a quiet unit; TB from 1,000 GB. `tight`: the four totals for today, which
   // sit beside long labels ("Received today"): whole GB from 100 GB. Every form fits its cell (scripts/test-pages.js
   // checks the widest of each).
-  function dec(b, tight) {
-    if (!isNum(b)) return "–";
-    if (b >= 999.95e9) return u((b / 1e12).toFixed(2), "TB");
-    return u((b / 1e9).toFixed(tight && b >= 99.95e9 ? 0 : 1), "GB");
-  }
+  function dec(b, tight) { var p = F.sizeParts(b, tight); return p ? u(p[0], p[1]) : "–"; }
   // swapped out since boot: whole GB (binary, like the memory numbers), TB from 1,000
   function swappedOut(b) {
     if (!isNum(b)) return "–";

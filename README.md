@@ -34,6 +34,10 @@ scripts/build.sh            # builds ~/Library/Caches/VitalsBuild/Vitals.app
 scripts/build.sh --install  # replaces /Applications/Vitals.app and opens it
 ```
 
+`--install` starts the new copy in the background (`open -g`), tries again for a few seconds if macOS isn't ready
+(error -600 right after the old copy quit), and ends with an error unless exactly one Vitals is running from
+/Applications.
+
 Needs macOS 14+ and the Xcode command line tools. The build lives in ~/Library/Caches so Spotlight
 doesn't index a second copy of the app.
 
@@ -67,11 +71,12 @@ new stat or a new number format needs its widest case added to `heavy()` there.
 - `Sources/Vitals/` — the Swift app: the sampler (System, Devices, Fan, Processes, Sampler, LongHistory for the
   12-hour charts), the menu bar item, the popover and windows (AppDelegate, StatusIcon, Web, Hotkey), and
   Dump/Render/MenuBarPreview/Soak/SelfTest.
-- `Resources/` — the pages (window, popover, help, app.css, app.js; sample.js is the fake feed a browser gets) and the
+- `Resources/` — the pages (window, popover, help, app.css, app.js; sample.js is the fake feed a browser gets:
+  `?still` stops it ticking, `?gaps` / `?fresh` show gaps and a fresh start, `?disk=warn` / `?disk=crit` a nearly full disk) and the
   two menu bar pictures Help shows. The Swift side feeds the pages the snapshot described in `DATA.md`.
 - `Support/Info.plist` — the app's Info.plist, and the one place the version lives. Two numbers ("1.0"); the build
   number is major × 100 + minor (1.0 = 100, next 1.1 = 101, 2.0 = 200), and build.sh refuses a pair that doesn't fit.
-  About reads it from the bundle ("Version 1.0"). Each release is tagged `v1.0`.
+  About reads it from the bundle ("Version 1.1"). Each release is tagged (`v1.0`, `v1.1`).
 - `HANDOFF.md` — where things stand now. `docs/HISTORY.md` — the dated log of every change before 2026-11-10.
 - `icon/make-icon.swift` — draws `icon/icon-1024.png` (light), `icon/icon-1024-dark.png` (Dark mode, "Graphite") and the
   gauge layers in `icon/Vitals.icon/Assets/`. `build.sh` compiles `icon/Vitals.icon` (Icon Composer format) with actool,

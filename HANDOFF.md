@@ -1,9 +1,9 @@
 # Vitals — handoff
 
-_Last updated 2026-11-10 by Claude: version 1.0 is shipped and installed. It holds the accurate Claude Code model
-dots and the six review items Vinnie approved ("go ahead with all changes and follow your recommendations").
-A layout fix for the window (the cut-off Load numbers and the crowded Energy caption, below) shipped the same day:
-Vinnie typed "commit push and ship please"._
+_Last updated 2026-11-10 by Claude: version 1.1 is shipped and installed. Today, in order: version 1.0 (the accurate
+Claude Code model dots and the six review items Vinnie approved), a layout fix for the window (cut-off Load numbers,
+crowded Energy caption), and version 1.1 (the drop-down's Disk row says how much is free; the install script
+retries its last step)._
 
 ## What it is
 A menu bar app for Vinnie's Mac that shows what Activity Monitor shows with every stat up front: three dials in the menu
@@ -13,17 +13,37 @@ the data the Swift side sends the pages; CLAUDE.md holds the lessons learned; do
 every change before today.
 
 ## Where things stand
-- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main` only, pushed. Tag `v1.0` (3b3e107).
-- Installed: /Applications/Vitals.app, version 1.0, built from the window layout fix e69af18 (the commit after the
-  tag; the version number was kept at 1.0 for this small fix). Opens at login by itself (Login Items shows it
-  enabled). After that install: one Vitals process from /Applications, idle 0.6 to 1.3% of one core, 21 to 25 MB.
-- After the install (2026-11-10): one Vitals process, running from /Applications. Idle, nothing open, over 70 s:
-  0.5 to 1.5% of one core (about 0.8% on average, 0.6 s of CPU), 21 to 24 MB, on a busy Mac (load average 16 to 20).
-  `--dump --bench` on the cache build: 32 ms of CPU per tick with the process rows (a page open), 3 ms without.
+- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main` only, pushed. Tags `v1.0` (3b3e107) and `v1.1`.
+- Installed: /Applications/Vitals.app, version 1.1, built from the commit tagged `v1.1`. Opens at login by itself
+  (Login Items shows it enabled).
 - Everything Vinnie has asked for is shipped. Nothing is half done.
-- Checks on the final tree (2026-11-10, cache build): build 0 warnings, `--selftest` 176 pass, page tests 79 pass,
+- Checks on the final tree (2026-11-10, cache build): build 0 warnings, `--selftest` 176 pass, page tests 92 pass,
   window / popover / help / menubar rendered light and dark with no page errors, an unknown option (`--scan`) exits 2.
   (At the v1.0 tag: the same, with 34 page tests.)
+
+## 2026-11-10 version 1.1: free space in the drop-down, install retry (shipped)
+Vinnie saw the amber drive in his real menu bar and asked what it meant (the disk was under 10% free). The drop-down
+never showed free space, so it couldn't say why the icon changed. Offered; he said "go for it".
+- **Drop-down, Disk row: a third line "47.5 GB free"** under the two speeds, small and gray like the other rows'
+  third lines ("Swap ...", "14 cores", "Battery full"). Amber when the app says the disk is low, red when critical:
+  the color is `strain.disk` from the feed (`Vitals.strainCls`), the same verdict that puts the drive in the menu
+  bar, so the two can't disagree (in under 10% free, out at 12%; red under 3%, out at 4%). The page has no
+  threshold of its own. Numbers only. The number is the window's Free (`F.sizeParts` in app.js, now shared by both
+  pages: one decimal in GB, TB from 1,000 GB). Rows are still 52 px and the drop-down the same length in every
+  state; with no free-space number in the feed the row is the two speeds, as before.
+- **sample.js** shows all three states: plain (calm), `?disk=warn`, `?disk=crit`; it copies the app's rule for
+  `strain.disk` like it does for memory.
+- **build.sh --install** retries `open -g` (up to 5 tries, 2 s apart) and then ends with an error unless exactly
+  one Vitals is running from /Applications. Cause: `open` failed once with error -600 right after the old copy
+  quit, leaving the new build installed but nothing running. The retry logic was run with fake `open` / `pgrep`
+  (works first time, fails twice then works, fails 5 times, nothing running, two copies): right result each time.
+- Version 1.1, build 101 (`Support/Info.plist`), tagged `v1.1`. Next is 1.2 = 102.
+- Page tests: 13 new (92 in all), light and dark: the line is there and gray when calm, amber on warn, red on
+  critical, no color of its own when the app says ok or sends no verdict, never cut off or out of its row with
+  1.82 TB / 999.9 GB / 7.92 TB beside 999.9 MB/s, absent without a number, rows and length unchanged in every
+  state; and the three sample states. Looked at: the real drop-down render with this Mac's real numbers
+  ("47.5 GB free", amber: 9.6% free) light and dark, and the calm / warn / critical samples in both.
+- Help: the icon section says the menu's Disk row shows free space in the same color. DATA.md: who reads `strain`.
 
 ## 2026-11-10 window layout fix (shipped)
 Vinnie sent screenshots of the installed 1.0 under heavy load (window about 1100 pt wide). Two flaws in the window's
@@ -63,12 +83,14 @@ are pixel for pixel where they were.
 Details of each are in the two sections below.
 
 ## Vinnie still owes a look (only he can see these on his real screen)
-1. The new heat / low-disk icon: it only shows when the Mac is hot or the disk is nearly full, so it may be a while.
-   It should be an amber (red when critical) thermometer or drive with no dot. Help's picture shows what to expect.
-2. The charts after a restart: quit Vitals and open it again (or restart the Mac), then open the window on 1 hour
-   or 12 hours. The old history should still be there, with a gap for the time Vitals wasn't running. (The install
-   of 1.0 itself started with empty charts: the build before it didn't save any.)
-3. The drop-down after the lid has been shut a while: the charts should have no gap.
+1. The drop-down's Disk row: "N GB free" under the speeds, amber while the drive icon shows.
+2. The window at its smallest size under load: Load's three numbers, the Energy caption.
+3. The charts after a restart: quit Vitals and open it again (or restart the Mac), then open the window on 1 hour
+   or 12 hours. The old history should still be there, with a gap for the time Vitals wasn't running.
+4. The drop-down after the lid has been shut a while: the charts should have no gap.
+
+Seen 2026-11-10 on his real menu bar (his screenshot, he asked what it meant): the new low-disk icon, an amber drive
+with no dot. The heat icon and the red (critical) versions have not come up.
 
 Seen 2026-11-10, in a screenshot of the drop-down Vinnie sent a few minutes after the install of 1.0:
 - The model dots: 12 dots, 7 pink (Fable) and 5 orange (Sonnet). Checked right after against each running
@@ -136,7 +158,7 @@ the folder, the last "model" text in it), so every session sharing a folder got 
   fix/audit-top4, fix/audit-usability; on GitHub those four plus fix/audit-2026-10-23 and icon/dark. Only `main` is left.
 
 - **Version 1.0.** `Support/Info.plist` says 1.0 with build number 100 (the rule shared with Claude Meter: two
-  numbers, build = major × 100 + minor; next is 1.1 = 101). build.sh no longer stamps the commit count and refuses a
+  numbers, build = major × 100 + minor). 1.1 = 101 followed the same day. build.sh no longer stamps the commit count and refuses a
   version / build pair that doesn't fit. About reads the bundle and shows "Version 1.0" (no build number in
   brackets). Tagged `v1.0`. Selftest: 4 "version:" checks.
 
@@ -177,9 +199,9 @@ Checked:
 - Mac (2026-11-10, cache build; committed 2204b93, pushed, installed to /Applications): build 0 warnings, --selftest 108/108 pass, page tests 17/17, renders OK light and dark, unknown flag exits 2.
 
 ## Never checked on his real screen
-The colored heat / low-disk icon in the real menu bar, in a light and a dark bar (it is drawn the same way as the
-strained dials and is only set when its state changes, but the 2026-10-19 redraw loop only showed in the real bar;
-the off-screen checks and the idle CPU after the install were normal).
+The colored heat icon, the red versions, and a light/dark switch while the colored icon shows (it is only set when
+its state changes, but the 2026-10-19 redraw loop only showed in the real bar). The amber drive was showing in
+his real (dark) menu bar on 2026-11-10 with normal idle CPU: 0.5 to 0.9% of one core over 30 s.
 From older work (details in docs/HISTORY.md): a real light/dark switch with a strained icon showing; the drop-down's
 page being released a minute after it closes; a real midnight rollover of the "today" totals; lock/unlock with the
 window open (charts show the gap at its real length); the window page's memory after hours open (it crept ~1 MB/min
@@ -206,12 +228,9 @@ in a 6 minute off-screen soak).
   loop only showed in the real menu bar).
 
 ## Gotchas
-- `scripts/build.sh --install` can stop at its last step with "_LSOpenURLsWithCompletionHandler() failed with error
-  -600" (2026-11-10, the first install over a build that quits the normal way on `kill`). The new copy is already
-  in /Applications by then but Vitals is NOT running, and the script does not print "Installed to". Always check
-  `pgrep -fl Vitals` after an install; running the same command again brought it back (Vitals was away about 25 s).
-  Likely cause: `open -g` ran before macOS had finished noting that the old copy quit. Not fixed in the script yet
-  (a retry around `open -g` would do it).
+- `scripts/build.sh --install` once stopped at its last step with "_LSOpenURLsWithCompletionHandler() failed with
+  error -600" (2026-11-10): the new copy was in /Applications but Vitals was NOT running. The script now retries
+  and checks that exactly one copy runs; if it still ends with an error, nothing may be running: read the message.
 - Running as the user, macOS won't give numbers for root's and other users' processes: memory and CPU show "–" and
   they sort last. Their User column is filled (2026-11-10).
 - Ad hoc signing gives every build a new identity, so macOS forgets privacy answers after a rebuild. Vitals asks for

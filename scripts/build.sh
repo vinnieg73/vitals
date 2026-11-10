@@ -63,6 +63,30 @@ if [[ "${1:-}" == "--install" ]]; then
   cp -R "$APP" /Applications/
   LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
   "$LSREGISTER" -f "/Applications/Vitals.app" || true
-  open -g "/Applications/Vitals.app"   # -g: launch in the background, never take focus from Vinnie
-  echo "Installed to /Applications/Vitals.app"
+  # -g: launch in the background, never take focus from Vinnie. `open` can fail with error -600 when it runs before
+  # macOS has finished noting that the old copy quit (2026-11-10: the new build was in place, nothing was running),
+  # so try up to 5 times, 2 s apart.
+  opened=0
+  for try in 1 2 3 4 5; do
+    if open -g "/Applications/Vitals.app"; then opened=1; break; fi
+    echo "open failed (try $try of 5)" >&2
+    [[ $try == 5 ]] || sleep 2
+  done
+  if [[ $opened != 1 ]]; then
+    echo "error: the new build is in /Applications/Vitals.app but could not be started. Start it with: open -g /Applications/Vitals.app" >&2
+    exit 1
+  fi
+  # ...and it must really be running: exactly one Vitals from /Applications (a test copy elsewhere doesn't count)
+  N=0
+  for _ in $(seq 50); do
+    N="$(pgrep -f '^/Applications/Vitals.app/Contents/MacOS/Vitals' | wc -l | tr -d ' ' || true)"
+    [[ "$N" != 0 ]] && break
+    sleep 0.1
+  done
+  if [[ "$N" != 1 ]]; then
+    echo "error: expected exactly one Vitals running from /Applications, found $N:" >&2
+    pgrep -fl 'Vitals.app/Contents/MacOS/Vitals' >&2 || true
+    exit 1
+  fi
+  echo "Installed to /Applications/Vitals.app (one copy running)"
 fi

@@ -43,6 +43,13 @@
       if (bps >= 1e3) return Math.round(bps / 1e3) + " KB/s";
       return Math.round(bps) + " B/s";
     },
+    // a disk or network size, decimal like Finder, as [number, unit]: one decimal in GB, TB from 1,000 GB.
+    // `tight` (beside a long label): whole GB from 100 GB. null when there's no number.
+    sizeParts: function (b, tight) {
+      if (!isNum(b)) return null;
+      if (b >= 999.95e9) return [(b / 1e12).toFixed(2), "TB"];
+      return [(b / 1e9).toFixed(tight && b >= 99.95e9 ? 0 : 1), "GB"];
+    },
     pct: function (v, d) { return isNum(v) ? v.toFixed(d || 0) : "–"; },
     int: function (v) { return isNum(v) ? Math.round(v).toLocaleString("en-US") : "–"; },
     dur: function (sec) {
@@ -126,8 +133,9 @@
   var STRAIN = ["ok", "warn", "crit"];
   function strainOf(s, k) { var v = (s.strain || {})[k]; return v === "warn" || v === "crit" ? v : "ok"; }
   function memState(s) { return strainOf(s, "memory"); }
-  // "w" / "c" / "" for the swap number
-  function swapCls(s) { var v = strainOf(s, "swap"); return v === "crit" ? "c" : v === "warn" ? "w" : ""; }
+  // "w" / "c" / "" (amber / red / no color of its own) for one area of s.strain: "swap", "disk", ...
+  function strainCls(s, k) { var v = strainOf(s, k); return v === "crit" ? "c" : v === "warn" ? "w" : ""; }
+  function swapCls(s) { return strainCls(s, "swap"); }
   // memory strain per chart point, for coloring the used-% line (null where there's no point)
   function memSev(s, L) {
     var S = L.memStrain || [], n = (L.memUsedPct || []).length, out = [];
@@ -378,7 +386,7 @@
 
   /* ---------- wiring ---------- */
   var Vitals = window.Vitals = {
-    F: F, note: note, flat: flat, items: items, friendly: friendly, memState: memState, memSev: memSev, swapCls: swapCls,
+    F: F, note: note, flat: flat, items: items, friendly: friendly, memState: memState, memSev: memSev, swapCls: swapCls, strainCls: strainCls,
     post: post, native: native,
     Strip: Strip, niceMax: niceMax, liveOf: liveOf, useWatts: useWatts, now: now, CAP: CAP,
     GiB: GiB, isNum: isNum,

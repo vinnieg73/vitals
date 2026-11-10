@@ -403,6 +403,78 @@ function gapSnapshot(base, real, gap) {
     await page.emulateMedia({ colorScheme: null });
     await page.setViewportSize({ width: 1280, height: 880 });
 
+    /* ---------- popover: free space under the Disk row's speeds, in the app's color for the disk ---------- */
+    const diskRow = () => page.evaluate(() => {
+      const css = (v) => { const i = document.createElement("i"); i.style.color = "var(" + v + ")"; document.body.appendChild(i); const c = getComputedStyle(i).color; i.remove(); return c; };
+      const pr = document.getElementById("r-disk"), row = pr.parentElement.getBoundingClientRect(), box = pr.getBoundingClientRect(), r = document.createRange();
+      const cs = getComputedStyle(pr), left = box.left + parseFloat(cs.paddingLeft), right = box.right - parseFloat(cs.paddingRight);
+      const lines = Array.from(pr.children).map((el) => { r.selectNodeContents(el); const b = r.getBoundingClientRect(); return { text: el.textContent, left: b.left, right: b.right, top: b.top, bottom: b.bottom }; });
+      const free = Array.from(pr.children).filter((el) => / free$/.test(el.textContent))[0];
+      const third = (id) => { const el = document.getElementById(id).lastElementChild, c = getComputedStyle(el); return c.fontSize + " " + c.fontWeight; };
+      return { free: free ? free.textContent : null, cls: free ? free.className : null, color: free ? getComputedStyle(free).color : null,
+        style: free ? getComputedStyle(free).fontSize + " " + getComputedStyle(free).fontWeight : null, like: third("r-mem"),
+        gray: css("--ink-3"), warn: css("--warn"), crit: css("--crit"), n: lines.length,
+        inside: lines.every((l) => l.left >= left - 0.5 && l.right <= right + 0.5 && l.top >= row.top && l.bottom <= row.bottom),
+        spare: Math.min.apply(null, lines.map((l) => Math.min(l.left - left, l.top - row.top, row.bottom - l.bottom))),
+        rows: Array.from(document.querySelectorAll(".pch")).map((x) => x.getBoundingClientRect().height), scope: document.getElementById("pscope").getBoundingClientRect().height,
+        page: document.body.getBoundingClientRect().height };
+    });
+    const disk = (freeBytes, word, more) => { const s = JSON.parse(JSON.stringify(base)); s.disk.freeBytes = freeBytes; s.strain.disk = word; return Object.assign(s, more || {}); };
+    for (const scheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.setViewportSize({ width: 356, height: 900 });
+      await page.goto(url("popover.html"));
+      await page.waitForFunction(() => window.Vitals && window.Vitals.last);
+      const at = "popover " + scheme + ": ";
+      const calm = await diskRow();
+      check(at + "the Disk row says how much is free, small and gray like the other rows' third lines",
+        calm.free === "94.3 GB free" && calm.cls === "" && calm.color === calm.gray && calm.style === calm.like && calm.n === 3, JSON.stringify(calm));
+      await page.evaluate((s) => window.Vitals.update(s), disk(39.6e9, "warn"));
+      const warn = await diskRow();
+      await page.evaluate((s) => window.Vitals.update(s), disk(9.9e9, "crit"));
+      const crit = await diskRow();
+      check(at + "free space is amber when the app says the disk is low, red when it says critical",
+        warn.free === "39.6 GB free" && warn.color === warn.warn && crit.free === "9.9 GB free" && crit.color === crit.crit && warn.warn !== warn.gray && crit.crit !== warn.warn,
+        JSON.stringify([warn.free, warn.color, crit.free, crit.color]));
+      // the page never judges the disk itself: nearly full but the app says ok (or says nothing) stays gray
+      await page.evaluate((s) => window.Vitals.update(s), disk(1e9, "ok"));
+      const quiet = await diskRow();
+      const noBlock = disk(1e9, "ok"); delete noBlock.strain;
+      await page.evaluate((s) => window.Vitals.update(s), noBlock);
+      const older = await diskRow();
+      check(at + "free space has no color of its own (the app says ok, or sends no verdict)", quiet.color === quiet.gray && older.color === older.gray && quiet.free === "1.0 GB free", JSON.stringify([quiet.free, quiet.color, older.color]));
+      // the widest it can get, beside the widest speeds: nothing leaves the row or its column
+      const wide = [];
+      for (const f of [1.82e12, 999.94e9, 7919.2e9]) {
+        const s = disk(f, "crit"); s.disk.readBps = 999.94e6; s.disk.writeBps = 999.94e6;
+        await page.evaluate((s) => window.Vitals.update(s), s);
+        wide.push(await diskRow());
+      }
+      check(at + "free space is never cut off or out of its row (1.82 TB, 999.9 GB, 7.92 TB beside 999.9 MB/s)",
+        wide.map((w) => w.free).join(" | ") === "1.82 TB free | 999.9 GB free | 7.92 TB free" && wide.every((w) => w.inside && w.spare >= 1), JSON.stringify(wide.map((w) => [w.free, w.inside, w.spare])));
+      // no free space in the feed: the row is the two speeds, as before
+      const none = disk(null, "ok");
+      await page.evaluate((s) => window.Vitals.update(s), none);
+      const bare = await diskRow();
+      check(at + "without a free-space number the row is just the two speeds", bare.free === null && bare.n === 2, JSON.stringify([bare.free, bare.n]));
+      const all = [calm, warn, crit, quiet, older, bare].concat(wide);
+      check(at + "every row keeps its height (52 px) and the drop-down its length, in every state",
+        all.every((x) => x.rows.length === 6 && x.rows.every((h) => h === 52) && x.scope === calm.scope && x.page === calm.page) && calm.scope === 6 * 52 && calm.page > 400,
+        JSON.stringify(all.map((x) => [x.rows.join(","), x.scope, x.page])));
+    }
+    // sample.js can show all three: ?disk=warn and ?disk=crit
+    await page.emulateMedia({ colorScheme: null });
+    const shown = {};
+    for (const q of ["", "&disk=warn", "&disk=crit"]) {
+      await page.goto(url("popover.html") + q);
+      await page.waitForFunction(() => window.Vitals && window.Vitals.last);
+      const d = await diskRow();
+      shown[q] = [d.free, d.cls, await page.evaluate(() => window.Vitals.last.strain.disk)];
+    }
+    check("sample feed: calm, ?disk=warn and ?disk=crit show the three disk states",
+      JSON.stringify(shown) === JSON.stringify({ "": ["94.3 GB free", "", "ok"], "&disk=warn": ["39.6 GB free", "w", "warn"], "&disk=crit": ["9.9 GB free", "c", "crit"] }), JSON.stringify(shown));
+    await page.setViewportSize({ width: 1280, height: 880 });
+
     /* ---------- every page still loads cleanly with the sample feed ---------- */
     for (const p of ["window.html", "popover.html", "help.html"]) {
       await page.goto(url(p));

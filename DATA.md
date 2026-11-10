@@ -47,7 +47,8 @@ Any field may be `null` when unknown; the page shows "–".
 
   strain: {                             // what is strained (amber) or critical (red): decided once per sample by
     memory, swap, cpu, gpu, heat, disk  // StatusIcon.Judge, each "ok" | "warn" | "crit". The menu bar item draws every
-  },                                    // area from it; the pages draw memory and swap (the swap number's color). The
+  },                                    // area from it; the pages draw memory and swap (the swap number's color), and
+                                        // the popover's "N GB free" (disk.freeBytes) takes disk's color. The
                                         // pages never work it out themselves, so they can't disagree with the icon.
                                         // Lines (in / out, so nothing flickers): memory warn at level warn, pressure
                                         // 70 / 65, or swap max(4 GiB, 45% of RAM) / 1 GiB less; crit at level critical,
