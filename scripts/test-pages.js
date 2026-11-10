@@ -246,6 +246,163 @@ function gapSnapshot(base, real, gap) {
       check(name + ": ...and its dot is neutral gray, the others keep their color", d.gray === 1 && d.plain === 1, JSON.stringify({ n: d.n, gray: d.gray, plain: d.plain }));
     }
 
+    /* ---------- window: no stat is cut off or runs into its neighbour, however big the numbers ---------- */
+    // The widest thing each formatter can print: `big` is past every switch (loads over 100, swap over 100 GB,
+    // totals in TB), `wide` is just under them (99.9 loads, 99.99 GB swap, 999.9 GB / 99.9 GB totals).
+    const G = 1073741824;
+    function heavy(base, form, power) {
+      const s = JSON.parse(JSON.stringify(base)), big = form === "big";
+      const total = big ? 1919.2e9 : 999.94e9, rate = 999.94e6;
+      Object.assign(s.memory, { totalBytes: 128 * G, usedBytes: 127.53 * G, appBytes: 110.84 * G, wiredBytes: 112.71 * G, compressedBytes: 113.07 * G,
+        cachedBytes: 112.34 * G, pressurePct: 100, swapUsedBytes: (big ? 116.47 : 99.99) * G, swapTotalBytes: (big ? 117 : 99.99) * G, swapOutBytesSinceBoot: (big ? 12300 : 999) * G });
+      Object.assign(s.cpu, { totalPct: 100, userPct: 100, systemPct: 100, idlePct: 100, load: big ? [117.9, 121.1, 125.3] : [99.9, 99.9, 99.9] });
+      s.totals = { processes: 13712, threads: 113758 };
+      s.gpu = { pct: 100, rendererPct: 100, tilerPct: 100, memBytes: 127.92 * G };
+      Object.assign(s.disk, { totalBytes: big ? 7919.2e9 : 999.94e9, usedBytes: big ? 6000.1e9 : 999.94e9, freeBytes: total, readBps: rate, writeBps: rate,
+        readTodayBytes: big ? total : 99.94e9, writtenTodayBytes: big ? total : 999.4e9 });
+      Object.assign(s.network, { inBps: rate, outBps: rate, packetsInPs: 999999, packetsOutPs: 999999, inTodayBytes: big ? total : 99.94e9, outTodayBytes: big ? total : 999.4e9 });
+      Object.assign(s.energy, { watts: 138.4, batteryW: 140, batteryPct: 100, pluggedIn: true, adapterWatts: 140, cycles: 1247, healthPct: 100, thermal: "critical", fanRPM: 13517, minutesLeft: null });
+      ["diskReadBps", "diskWriteBps", "netInBps", "netOutBps"].forEach((k) => { s.live[k] = s.live[k].map(() => rate); });
+      s.live.powerW = s.live.powerW.map(() => 138.4);
+      if (power === "battery") Object.assign(s.energy, { pluggedIn: false, batteryW: null, adapterWatts: null, minutesLeft: 1439 });
+      if (power === "desktop") {   // no battery: no watts, the unitless energy score
+        Object.assign(s.energy, { batteryPct: null, batteryW: null, adapterWatts: null, cycles: null, healthPct: null, watts: null, impact: 1234.5 });
+        s.live.powerW = s.live.powerW.map(() => null); s.live.energyImpact = s.live.energyImpact.map(() => 1234.5);
+      }
+      return s;
+    }
+    // Every problem in the six rows of stats, as text. Measured on the text itself, not on the boxes around it.
+    const statProblems = () => page.evaluate(() => {
+      const box = (el) => {
+        const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), r = document.createRange();
+        let L = Infinity, R = -Infinity, n;
+        while ((n = w.nextNode())) { r.selectNodeContents(n); for (const q of r.getClientRects()) { if (q.width) { L = Math.min(L, q.left); R = Math.max(R, q.right); } } }
+        return { left: L, right: R, width: R - L };
+      };
+      const out = [];
+      document.querySelectorAll("#scope .ch").forEach((ch) => {
+        const id = ch.id.replace("ch-", ""), ro = ch.querySelector(".ro"), cols = Array.from(ro.children);
+        // a label and its value: all of the value shows, and they keep their 8 px
+        ro.querySelectorAll(".kv dt").forEach((dt) => {
+          const dd = dt.nextElementSibling, a = box(dt), b = box(dd), cell = dd.getBoundingClientRect();
+          if (dd.scrollWidth > dd.clientWidth || b.width > cell.width + 0.5) out.push(id + " " + dt.textContent + ": '" + dd.textContent + "' is cut off (needs " + b.width.toFixed(1) + ", has " + cell.width.toFixed(1) + ")");
+          else if (b.left - a.right < 7.5) out.push(id + " " + dt.textContent + ": label and value are " + (b.left - a.right).toFixed(1) + " px apart");
+        });
+        // the big number and its caption end 16 px or more before the first list; a list ends inside its own column
+        cols.forEach((c, i) => {
+          const me = box(c), next = cols[i + 1];
+          if (!(me.width > 0)) return;
+          const gap = (next ? box(next).left : ro.getBoundingClientRect().right) - me.right, need = !next ? 0 : i === 0 ? 16 : 13.5;
+          if (gap < need) out.push(id + " column " + (i + 1) + ": ends " + gap.toFixed(1) + " px before the next (needs " + need + "): '" + c.textContent.slice(0, 40) + "'");
+        });
+        // the row's name and the line under it: whole, and clear of the chart's scale labels
+        ch.querySelectorAll(".nm b, .nm span").forEach((t) => {
+          if (t.scrollWidth > t.clientWidth) out.push(id + " name: '" + t.textContent + "' is cut off");
+          const a = t.getBoundingClientRect(), ta = box(t);
+          ch.querySelectorAll(".plot .sc").forEach((sc) => {
+            const b = sc.getBoundingClientRect();
+            if (b.width && ta.width > 0 && ta.left < b.right + 4 && b.left < ta.right + 4 && a.top < b.bottom && b.top < a.bottom) out.push(id + " name: '" + t.textContent + "' meets the scale label '" + sc.textContent + "'");
+          });
+        });
+      });
+      return out;
+    });
+    const loadCell = () => page.evaluate(() => Array.from(document.querySelectorAll("#ch-cpu .kv dt")).filter((d) => d.textContent === "Load").map((d) => d.nextElementSibling.textContent.replace(/\s+/g, " ").trim())[0]);
+    const captionGap = () => page.evaluate(() => {
+      const r = document.createRange(), cap = document.querySelector("#ch-energy .ro .bl"), dt = document.querySelector("#ch-energy .kv dt");
+      r.selectNodeContents(cap);
+      return { caption: cap.textContent, next: dt.textContent, gap: Math.round((dt.getBoundingClientRect().left - r.getBoundingClientRect().right) * 10) / 10 };
+    });
+    // the minimum window width (AppDelegate: 1100), just past the page's narrow layout (1180), and a wide window
+    for (const scheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme: scheme });
+      for (const width of [1100, 1181, 1680]) {
+        await page.setViewportSize({ width, height: 880 });
+        await page.goto(url("window.html"));
+        await page.waitForFunction(() => window.Vitals && window.Vitals.last);
+        const at = "window " + width + " " + scheme + ": ";
+        const plain = await statProblems();
+        check(at + "no stat is cut off or crowded (sample feed)", plain.length === 0, plain.join("; "));
+        const bad = [], gaps = [];
+        for (const form of ["big", "wide"]) for (const power of ["plugged", "battery", "desktop"]) {
+          await page.evaluate((s) => window.Vitals.update(s), heavy(base, form, power));
+          (await statProblems()).forEach((t) => bad.push(form + " " + power + ": " + t));
+          gaps.push(await captionGap());
+        }
+        check(at + "no stat is cut off or crowded (huge numbers; plugged in, on battery, no battery)", bad.length === 0, bad.join("; "));
+        const captions = Array.from(new Set(gaps.map((g) => g.caption))).sort().join(" / ");
+        check(at + "the Energy caption ends 16 px or more before the next column, whichever caption shows",
+          gaps.every((g) => g.gap >= 16) && captions === "Energy score / Power draw, whole Mac", JSON.stringify(gaps));
+        // the Load cell from Vinnie's screenshot (2026-11-10: "17.9  21.1  …"), and loads over 100
+        const seen = {};
+        for (const load of [[17.9, 21.1, 25.3], [99.94, 99.9, 99.9], [117.9, 21.1, 25.3], [117.9, 121.1, 125.3]]) {
+          const s = JSON.parse(JSON.stringify(base)); s.cpu.load = load;
+          await page.evaluate((s) => window.Vitals.update(s), s);
+          seen[load.join(" ")] = { text: await loadCell(), bad: (await statProblems()).filter((t) => /Load|cpu column/.test(t)) };
+        }
+        check(at + "Load shows all three numbers, one decimal under 100 and none from 100",
+          seen["17.9 21.1 25.3"].text === "17.9 21.1 25.3" && seen["99.94 99.9 99.9"].text === "99.9 99.9 99.9" && seen["117.9 21.1 25.3"].text === "118 21.1 25.3" &&
+          seen["117.9 121.1 125.3"].text === "118 121 125" && Object.keys(seen).every((k) => seen[k].bad.length === 0), JSON.stringify(seen));
+        // the process table: the widest numbers, a system user's name, and a long row of model dots
+        const t = JSON.parse(JSON.stringify(base));
+        const code = t.processes.find((p) => p.id === "group:claude-code");
+        while (code.children.length < 14) code.children.push(Object.assign({}, code.children[0], { id: "pid:more" + code.children.length }));
+        t.processes = [code,
+          Object.assign(rowOf("pid:8001", 8001, "wide", "_windowserver", 127.53 * G), { cpuPct: 999.94, cpuTimeSec: 359999, threads: 13758, energy: 999.94,
+            diskReadBps: 99.94e6, diskWriteBps: 999.4e6, netInBps: 99.94e6, netOutBps: 999.4e6 }),
+          Object.assign(rowOf("pid:8002", 8002, "big", "_coreaudiod", 999 * 1048576), { cpuPct: 1234.5, cpuTimeSec: 86399, threads: 9999, energy: 1234.5,
+            diskReadBps: 999e3, diskWriteBps: 1.26e9, netInBps: 999.96e6, netOutBps: 999e3 })];
+        await page.evaluate((s) => window.Vitals.update(s), t);
+        const table = await page.evaluate(() => {
+          const out = [], r = document.createRange();
+          document.querySelectorAll("#pb tr[data-id] td:not(:first-child)").forEach((td) => {
+            const cs = getComputedStyle(td), has = td.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+            r.selectNodeContents(td);
+            const needs = r.getBoundingClientRect().width;
+            if (td.scrollWidth > td.clientWidth || has - needs < 2) out.push("'" + td.textContent + "' needs " + needs.toFixed(1) + ", has " + has.toFixed(1));
+          });
+          const cell = document.querySelector('#pb tr[data-id="group:claude-code"] td'), edge = cell.getBoundingClientRect().right - parseFloat(getComputedStyle(cell).paddingRight);
+          const dots = Array.from(cell.querySelectorAll(".dots .mdot"));
+          return { cut: out, dots: dots.length, inside: dots.filter((d) => d.getBoundingClientRect().right <= edge + 0.5).length,
+            texts: Array.from(document.querySelectorAll('#pb tr[data-id="pid:8001"] td:not(:first-child), #pb tr[data-id="pid:8002"] td:not(:first-child)')).map((td) => td.textContent) };
+        });
+        check(at + "table: no number or system user's name is cut off (huge values)", table.cut.length === 0, table.cut.join("; "));
+        check(at + "table: speeds lose the decimal from 100 MB/s, CPU % and energy from 1,000",
+          ["999.9", "999 MB/s", "99.9 MB/s", "1235", "1.3 GB/s", "1.0 GB/s", "_windowserver"].every((x) => table.texts.indexOf(x) >= 0), JSON.stringify(table.texts));
+        check(at + "table: all 14 Claude Code dots show", table.dots === 14 && table.inside === 14, JSON.stringify({ dots: table.dots, inside: table.inside }));
+      }
+    }
+    // the check itself can fail: a value too long for its cell, and a caption too long for its column, are both reported
+    await page.evaluate(() => {
+      document.querySelector("#ch-cpu .kv dd").textContent = "88.8 % of everything this Mac has, and then some";
+      document.querySelector("#ch-energy .ro .bl").textContent = "Power draw, whole Mac and the charger too";
+    });
+    const planted = await statProblems();
+    check("window: the fit check reports a cut-off value and a crowded caption when there is one",
+      planted.some((t) => /^cpu User: .*cut off/.test(t)) && planted.some((t) => /^energy column 1: ends/.test(t)), planted.join("; "));
+    // how the numbers shrink instead of being cut: TB from 1,000 GB, the four totals for today in whole GB from 100, swap one decimal from 100 GB
+    await page.evaluate((s) => window.Vitals.update(s), heavy(base, "big", "plugged"));
+    const forms = await page.evaluate(() => {
+      const o = {};
+      document.querySelectorAll("#scope .kv dt").forEach((d) => { o[d.textContent] = d.nextElementSibling.textContent; });
+      return o;
+    });
+    await page.evaluate((s) => window.Vitals.update(s), heavy(base, "wide", "plugged"));
+    const formsWide = await page.evaluate(() => {
+      const o = {};
+      document.querySelectorAll("#scope .kv dt").forEach((d) => { o[d.textContent] = d.nextElementSibling.textContent; });
+      return o;
+    });
+    check("window: sizes read in TB from 1,000 GB, and are unchanged under it",
+      forms["Capacity"] === "7.92 TB" && forms["Written today"] === "1.92 TB" && forms["Received today"] === "1.92 TB" && forms["Swapped out"] === "12.01 TB" && formsWide["Capacity"] === "999.9 GB" && formsWide["Free"] === "999.9 GB",
+      JSON.stringify([forms["Capacity"], forms["Written today"], forms["Received today"], forms["Swapped out"], formsWide["Capacity"], formsWide["Free"]]));
+    check("window: today's totals drop the decimal from 100 GB; swap keeps two decimals under 100 GB, one from there",
+      formsWide["Received today"] === "99.9 GB" && formsWide["Sent today"] === "999 GB" && formsWide["Written today"] === "999 GB" && formsWide["Swapped out"] === "999 GB" &&
+      formsWide["Swap"] === "99.99 GB / 99.99" && forms["Swap"] === "116.5 GB / 117.0",
+      JSON.stringify([formsWide["Received today"], formsWide["Sent today"], formsWide["Written today"], formsWide["Swapped out"], formsWide["Swap"], forms["Swap"]]));
+    await page.emulateMedia({ colorScheme: null });
+    await page.setViewportSize({ width: 1280, height: 880 });
+
     /* ---------- every page still loads cleanly with the sample feed ---------- */
     for (const p of ["window.html", "popover.html", "help.html"]) {
       await page.goto(url(p));

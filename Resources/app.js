@@ -38,7 +38,7 @@
     rate: function (bps) {
       if (!isNum(bps)) return "–";
       if (bps <= 0) return "–";
-      if (bps >= 1e9) return (bps / 1e9).toFixed(1) + " GB/s";
+      if (bps >= 999.95e6) return (bps / 1e9).toFixed(1) + " GB/s";   // never "1000.0 MB/s"
       if (bps >= 1e6) return (bps / 1e6).toFixed(1) + " MB/s";
       if (bps >= 1e3) return Math.round(bps / 1e3) + " KB/s";
       return Math.round(bps) + " B/s";
@@ -165,7 +165,7 @@
   F.rateParts = function (bps) {
     if (!isNum(bps)) return ["–", ""];
     if (bps <= 0) return ["0", "KB/s"];
-    if (bps >= 1e9) return [(bps / 1e9).toFixed(1), "GB/s"];
+    if (bps >= 999.95e6) return [(bps / 1e9).toFixed(1), "GB/s"];
     if (bps >= 1e6) return [(bps / 1e6).toFixed(1), "MB/s"];
     if (bps >= 1e3) return [String(Math.round(bps / 1e3)), "KB/s"];
     return [String(Math.round(bps)), "B/s"];

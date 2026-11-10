@@ -22,6 +22,11 @@ so the design can be checked without the app.
 
 All bytes are raw byte counts (numbers). Memory is shown binary (GiB, labelled "GB", like Activity Monitor);
 disk and network decimal (like Finder). Rates are per second. Chart arrays (`live`, `long`) are oldest first.
+
+The feed never rounds for display; the pages do. The window shortens a number that would not fit its cell instead
+of cutting it off: sizes read in TB from 1,000 GB; the four totals for today drop the decimal from 100 GB; swap has
+two decimals, one from 100 GB; a load average has one decimal, none from 100; in the process table a speed drops
+its decimal from 100 MB/s and CPU % / energy from 1,000. A speed of 999.95 MB/s or more reads in GB/s.
 Any field may be `null` when unknown; the page shows "–".
 
 ```js

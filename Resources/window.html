@@ -25,7 +25,7 @@ body{display:flex;flex-direction:column;overflow:hidden;min-width:1040px}
 
 /* ---- strip charts ---- */
 .scope{margin:0 14px;border-radius:9px;background:var(--scope);box-shadow:inset 0 0 0 .5px var(--line),0 0 0 .5px var(--line-2);position:relative;flex:none}
-.ch{display:grid;grid-template-columns:140px minmax(0,1fr) 474px;height:68px;border-top:1px solid var(--line-2)}
+.ch{display:grid;grid-template-columns:140px minmax(0,1fr) 480px;height:68px;border-top:1px solid var(--line-2)}
 .ch:first-child{border-top:0}
 .ch.slim{height:44px}
 .ch .nm{padding:11px 0 0 14px;min-width:0}
@@ -34,7 +34,9 @@ body{display:flex;flex-direction:column;overflow:hidden;min-width:1040px}
 .ch.slim .nm{padding-top:7px}
 .plot{position:relative;min-width:0}
 .plot .sc{position:absolute;right:calc(100% + 8px);font-size:10px;color:var(--ink-3);white-space:nowrap;line-height:1}
-.ro{display:grid;grid-template-columns:114px minmax(0,1fr) minmax(0,1.05fr);column-gap:22px;align-items:center;padding:0 18px 0 22px;min-width:0}
+/* The first column holds the widest caption ("Power draw, whole Mac") with 16px or more before the lists; the room
+   comes out of the chart, so the two lists are the same width at every window width. */
+.ro{display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1.05fr);column-gap:22px;align-items:center;padding:0 18px 0 22px;min-width:0}
 .ro .big{font-size:25px;font-weight:600;letter-spacing:-.035em;line-height:1;white-space:nowrap}
 .ro .big small{font-size:13px;font-weight:500;color:var(--ink-3);letter-spacing:-.01em;margin-left:1px}
 .ro .big.w small{color:var(--warn)}.ro .big.c small{color:var(--crit)}
@@ -43,9 +45,11 @@ body{display:flex;flex-direction:column;overflow:hidden;min-width:1040px}
 .ro .two div{display:flex;align-items:baseline;gap:6px;font-size:15px;font-weight:600;letter-spacing:-.02em;line-height:1;white-space:nowrap}
 .ro .two small{font-size:11.5px;font-weight:500;color:var(--ink-3);letter-spacing:0}
 .ro .two .gl{font-size:8px;color:var(--ink-3);width:9px;transform:translateY(-1px)}
-.kv{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;font-size:11.5px;line-height:15px;margin:0;min-width:0}
-.kv dt{color:var(--ink-3);white-space:nowrap}
-.kv dd{margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.kv{display:flex;flex-direction:column;row-gap:2px;font-size:11.5px;line-height:15px;margin:0;min-width:0}
+/* a row of its own per label, so a value gets all the room its own label leaves (not what the longest label leaves) */
+.kv div{display:flex;justify-content:space-between;column-gap:8px;min-width:0}
+.kv dt{flex:none;color:var(--ink-3);white-space:nowrap}
+.kv dd{margin:0;min-width:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .kv dd small{color:var(--ink-3);font-size:11px}
 .cores{display:flex;align-items:flex-end;gap:2px;height:16px;margin-top:6px}
 .cores i{display:block;width:4px;border-radius:1px;background:var(--g3);position:relative;height:16px;overflow:hidden}
@@ -104,8 +108,8 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 .sheet button.go{background:var(--ink);color:var(--page);font-weight:600}
 
 @media (max-width:1180px){
-  .ch{grid-template-columns:132px minmax(0,1fr) 446px}
-  .ro{column-gap:14px;padding:0 12px 0 16px}
+  .ch{grid-template-columns:132px minmax(0,1fr) 460px}
+  .ro{grid-template-columns:128px minmax(0,1fr) minmax(0,1.05fr);column-gap:14px;padding:0 12px 0 16px}
   .pt th,.pt td{padding-left:7px;padding-right:7px}
 }
 </style>
@@ -133,7 +137,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   <div class="ph"><h2>Processes</h2><span class="n" id="pcount"></span><span class="sp"></span><button class="qbtn" id="quitBtn" hidden></button></div>
   <div class="scroll" id="scroll">
     <table class="pt">
-      <colgroup><col><col style="width:92px"><col style="width:64px"><col style="width:86px"><col style="width:68px"><col style="width:64px"><col style="width:86px"><col style="width:86px"><col style="width:80px"><col style="width:80px"><col style="width:118px"></colgroup>
+      <colgroup><col><col style="width:92px"><col style="width:64px"><col style="width:86px"><col style="width:68px"><col style="width:64px"><col style="width:86px"><col style="width:86px"><col style="width:86px"><col style="width:86px"><col style="width:130px"></colgroup>
       <thead><tr id="ph"></tr></thead>
       <tbody id="pb"></tbody>
     </table>
@@ -175,7 +179,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   /* ================= strip charts ================= */
   function u(v, unit) { return v + "<small> " + unit + "</small>"; }
   function kv(rows) {
-    return '<dl class="kv">' + rows.filter(Boolean).map(function (r) { return "<dt>" + r[0] + '</dt><dd class="' + (r[2] || "") + '">' + r[1] + "</dd>"; }).join("") + "</dl>";
+    return '<dl class="kv">' + rows.filter(Boolean).map(function (r) { return "<div><dt>" + r[0] + '</dt><dd class="' + (r[2] || "") + '">' + r[1] + "</dd></div>"; }).join("") + "</dl>";
   }
   function bigOne(v, unit, label, cls) {
     return '<div><div class="big ' + (cls || "") + '">' + v + (unit ? "<small>" + unit + "</small>" : "") + '</div><div class="bl ' + (cls || "") + '">' + label + "</div></div>";
@@ -310,7 +314,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var used = V.now(m.totalBytes && isNum(m.usedBytes) ? m.usedBytes / m.totalBytes * 100 : null, L.memUsedPct);
     CH[0].ro.innerHTML = bigOne(F.pct(used), "%", "Used · " + F.gb(m.usedBytes) + " GB", sevCls(ms)) +
       kv([["Pressure", u(F.pct(V.now(m.pressurePct, L.pressurePct)), "%"), sevCls(ms)], ["Cached", u(F.gb(m.cachedBytes), "GB")],
-        ["Swap", u(F.gb(m.swapUsedBytes), "GB") + "<small> / " + F.gb(m.swapTotalBytes) + "</small>", swapCls]]) +
+        ["Swap", u(swapGb(m.swapUsedBytes), "GB") + "<small> / " + swapGb(m.swapTotalBytes) + "</small>", swapCls]]) +
       kv([["App", u(F.gb(m.appBytes), "GB")], ["Wired", u(F.gb(m.wiredBytes), "GB")], ["Compressed", u(F.gb(m.compressedBytes), "GB")]]);
 
     var cores = c.cores || [], P = cores.filter(function (k) { return k.kind === "P"; }), E = cores.filter(function (k) { return k.kind !== "P"; });
@@ -322,7 +326,7 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     var tot = isNum(c.totalPct) ? c.totalPct : isNum(user) && isNum(sys) ? user + sys : null;
     CH[1].ro.innerHTML = bigOne(F.pct(tot), "%", "Total") +
       kv([["User", u(F.pct(user, 1), "%")], ["System", u(F.pct(sys, 1), "%")], ["Idle", u(F.pct(isNum(c.idlePct) ? c.idlePct : isNum(tot) ? 100 - tot : null, 1), "%")]]) +
-      kv([["Load", (c.load || []).map(function (x) { return F.pct(x, 1); }).join("&nbsp; ") || "–"], ["Threads", F.int(t.threads)], ["Processes", F.int(t.processes)]]);
+      kv([["Load", (c.load || []).map(load).join("&nbsp; ") || "–"], ["Threads", F.int(t.threads)], ["Processes", F.int(t.processes)]]);
 
     $("sub-gpu").textContent = h.gpuCores ? h.gpuCores + " cores" : "";
     CH[2].ro.innerHTML = '<div><div class="big">' + F.pct(V.now(g.pct, L.gpuPct)) + "<small>%</small></div></div>" +
@@ -330,14 +334,13 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
 
     $("sub-disk").textContent = d.volume || "";
     CH[3].ro.innerHTML = bigTwo(V.now(d.readBps, L.diskReadBps), "read", V.now(d.writeBps, L.diskWriteBps), "write") +
-      kv([["Read today", dec(d.readTodayBytes)], ["Written today", dec(d.writtenTodayBytes)],
-        ["Swapped out", isNum(m.swapOutBytesSinceBoot) ? u(Math.round(m.swapOutBytesSinceBoot / GiB), "GB") : "–"]]) +
+      kv([["Read today", dec(d.readTodayBytes, true)], ["Written today", dec(d.writtenTodayBytes, true)], ["Swapped out", swappedOut(m.swapOutBytesSinceBoot)]]) +
       kv([["Free", dec(d.freeBytes)], ["Used", dec(d.usedBytes)], ["Capacity", dec(d.totalBytes)]]);
 
     $("sub-net").textContent = n.iface || "";
     CH[4].ro.innerHTML = bigTwo(V.now(n.inBps, L.netInBps), "in", V.now(n.outBps, L.netOutBps), "out") +
       kv([["Packets in/s", F.int(n.packetsInPs)], ["Packets out/s", F.int(n.packetsOutPs)]]) +
-      kv([["Received today", dec(n.inTodayBytes)], ["Sent today", dec(n.outTodayBytes)]]);
+      kv([["Received today", dec(n.inTodayBytes, true)], ["Sent today", dec(n.outTodayBytes, true)]]);
 
     var thermal = { nominal: "Nominal", fair: "Fair", serious: "Serious", critical: "Critical" }[e.thermal] || "–";
     var hasBatt = isNum(e.batteryPct);
@@ -350,8 +353,24 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
       kv([hasBatt && ["Health", u(F.pct(e.healthPct), "%")], hasBatt && ["Cycles", F.int(e.cycles)],
         isNum(e.fanRPM) && ["Fan", e.fanRPM > 0 ? u(F.int(e.fanRPM), "rpm") : "Off"]]);
   }
-  // decimal GB like Finder, number then a quiet unit
-  function dec(b) { return isNum(b) ? u((b / 1e9).toFixed(1), "GB") : "–"; }
+  // decimal GB like Finder, number then a quiet unit; TB from 1,000 GB. `tight`: the four totals for today, which
+  // sit beside long labels ("Received today"): whole GB from 100 GB. Every form fits its cell (scripts/test-pages.js
+  // checks the widest of each).
+  function dec(b, tight) {
+    if (!isNum(b)) return "–";
+    if (b >= 999.95e9) return u((b / 1e12).toFixed(2), "TB");
+    return u((b / 1e9).toFixed(tight && b >= 99.95e9 ? 0 : 1), "GB");
+  }
+  // swapped out since boot: whole GB (binary, like the memory numbers), TB from 1,000
+  function swappedOut(b) {
+    if (!isNum(b)) return "–";
+    var gb = Math.round(b / GiB);
+    return gb >= 1000 ? u((b / GiB / 1024).toFixed(2), "TB") : u(gb, "GB");
+  }
+  // load average: one decimal, none from 100, so all three always show
+  function load(x) { return F.pct(x, x >= 99.95 ? 0 : 1); }
+  // swap: two decimals like the rest of memory, one from 100 GB
+  function swapGb(b) { return F.gb(b, b >= 99.995 * GiB ? 1 : 2); }
 
   /* ================= process table ================= */
   var cols = [
@@ -375,14 +394,21 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
   function cell(p, k) {
     switch (k) {
       case "memBytes": return F.mem(p.memBytes);
-      case "cpuPct": return F.pct(p.cpuPct, 1);
+      case "cpuPct": return wide1(p.cpuPct);
       case "cpuTimeSec": return F.dur(p.cpuTimeSec);
       case "threads": return F.int(p.threads);
-      case "energy": return F.pct(p.energy, 1);
-      case "diskReadBps": case "diskWriteBps": case "netInBps": case "netOutBps": return F.rate(p[k]);
+      case "energy": return wide1(p.energy);
+      case "diskReadBps": case "diskWriteBps": case "netInBps": case "netOutBps": return cellRate(p[k]);
       case "user": return p.user == null ? "–" : F.esc(p.user);
     }
     return "";
+  }
+  // The widest a number column can print has to fit its column (scripts/test-pages.js checks): one decimal, none
+  // from 1,000 (CPU % and energy of a whole group); a speed without its decimal from 100 MB/s.
+  function wide1(v) { return F.pct(v, v >= 999.95 ? 0 : 1); }
+  function cellRate(bps) {
+    if (bps >= 99.95e6 && bps < 999.5e6) return Math.round(bps / 1e6) + " MB/s";
+    return F.rate(bps >= 999.5e6 && bps < 1e9 ? 1e9 : bps);
   }
   function dim(p, k) { return /Bps$/.test(k) ? !(p[k] > 0) : k === "user" ? p.user == null : k !== "name" && !isNum(p[k]); }
   function nameCell(p, kid) {

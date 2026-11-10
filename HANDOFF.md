@@ -1,7 +1,9 @@
 # Vitals — handoff
 
 _Last updated 2026-11-10 by Claude: version 1.0 is shipped and installed. It holds the accurate Claude Code model
-dots and the six review items Vinnie approved ("go ahead with all changes and follow your recommendations")._
+dots and the six review items Vinnie approved ("go ahead with all changes and follow your recommendations").
+A layout fix for the window (the cut-off Load numbers and the crowded Energy caption, below) shipped the same day:
+Vinnie typed "commit push and ship please"._
 
 ## What it is
 A menu bar app for Vinnie's Mac that shows what Activity Monitor shows with every stat up front: three dials in the menu
@@ -11,15 +13,43 @@ the data the Swift side sends the pages; CLAUDE.md holds the lessons learned; do
 every change before today.
 
 ## Where things stand
-- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main` only, pushed. Tag `v1.0`.
-- Installed: /Applications/Vitals.app, version 1.0, built from 6634116 (the tag is one commit later and only
-  changes this file). Opens at login by itself (Login Items shows it enabled).
+- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main` only, pushed. Tag `v1.0` (3b3e107).
+- Installed: /Applications/Vitals.app, version 1.0, built from the window layout fix (the commit after the tag;
+  the version number was kept at 1.0 for this small fix). Opens at login by itself (Login Items shows it enabled).
 - After the install (2026-11-10): one Vitals process, running from /Applications. Idle, nothing open, over 70 s:
   0.5 to 1.5% of one core (about 0.8% on average, 0.6 s of CPU), 21 to 24 MB, on a busy Mac (load average 16 to 20).
   `--dump --bench` on the cache build: 32 ms of CPU per tick with the process rows (a page open), 3 ms without.
 - Everything Vinnie has asked for is shipped. Nothing is half done.
-- Checks on the final tree (2026-11-10, cache build): build 0 warnings, `--selftest` 176 pass, page tests 34 pass,
+- Checks on the final tree (2026-11-10, cache build): build 0 warnings, `--selftest` 176 pass, page tests 79 pass,
   window / popover / help / menubar rendered light and dark with no page errors, an unknown option (`--scan`) exits 2.
+  (At the v1.0 tag: the same, with 34 page tests.)
+
+## 2026-11-10 window layout fix (shipped)
+Vinnie sent screenshots of the installed 1.0 under heavy load (window about 1100 pt wide). Two flaws in the window's
+stats, plus what the same check found elsewhere. Nothing else about the look changed: the two lists of small stats
+are pixel for pixel where they were.
+- **Load: all three numbers always show** (it read "17.9  21.1  …"). Cause: every row of a list shared one label
+  column as wide as the longest label ("Processes"), so "Load" wasted room. Now each row is its own line (`.kv div`),
+  so a value gets all the room its own label leaves. A load of 100 or more drops its decimal ("118  121  125").
+- **Energy: "Power draw, whole Mac" no longer runs into "Battery".** The first column (the big number and its
+  caption) is wider: 120 px, 128 px in the narrow layout (window 1180 or narrower); it was 114. The room comes out
+  of the chart (6 px, 14 px narrow), so the gap is 19 px at every width for every caption (was 5 px narrow, 13 wide).
+- **Big numbers are shortened, never cut** (found by the same check): sizes read in TB from 1,000 GB; the four
+  totals for today (read, written, received, sent) drop the decimal from 100 GB; swap has one decimal from 100 GB;
+  "Swapped out" reads in TB from 1,000 GB. Vinnie's Mac shows one of these today: "Read today 949 GB" and
+  "Written today 172 GB" where it said 949.3 and 172.4 (the old forms had 2 px to spare beside "Written today").
+- **Process table** (the real render showed "38.9 MB…" under Net out): Net in / Net out are 86 px (were 80) and
+  User is 130 px (was 118, "_windowserver" was cut to "_windowserv…"); the 24 px come out of the Process name
+  column. A speed drops its decimal from 100 MB/s, CPU % and energy from 1,000. At the minimum width the Claude
+  Code row still fits 23 model dots (was 26).
+- A speed of 999.95 MB/s or more reads "1.0 GB/s", not "1000.0 MB/s" (app.js `F.rate` / `F.rateParts`, both pages).
+- Page tests: 45 new (79 in all). At 1100, 1181 and 1680 px, light and dark: no stat cut off or crowded with the
+  sample feed and with huge numbers (plugged in, on battery, no battery); the Energy caption's gap; the Load cell
+  from the screenshot; the table's numbers, a system user's name and 14 model dots. One test plants a too-long
+  value and caption to prove the check can fail. All of the fit tests fail on the page as it was at v1.0.
+- Not checked in the real web view at 1100 px (`--render` draws 1280 only): there the tests' Chromium stands in.
+  The render at 1280 with the Mac's real numbers (loads 32 / 22 / 21) is right, light and dark.
+- Worth a look by Vinnie: the window at its smallest size under load (Load's three numbers, the Energy caption).
 
 ## Shipped 2026-11-10 (commits, oldest first)
 - 15147ad the model dots are each session's own model
@@ -32,15 +62,21 @@ every change before today.
 Details of each are in the two sections below.
 
 ## Vinnie still owes a look (only he can see these on his real screen)
-1. The model dots: each Claude Code session's dot should be the model that session is really on (Fable sessions
-   pink, not Sonnet's orange; gray = Vitals can't tell yet).
-2. The new heat / low-disk icon: it only shows when the Mac is hot or the disk is nearly full, so it may be a while.
+1. The new heat / low-disk icon: it only shows when the Mac is hot or the disk is nearly full, so it may be a while.
    It should be an amber (red when critical) thermometer or drive with no dot. Help's picture shows what to expect.
-3. The charts after a restart: quit Vitals and open it again (or restart the Mac), then open the window on 1 hour
+2. The charts after a restart: quit Vitals and open it again (or restart the Mac), then open the window on 1 hour
    or 12 hours. The old history should still be there, with a gap for the time Vitals wasn't running. (The install
    of 1.0 itself started with empty charts: the build before it didn't save any.)
-4. The drop-down after the lid has been shut a while: the charts should have no gap.
-5. A screenshot of the Energy row while plugged in.
+3. The drop-down after the lid has been shut a while: the charts should have no gap.
+
+Seen 2026-11-10, in a screenshot of the drop-down Vinnie sent a few minutes after the install of 1.0:
+- The model dots: 12 dots, 7 pink (Fable) and 5 orange (Sonnet). Checked right after against each running
+  session's own transcript: 7 on Fable, 5 on Sonnet, every dot right. The five orange ones have only ever answered
+  as Sonnet. (A session that has not answered yet is gray.)
+- The Energy row while plugged in: "38.4 W for Mac", "Fan 3,510 rpm", "Battery full" in the drop-down; "On 68 W
+  charger" and "To battery 0 W" in the window. As designed.
+- The Memory chart had a few short amber stretches while the number was white: the per-point strain level
+  (`live.memStrain`), the same verdict the menu bar's RAM dial showed at those moments.
 
 ## 2026-11-10 model dots (shipped)
 Vinnie: "the dots that show what model is running need to be accurate. they are currently wrongly showing sonnet when

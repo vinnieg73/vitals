@@ -53,8 +53,14 @@ prints the known ones and exits, so it can't start a second copy in the menu bar
 The pages can also be checked without the app, in headless Chromium with fake snapshots (needs Node and Playwright):
 
 ```bash
-node scripts/test-pages.js     # charts and readouts after a gap, hover labels, no page errors
+node scripts/test-pages.js     # charts and readouts after a gap, hover labels, nothing cut off, no page errors
 ```
+
+The window's stats and table columns have fixed widths, so every number has to fit the widest it can get. The page
+tests feed the window huge values (loads over 100, 100+ GB of swap, TB totals, 999.9 MB/s) at the minimum width
+(1100), just past the narrow layout (1181) and wide (1680), light and dark, and fail if any stat or table number is
+cut off, a label and its value touch, or the big number's caption ends less than 16 px before the next column. A
+new stat or a new number format needs its widest case added to `heavy()` there.
 
 ## Layout
 
