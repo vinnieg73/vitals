@@ -21,7 +21,7 @@
   function sum(k) { return sessions.reduce(function (s, x) { return s + x[k]; }, 0); }
   var snap = {
     time: "2026-10-17T18:17:00-04:00",
-    host: { model: "MacBook Pro", chip: "Apple M3 Pro", pCores: 5, eCores: 6, gpuCores: 14, memBytes: 18 * G, os: "macOS 26.0", uptimeSec: 8 * 86400 + 4 * 3600 },
+    host: { model: "MacBook Pro", chip: "Apple M3 Pro", pCores: 5, eCores: 6, gpuCores: 14, memBytes: 18 * G, os: "macOS 26.0", uptimeSec: 8 * 86400 + 4 * 3600, user: "vinnie" },
     memory: {
       totalBytes: 18 * G, usedBytes: 16.62 * G, appBytes: 10.84 * G, wiredBytes: 2.71 * G, compressedBytes: 3.07 * G,
       cachedBytes: 1.21 * G, freeBytes: 0.17 * G, pressurePct: 78, level: "warn",
@@ -67,7 +67,7 @@
       proc(1503, "Wakey", "app", "vinnie", 18 * M, 0.0, 192, 4, 0.0, 0, 0, 0, 0),
       proc(1, "launchd", "process", "root", 34 * M, 0.1, 6010, 5, 0.1, 0, 0, 0, 0),
       proc(320, "bluetoothd", "process", "root", 12 * M, 0.1, 812, 7, 0.0, 0, 0, 0, 0),
-      proc(330, "coreaudiod", "process", null, 22 * M, 0.3, 2210, 12, 0.2, 0, 0, 0, 0)
+      proc(330, "coreaudiod", "process", "_coreaudiod", 22 * M, 0.3, 2210, 12, 0.2, 0, 0, 0, 0)
     ]
   };
   // energy impact right now = sum of the top-level processes' energy (DATA.md)

@@ -25,6 +25,7 @@ enum SelfTest {
         gaps()
         nettop()
         scripts()
+        users()
         sessionModels()
         longHistory()
         kicks()
@@ -371,6 +372,30 @@ enum SelfTest {
         check("nettop: rates from an hour ago are not", n.rates() == nil)
     }
 
+    /// The User column: every process has its owner's name, root's and other users' too (their numbers stay
+    /// unknown without admin rights). Only the name of the user Vitals runs as makes a row quittable on the page.
+    private static func users() {
+        let own = ProcessSampler.owner(getpid()), launchd = ProcessSampler.owner(1)
+        check("users: the kernel's table gives this process's owner and parent", own?.uid == getuid() && own?.ppid == getppid(),
+              "\(String(describing: own))")
+        check("users: ...and root's processes' owner too (launchd)", launchd?.uid == 0, "\(String(describing: launchd))")
+        check("users: a pid that doesn't exist has no owner", ProcessSampler.owner(99_999_999) == nil)
+        var rows: [Row] = []
+        func walk(_ list: [Row]) { for r in list { rows.append(r); walk(r.children) } }
+        walk(ProcessSampler().sample().rows)
+        let real = rows.filter { $0.pid != nil }
+        let root = real.first { $0.pid == 1 }
+        check("users: launchd's row says root", root?.user == "root", "\(root?.user ?? "nil")")
+        let nameless = real.filter { $0.user == nil }
+        check("users: every process row has a user", real.count > 50 && nameless.count <= 3,   // a process can exit mid-sample
+              "\(nameless.count) of \(real.count) without: \(nameless.prefix(5).map { $0.name })")
+        let others = real.filter { $0.user != nil && $0.user != Sampler.userName }
+        check("users: other users' processes are listed with their owner", others.count > 20 && Set(others.compactMap(\.user)).count > 1,
+              "\(others.count) rows, users \(Set(others.compactMap(\.user)).sorted().prefix(6))")
+        let me = real.first { $0.pid == getpid() && $0.id == "pid:\(getpid())" }
+        check("users: this process's row is the current user's", me?.user == Sampler.userName && !Sampler.userName.isEmpty, "\(me?.user ?? "nil")")
+    }
+
     /// A runtime ("node", "python3") is named after the script it runs.
     private static func scripts() {
         let cases: [([String], String?)] = [
@@ -612,6 +637,8 @@ enum SelfTest {
         check("sampler: samples every 2 s", awake >= 3, "\(awake) samples in 6.5 s")
         let snap0 = last()
         check("sampler: no folder scan in the snapshot", (snap0["disk"] as? [String: Any])?["bigUsers"] == nil)
+        check("sampler: the snapshot names the user Vitals runs as (the only one whose processes can be quit)",
+              (snap0["host"] as? [String: Any])?["user"] as? String == NSUserName())
         let history = ["memory", "cpu", "gpu"].filter { (snap0[$0] as? [String: Any])?["history"] != nil }
         check("sampler: no unused 1-hour history in the snapshot", history.isEmpty, history.joined(separator: ", "))
         let energy = snap0["energy"] as? [String: Any] ?? [:]

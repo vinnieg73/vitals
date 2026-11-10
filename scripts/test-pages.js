@@ -183,6 +183,34 @@ function gapSnapshot(base, real, gap) {
     check("window: the 12-hour chart is colored by the stored levels (one amber run, no stripes)", long12.runs.join(",") === "st-ok,st-warn", JSON.stringify(long12.runs));
     check("window: hovering a stored point shows its stored level", !/\bw\b/.test(long12.early) && /\bw\b/.test(long12.late), JSON.stringify([long12.early, long12.late]));
 
+    /* ---------- Quit is only offered for the current user's processes ---------- */
+    await page.goto(url("window.html"));
+    await page.waitForFunction(() => window.Vitals && window.Vitals.last);
+    const owners = JSON.parse(JSON.stringify(base));
+    const rowOf = (id, pid, name, user, mem) => ({ id, pid, name, kind: "process", user, memBytes: mem, cpuPct: 1, cpuTimeSec: 10, threads: 3, energy: 1,
+      diskReadBps: 0, diskWriteBps: 0, netInBps: 0, netOutBps: 0, started: "123", children: [] });
+    owners.host.user = "vinnie";
+    owners.processes = [rowOf("pid:7001", 7001, "mine", "vinnie", 9e9), rowOf("pid:7002", 7002, "roots", "root", 8e9),
+      rowOf("pid:7003", 7003, "windowservers", "_windowserver", 7e9), rowOf("pid:7004", 7004, "someone-elses", "bob", 6e9),
+      rowOf("pid:7005", 7005, "nobodys", null, 5e9), rowOf("pid:1", 1, "launchd", "vinnie", 4e9)];
+    await page.evaluate((s) => window.Vitals.update(s), owners);
+    const quit = {};
+    for (const id of ["pid:7001", "pid:7002", "pid:7003", "pid:7004", "pid:7005", "pid:1"]) {
+      await page.click('tr[data-id="' + id + '"]');
+      quit[id] = await page.evaluate(() => { const b = document.getElementById("quitBtn"); return { off: b.disabled, text: b.textContent, user: document.querySelector("tr.sel td:last-child").textContent }; });
+    }
+    check("quit: offered for the current user's own process", quit["pid:7001"].off === false && /Quit mine/.test(quit["pid:7001"].text), JSON.stringify(quit["pid:7001"]));
+    check("quit: never for root's, _windowserver's, another user's, an unknown user's, or pid 1",
+      ["pid:7002", "pid:7003", "pid:7004", "pid:7005", "pid:1"].every((id) => quit[id].off === true && quit[id].text === "Quit"), JSON.stringify(quit));
+    check("window: the User column names system users", quit["pid:7002"].user === "root" && quit["pid:7003"].user === "_windowserver" && quit["pid:7005"].user === "–", JSON.stringify(quit));
+    // without the current user's name in the feed, nothing can be quit
+    delete owners.host.user;
+    await page.evaluate((s) => window.Vitals.update(s), owners);
+    await page.click('tr[data-id="pid:7002"]');
+    await page.click('tr[data-id="pid:7001"]');
+    const noName = await page.evaluate(() => document.getElementById("quitBtn").disabled);
+    check("quit: nothing is offered when the feed doesn't say who the user is", noName === true, String(noName));
+
     /* ---------- a Claude Code session whose model isn't known: still counted, a neutral gray dot ---------- */
     const unknown = JSON.parse(JSON.stringify(base));
     const code = unknown.processes.find((p) => p.id === "group:claude-code");

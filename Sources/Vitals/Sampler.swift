@@ -257,7 +257,7 @@ final class Sampler: @unchecked Sendable {
         let hostOut: [String: Any] = [
             "model": host.model ?? NSNull(), "chip": host.chip ?? NSNull(), "pCores": host.pCores ?? NSNull(),
             "eCores": host.eCores ?? NSNull(), "gpuCores": host.gpuCores ?? NSNull(), "memBytes": host.memBytes,
-            "os": host.os, "uptimeSec": uptime ?? NSNull(),
+            "os": host.os, "uptimeSec": uptime ?? NSNull(), "user": Self.userName,
         ]
 
         var out: [String: Any] = [
@@ -278,6 +278,9 @@ final class Sampler: @unchecked Sendable {
         if wantLong { out["long"] = longHist.json() }
         return out
     }
+
+    /// Who Vitals runs as: the only user whose processes the pages offer to quit.
+    static let userName = NSUserName()
 
     private static let timeFormatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()

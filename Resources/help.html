@@ -67,7 +67,7 @@ p.body b{color:var(--ink);font-weight:600}
 
   <h2 id="tight">When memory is tight</h2>
   <ol class="steps" id="steps"></ol>
-  <div class="dont">Leave kernel_task and WindowServer alone. They are macOS itself, and Vitals won't quit them.</div>
+  <div class="dont">Leave kernel_task and WindowServer alone. They are macOS itself, and Vitals won't quit them: Quit is only offered for your own apps and processes. System processes (User says root, or a name starting with "_") show who owns them, but macOS keeps their memory and CPU numbers to itself, so those read "–".</div>
 
   <h2 id="keys">Keyboard shortcuts</h2>
   <div class="keys">

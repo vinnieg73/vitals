@@ -443,8 +443,12 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     if (id) V.flat(snap && snap.processes).some(function (p) { if (p.id === id) { hit = p; return true; } return false; });
     return hit;
   }
-  // a process Vitals may ask to quit: has a pid, isn't launchd/kernel, belongs to the user (user null = root or another user)
-  function quittable(p) { return p && p.pid != null && p.pid > 1 && p.user != null && p.user !== "root" && p.name !== "Vitals" && p.id !== "group:claude-code"; }
+  // a process Vitals may ask to quit: has a pid, isn't launchd/kernel, and belongs to the user Vitals runs as
+  // (host.user). Root's, _windowserver's and every other user's never are; nor is anything if that name is unknown.
+  function quittable(p) {
+    var me = ((snap || {}).host || {}).user;
+    return !!(p && p.pid != null && p.pid > 1 && me && p.user === me && p.name !== "Vitals" && p.id !== "group:claude-code");
+  }
   function renderQuit() {
     var p = findProc(selected), b = $("quitBtn");
     b.hidden = !p;

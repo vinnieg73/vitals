@@ -48,6 +48,13 @@ the folder, the last "model" text in it), so every session sharing a folder got 
   carries the same fields (it copies the memory rule for its fake data). Nothing else on the pages changed.
   Selftest: 14 "strain:" checks, 2 sampler checks, 1 long-history check. Page tests: 8 new.
 
+- **User column filled for system processes.** Root's, _windowserver's and other users' processes now show their
+  owner (`ProcessSampler.owner`: sysctl kern.proc.pid, no admin rights, no helper; names cached). Their memory and
+  CPU still read "–" (that needs a privileged helper, not built). Because "no user" used to be what kept those rows
+  from being quit, the window's `quittable()` now needs the row's user to be the user Vitals runs as (`host.user`
+  in the feed); root's, other users', an unknown user's, pid 1 and Vitals itself are never offered. Swift's
+  `quitProcess` still checks the uid itself. Selftest: 7 "users:" checks and 1 sampler check. Page tests: 4 new.
+
 ## 2026-11-10 review (shipped in 2204b93)
 Vinnie: "Read this entire project and find everything that's broken, inconsistent, inefficient, or no longer needed.
 Fix what you're sure about and list the rest for me to review." Every tracked file was read. Nothing he would see
@@ -126,7 +133,8 @@ in a 6 minute off-screen soak).
   loop only showed in the real menu bar).
 
 ## Gotchas
-- Running as the user, macOS won't give numbers for root's and other users' processes: they show "–" and sort last.
+- Running as the user, macOS won't give numbers for root's and other users' processes: memory and CPU show "–" and
+  they sort last. Their User column is filled (2026-11-10).
 - Ad hoc signing gives every build a new identity, so macOS forgets privacy answers after a rebuild. Vitals asks for
   nothing today. An "Apple Development" identity is in the keychain, but signing with it may pop a password dialog.
 - Don't run `memory_pressure -l/-p` (they create real pressure). `nettop` needs `-n`. In zsh `log` is a builtin: use

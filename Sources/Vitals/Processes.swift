@@ -128,7 +128,10 @@ final class ProcessSampler {
             let gotBSD = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsd, Int32(MemoryLayout<proc_bsdinfo>.size)) == Int32(MemoryLayout<proc_bsdinfo>.size)
             let path = Self.path(pid)
             if let path { paths[pid] = path }
-            if gotBSD { ppids[pid] = pid_t(bsd.pbi_ppid) }
+            // Root's and other users' processes refuse proc_pidinfo, but the kernel's process table says who owns
+            // every process (and its parent) without any special rights.
+            let owner = gotBSD ? nil : Self.owner(pid)
+            if gotBSD { ppids[pid] = pid_t(bsd.pbi_ppid) } else if let owner { ppids[pid] = owner.ppid }
 
             var name: String
             if let app = apps[pid], let n = app.localizedName { name = n }
@@ -138,12 +141,12 @@ final class ProcessSampler {
             else { name = "pid \(pid)" }
             if pid == 0 { name = "kernel_task" }
 
-            let uid: uid_t? = gotBSD ? bsd.pbi_uid : nil
+            let uid: uid_t? = gotBSD ? bsd.pbi_uid : owner?.uid
             let row = Row(id: "pid:\(pid)", pid: pid, name: name, kind: apps[pid] != nil ? "app" : "process",
                           user: uid.map(userName))
 
             // Other users' processes (root, _windowserver) refuse these calls without a
-            // privileged helper; their numbers stay null.
+            // privileged helper; their numbers stay null (only their user name is known).
             var ru = rusage_info_v4()
             let ok = withUnsafeMutablePointer(to: &ru) {
                 $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V4, $0) }
@@ -335,7 +338,18 @@ final class ProcessSampler {
         return ok ? ru.ri_proc_start_abstime : nil
     }
 
-    private func userName(_ uid: uid_t) -> String {
+    /// Who owns `pid` (effective user, as `ps` shows) and its parent, from the kernel's process table
+    /// (sysctl kern.proc.pid): readable for every process, root's included, with no special rights.
+    static func owner(_ pid: pid_t) -> (uid: uid_t, ppid: pid_t)? {
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size >= MemoryLayout<kinfo_proc>.stride, info.kp_proc.p_pid == pid else { return nil }
+        return (info.kp_eproc.e_ucred.cr_uid, info.kp_eproc.e_ppid)
+    }
+
+    /// A user id's name ("root", "_windowserver"), looked up once.
+    func userName(_ uid: uid_t) -> String {
         if let n = users[uid] { return n }
         let n = getpwuid(uid).map { String(cString: $0.pointee.pw_name) } ?? String(uid)
         users[uid] = n

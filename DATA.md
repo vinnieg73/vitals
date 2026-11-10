@@ -28,7 +28,8 @@ Any field may be `null` when unknown; the page shows "–".
 {
   time: "2026-10-17T18:17:00-04:00",
   host: { model: "MacBook Pro", chip: "Apple M3 Pro", pCores: 5, eCores: 6, gpuCores: 14,
-          memBytes: 19327352832, os: "macOS 26.0", uptimeSec: 706000 },
+          memBytes: 19327352832, os: "macOS 26.0", uptimeSec: 706000,
+          user: "vinnie" },             // who Vitals runs as: the window offers Quit only for rows with this `user`
 
   memory: {
     totalBytes, usedBytes,              // used = app + wired + compressed (Activity Monitor "Memory Used")
@@ -120,7 +121,8 @@ Proc = {
   pid,                 // null for a synthetic group
   name,
   kind: "app" | "process" | "group" | "session",
-  user,                // "vinnie", "root", "_windowserver"
+  user,                // "vinnie", "root", "_windowserver": the effective user, for every process (root's and other
+                       // users' come from sysctl kern.proc.pid, which needs no rights; their numbers below stay null)
   memBytes,            // phys_footprint (what Activity Monitor's Memory column shows); groups = sum
   cpuPct, cpuTimeSec, threads,
   energy,              // Activity Monitor-style energy impact: cpuPct + 0.02 × wakeups per second (groups = sum)
