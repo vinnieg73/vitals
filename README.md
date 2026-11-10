@@ -63,7 +63,9 @@ node scripts/test-pages.js     # charts and readouts after a gap, hover labels, 
   Dump/Render/MenuBarPreview/Soak/SelfTest.
 - `Resources/` — the pages (window, popover, help, app.css, app.js; sample.js is the fake feed a browser gets) and the
   two menu bar pictures Help shows. The Swift side feeds the pages the snapshot described in `DATA.md`.
-- `Support/Info.plist` — the app's Info.plist (build.sh stamps the build number).
+- `Support/Info.plist` — the app's Info.plist, and the one place the version lives. Two numbers ("1.0"); the build
+  number is major × 100 + minor (1.0 = 100, next 1.1 = 101, 2.0 = 200), and build.sh refuses a pair that doesn't fit.
+  About reads it from the bundle ("Version 1.0"). Each release is tagged `v1.0`.
 - `HANDOFF.md` — where things stand now. `docs/HISTORY.md` — the dated log of every change before 2026-11-10.
 - `icon/make-icon.swift` — draws `icon/icon-1024.png` (light), `icon/icon-1024-dark.png` (Dark mode, "Graphite") and the
   gauge layers in `icon/Vitals.icon/Assets/`. `build.sh` compiles `icon/Vitals.icon` (Icon Composer format) with actool,

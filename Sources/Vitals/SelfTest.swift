@@ -16,6 +16,7 @@ enum SelfTest {
 
     static func run() -> Never {
         flags()
+        version()
         baseline()
         judge()
         strain()
@@ -34,6 +35,24 @@ enum SelfTest {
         icon()   // last: it makes a real status bar button, and AppKit then naps the timers the checks above wait on
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
+    }
+
+    /// The version is two numbers and the build number follows from it; About shows the version alone.
+    private static func version() {
+        typealias A = AppDelegate
+        check("version: 1.0 is build 100, 1.17 is 117, 2.0 is 200", A.versionFits("1.0", build: "100") && A.versionFits("1.17", build: "117")
+              && A.versionFits("2.0", build: "200"))
+        check("version: three numbers, a commit count or a mismatch don't fit", !A.versionFits("0.1.0", build: "87") && !A.versionFits("1.0", build: "87")
+              && !A.versionFits("1.1", build: "100") && !A.versionFits("1", build: "100") && !A.versionFits(nil, build: nil) && !A.versionFits("1.100", build: "200"))
+        let about = A.aboutOptions(["CFBundleShortVersionString": "1.17", "CFBundleVersion": "117"])
+        check("version: About reads the version from the bundle, without the build number", about[.applicationVersion] as? String == "1.17"
+              && about[.version] as? String == "")
+        // Run from the built app, its own Info.plist must fit too (from the bare binary there is none to check).
+        if Bundle.main.bundlePath.hasSuffix(".app") {
+            let info = Bundle.main.infoDictionary ?? [:]
+            check("version: this build's version and build number fit", A.versionFits(info["CFBundleShortVersionString"] as? String, build: info["CFBundleVersion"] as? String),
+                  "\(info["CFBundleShortVersionString"] ?? "nil") / \(info["CFBundleVersion"] ?? "nil")")
+        }
     }
 
     /// An option Vitals doesn't know is refused, so a typo (or a flag from a newer build) can't start a second

@@ -71,6 +71,11 @@ the folder, the last "model" text in it), so every session sharing a folder got 
   branches are deleted, each proven an ancestor of origin/main first: local fix/audit-efficiency, fix/audit-tidy,
   fix/audit-top4, fix/audit-usability; on GitHub those four plus fix/audit-2026-10-23 and icon/dark. Only `main` is left.
 
+- **Version 1.0.** `Support/Info.plist` says 1.0 with build number 100 (the rule shared with Claude Meter: two
+  numbers, build = major × 100 + minor; next is 1.1 = 101). build.sh no longer stamps the commit count and refuses a
+  version / build pair that doesn't fit. About reads the bundle and shows "Version 1.0" (no build number in
+  brackets). Tagged `v1.0`. Selftest: 4 "version:" checks.
+
 ## 2026-11-10 review (shipped in 2204b93)
 Vinnie: "Read this entire project and find everything that's broken, inconsistent, inefficient, or no longer needed.
 Fix what you're sure about and list the rest for me to review." Every tracked file was read. Nothing he would see

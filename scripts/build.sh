@@ -25,9 +25,13 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/web"
 cp "$BIN/Vitals" "$APP/Contents/MacOS/"
 cp Support/Info.plist "$APP/Contents/"
-# Build number = commit count, so About tells builds apart ("Version 0.1.0 (123)").
-BUILD="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" "$APP/Contents/Info.plist"
+# The version lives in Support/Info.plist and nowhere else: two numbers ("1.0"), and the build number is
+# major x 100 + minor (1.0 = 100, 1.1 = 101). Refuse to build a pair that doesn't fit.
+VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Support/Info.plist)"
+BUILD="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" Support/Info.plist)"
+if [[ ! "$VERSION" =~ ^([0-9]+)\.([0-9]+)$ ]] || (( BASH_REMATCH[1] * 100 + BASH_REMATCH[2] != BUILD )); then
+  echo "error: version $VERSION and build $BUILD don't fit (build = major x 100 + minor)" >&2; exit 1
+fi
 cp "$SCRATCH/AppIcon.icns" "$APP/Contents/Resources/"
 # Needs Xcode 26+ (actool reads Icon Composer files); without it the app keeps the light .icns only.
 ACTOOL_OUT="$SCRATCH/actool"
@@ -50,7 +54,7 @@ cp -R Resources/. "$APP/Contents/Resources/web/"
 rm -f "$APP/Contents/Resources/web/sample.js"
 
 codesign --force --sign - "$APP"
-echo "Built $APP"
+echo "Built $APP (version $VERSION)"
 
 if [[ "${1:-}" == "--install" ]]; then
   pkill -x Vitals || true

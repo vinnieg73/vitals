@@ -436,6 +436,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         } }
     }
 
+    // MARK: about
+
+    /// The standard About panel, reading "Version 1.0": the version from the bundle (Support/Info.plist), without
+    /// the build number macOS would add in brackets.
+    @objc private func showAbout() {
+        NSApp.orderFrontStandardAboutPanel(options: Self.aboutOptions(Bundle.main.infoDictionary ?? [:]))
+    }
+
+    nonisolated static func aboutOptions(_ info: [String: Any]) -> [NSApplication.AboutPanelOptionKey: Any] {
+        [.applicationVersion: info["CFBundleShortVersionString"] as? String ?? "", .version: ""]
+    }
+
+    /// Whether a version and a build number fit the rule: two numbers, build = major × 100 + minor (1.0 = 100).
+    nonisolated static func versionFits(_ version: String?, build: String?) -> Bool {
+        guard let version, let build = build.flatMap({ Int($0) }) else { return false }
+        let parts = version.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 2, parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isASCII) && $0.allSatisfy(\.isNumber) }),
+              let major = Int(parts[0]), let minor = Int(parts[1]), minor < 100 else { return false }
+        return build == major * 100 + minor
+    }
+
     // MARK: help
 
     @objc private func showHelp() { openHelp(section: nil) }
@@ -526,7 +547,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
         let appItem = NSMenuItem(); main.addItem(appItem)
         let app = NSMenu()
-        app.addItem(withTitle: "About Vitals", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(withTitle: "About Vitals", action: #selector(showAbout), keyEquivalent: "")
         app.addItem(.separator())
         app.addItem(withTitle: "Open Vitals", action: #selector(openWindow), keyEquivalent: "o")
         app.addItem(withTitle: "Vitals Help", action: #selector(showHelp), keyEquivalent: "?")
