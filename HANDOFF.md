@@ -14,8 +14,9 @@ every change before today.
 
 ## Where things stand
 - Repo: PRIVATE github.com/vinnieg73/vitals, branch `main` only, pushed. Tag `v1.0` (3b3e107).
-- Installed: /Applications/Vitals.app, version 1.0, built from the window layout fix (the commit after the tag;
-  the version number was kept at 1.0 for this small fix). Opens at login by itself (Login Items shows it enabled).
+- Installed: /Applications/Vitals.app, version 1.0, built from the window layout fix e69af18 (the commit after the
+  tag; the version number was kept at 1.0 for this small fix). Opens at login by itself (Login Items shows it
+  enabled). After that install: one Vitals process from /Applications, idle 0.6 to 1.3% of one core, 21 to 25 MB.
 - After the install (2026-11-10): one Vitals process, running from /Applications. Idle, nothing open, over 70 s:
   0.5 to 1.5% of one core (about 0.8% on average, 0.6 s of CPU), 21 to 24 MB, on a busy Mac (load average 16 to 20).
   `--dump --bench` on the cache build: 32 ms of CPU per tick with the process rows (a page open), 3 ms without.
@@ -205,6 +206,12 @@ in a 6 minute off-screen soak).
   loop only showed in the real menu bar).
 
 ## Gotchas
+- `scripts/build.sh --install` can stop at its last step with "_LSOpenURLsWithCompletionHandler() failed with error
+  -600" (2026-11-10, the first install over a build that quits the normal way on `kill`). The new copy is already
+  in /Applications by then but Vitals is NOT running, and the script does not print "Installed to". Always check
+  `pgrep -fl Vitals` after an install; running the same command again brought it back (Vitals was away about 25 s).
+  Likely cause: `open -g` ran before macOS had finished noting that the old copy quit. Not fixed in the script yet
+  (a retry around `open -g` would do it).
 - Running as the user, macOS won't give numbers for root's and other users' processes: memory and CPU show "–" and
   they sort last. Their User column is filled (2026-11-10).
 - Ad hoc signing gives every build a new identity, so macOS forgets privacy answers after a rebuild. Vitals asks for
