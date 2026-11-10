@@ -167,7 +167,6 @@ private let hostPort = mach_host_self()
 /// Mach VM counters, in pages unless noted.
 struct VMCounters {
     let internalPages, purgeablePages, externalPages, wiredPages, compressorPages: UInt64
-    let freePages, speculativePages: UInt64
     let swapouts: UInt64
 
     static func read() -> VMCounters? {
@@ -181,8 +180,7 @@ struct VMCounters {
         guard kr == KERN_SUCCESS else { return nil }
         return VMCounters(internalPages: UInt64(stats.internal_page_count), purgeablePages: UInt64(stats.purgeable_count),
                           externalPages: UInt64(stats.external_page_count), wiredPages: UInt64(stats.wire_count),
-                          compressorPages: UInt64(stats.compressor_page_count), freePages: UInt64(stats.free_count),
-                          speculativePages: UInt64(stats.speculative_count), swapouts: stats.swapouts)
+                          compressorPages: UInt64(stats.compressor_page_count), swapouts: stats.swapouts)
     }
 }
 

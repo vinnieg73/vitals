@@ -15,7 +15,6 @@
   /* ---------- formatting ---------- */
   function isNum(v) { return typeof v === "number" && isFinite(v); }
   var F = {
-    dash: "–",
     // memory: binary, labelled GB/MB like Activity Monitor
     mem: function (b) {
       if (!isNum(b)) return "–";
@@ -29,7 +28,6 @@
       return Math.round(b / MiB) + " MB";
     },
     // disk / network: decimal like Finder
-    dgb: function (b, d) { return isNum(b) ? (b / 1e9).toFixed(d == null ? 1 : d) + " GB" : "–"; },
     bytes: function (b) {
       if (!isNum(b)) return "–";
       if (b >= 1e12) return (b / 1e12).toFixed(2) + " TB";
@@ -45,7 +43,6 @@
       if (bps >= 1e3) return Math.round(bps / 1e3) + " KB/s";
       return Math.round(bps) + " B/s";
     },
-    rateZero: function (bps) { return isNum(bps) && bps > 0 ? F.rate(bps) : "0 KB/s"; },
     pct: function (v, d) { return isNum(v) ? v.toFixed(d || 0) : "–"; },
     int: function (v) { return isNum(v) ? Math.round(v).toLocaleString("en-US") : "–"; },
     dur: function (sec) {
@@ -190,7 +187,6 @@
     return 10 * e;
   }
   function maxOf(a) { var m = 0; for (var i = 0; i < a.length; i++) if (isNum(a[i]) && a[i] > m) m = a[i]; return m; }
-  function lastNum(a) { for (var i = (a || []).length - 1; i >= 0; i--) if (isNum(a[i])) return a[i]; return null; }
   function mk(tag, cls, parent) {
     var e = document.createElementNS(SVGNS, tag);
     if (cls) e.setAttribute("class", cls);
@@ -391,10 +387,10 @@
 
   /* ---------- wiring ---------- */
   var Vitals = window.Vitals = {
-    F: F, note: note, flat: flat, items: items, friendly: friendly, memState: memState, memSev: memSev, swapCls: swapCls, swapWarnAt: swapWarnAt,
+    F: F, note: note, flat: flat, items: items, friendly: friendly, memState: memState, memSev: memSev, swapCls: swapCls,
     post: post, native: native,
-    Strip: Strip, niceMax: niceMax, liveOf: liveOf, useWatts: useWatts, now: now, lastNum: lastNum, CAP: CAP,
-    GiB: GiB, MiB: MiB, isNum: isNum,
+    Strip: Strip, niceMax: niceMax, liveOf: liveOf, useWatts: useWatts, now: now, CAP: CAP,
+    GiB: GiB, isNum: isNum,
     get last() { return last; },
     onUpdate: function (fn) { listeners.push(fn); if (last) fn(last); },
     update: function (s) {

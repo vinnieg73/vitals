@@ -26,18 +26,18 @@ enum Power {
     nonisolated(unsafe) private static var batteryLooked = false
     static func watts() -> Double? { telemetry().load }
 
-    /// `load` as above; `fromCharger`: what the charger is putting in right now in W (SystemPowerIn: the Mac's draw
-    /// plus whatever goes into the battery), nil on battery; `toBattery`: what goes into the battery (BatteryPower),
-    /// nil when it's 0 or the battery is the one supplying power. One property read for all three.
-    static func telemetry() -> (load: Double?, fromCharger: Double?, toBattery: Double?) {
+    /// `load` as above; `toBattery`: what goes into the battery (BatteryPower), nil when it's 0 or the battery is
+    /// the one supplying power. The charger's own output (SystemPowerIn) is the two added together; no page shows
+    /// it, so it isn't read. One property read for both.
+    static func telemetry() -> (load: Double?, toBattery: Double?) {
         lock.lock(); defer { lock.unlock() }
         if !batteryLooked { batteryLooked = true; battery = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery")) }
-        guard battery != 0, let tele = Registry.property(battery, "PowerTelemetryData") as? [String: Any] else { return (nil, nil, nil) }
+        guard battery != 0, let tele = Registry.property(battery, "PowerTelemetryData") as? [String: Any] else { return (nil, nil) }
         func w(_ key: String) -> Double? {
             guard let mW = tele[key] as? Int, mW > 0, mW < 1_000_000 else { return nil }
             return (Double(mW) / 100).rounded() / 10
         }
-        return (w("SystemLoad"), w("SystemPowerIn"), w("BatteryPower"))
+        return (w("SystemLoad"), w("BatteryPower"))
     }
 
     static func read() -> Reading {
@@ -69,15 +69,6 @@ enum Power {
                 ?? (data["FullChargeCapacity"] as? Int)
             if let design, let full, design > 0 { r.healthPct = min(100, Int((Double(full) / Double(design) * 100).rounded())) }
             if r.batteryPct == nil, let c = b["CurrentCapacity"] as? Int { r.batteryPct = c }
-            // Plugged in: how long the battery would last at the Mac's current draw.
-            if r.pluggedIn == true {
-                let tele = b["PowerTelemetryData"] as? [String: Any] ?? [:]
-                let remaining = (b["AppleRawCurrentCapacity"] as? Int) ?? (data["RemainingCapacity"] as? Int)
-                if let mAh = remaining, let mV = b["Voltage"] as? Int, let loadMW = tele["SystemLoad"] as? Int, loadMW > 500 {
-                    let wh = Double(mAh) * Double(mV) / 1e6
-                    r.minutesLeft = Int((wh / (Double(loadMW) / 1000) * 60).rounded())
-                }
-            }
         }
         return r
     }
@@ -112,7 +103,6 @@ enum GPU {
         }
         return out
     }
-    static func utilization() -> Double? { stats().pct }
 }
 
 enum Disk {

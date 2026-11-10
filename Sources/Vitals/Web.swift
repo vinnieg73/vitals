@@ -24,7 +24,7 @@ protocol PageActions: AnyObject {
 }
 
 /// Receives `window.webkit.messageHandlers.vitals.postMessage({action, ...})`.
-/// Held weakly by the actions target so the content controller doesn't keep the app alive.
+/// Holds its target weakly: the content controller keeps the bridge, and must not keep the app delegate alive.
 final class PageBridge: NSObject, WKScriptMessageHandler {
     weak var target: PageActions?
     init(target: PageActions) { self.target = target }

@@ -42,14 +42,12 @@ else
   echo "note: no Dark mode icon (actool couldn't compile icon/Vitals.icon; see $ACTOOL_OUT/log.txt)"
 fi
 
-# The pages (written by the cloud thread). Until they exist, a placeholder stands in for each.
-[[ -d Resources ]] && cp -R Resources/. "$APP/Contents/Resources/web/"
+# The pages. sample.js is only the fake feed a browser gets (the app never loads it), so it stays out of the app.
 for page in window popover help; do
-  if [[ ! -f "$APP/Contents/Resources/web/$page.html" ]]; then
-    cp Support/placeholder.html "$APP/Contents/Resources/web/$page.html"
-    echo "note: Resources/$page.html missing, using the placeholder page"
-  fi
+  [[ -f "Resources/$page.html" ]] || { echo "error: Resources/$page.html is missing" >&2; exit 1; }
 done
+cp -R Resources/. "$APP/Contents/Resources/web/"
+rm -f "$APP/Contents/Resources/web/sample.js"
 
 codesign --force --sign - "$APP"
 echo "Built $APP"

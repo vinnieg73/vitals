@@ -15,6 +15,7 @@ enum SelfTest {
     }
 
     static func run() -> Never {
+        flags()
         baseline()
         judge()
         deadband()
@@ -28,6 +29,21 @@ enum SelfTest {
         sampler()
         print(failures == 0 ? "selftest: all passed" : "selftest: \(failures) failed")
         exit(failures == 0 ? 0 : 1)
+    }
+
+    /// An option Vitals doesn't know is refused, so a typo (or a flag from a newer build) can't start a second
+    /// menu bar copy.
+    private static func flags() {
+        check("flags: every real option is known", Flags.unknown(in: ["Vitals"]) == nil
+              && Flags.unknown(in: ["Vitals", "--dump", "--bench"]) == nil
+              && Flags.unknown(in: ["Vitals", "--render", "window", "out.png", "dark", "--warm", "40"]) == nil
+              && Flags.unknown(in: ["Vitals", "--soak", "6", "window"]) == nil
+              && Flags.unknown(in: ["Vitals", "--status-log", "--status-test"]) == nil
+              && Flags.unknown(in: ["Vitals", "--selftest"]) == nil && Flags.unknown(in: ["Vitals", "--login-status"]) == nil)
+        check("flags: an unknown option is refused", Flags.unknown(in: ["Vitals", "--login-staus"]) == "--login-staus"
+              && Flags.unknown(in: ["Vitals", "--dump", "--scan"]) == "--scan")
+        check("flags: what macOS itself passes (one dash) is let through",
+              Flags.unknown(in: ["Vitals", "-NSDocumentRevisionsDebugMode", "YES"]) == nil)
     }
 
     /// "Today" totals: a boot time that moves a second is not a reboot; a real reboot, a new day, an interface
@@ -377,6 +393,9 @@ enum SelfTest {
         check("sampler: no unused 1-hour history in the snapshot", history.isEmpty, history.joined(separator: ", "))
         let energy = snap0["energy"] as? [String: Any] ?? [:]
         check("sampler: battery and fan read once even with no page", energy["thermal"] is String && energy.keys.contains("fanRPM"))
+        let firstRow = (snap0["processes"] as? [[String: Any]])?.first ?? [:]
+        check("sampler: nothing in the snapshot that no page reads", energy["chargerW"] == nil && firstRow["idleWakeupsPs"] == nil
+              && !firstRow.isEmpty, "chargerW \(String(describing: energy["chargerW"])), row keys \(firstRow.keys.sorted())")
         let watts = ((snap0["live"] as? [String: Any])?["powerW"] as? [Any])?.filter { $0 is NSNumber }.count ?? 0
         check("sampler: watts every tick even with no page, where there's a battery", Power.watts() == nil || watts >= 3,
               "\(watts) points")

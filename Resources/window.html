@@ -453,14 +453,9 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     if (b.textContent !== label) b.textContent = label;
     b.disabled = !quittable(p);
   }
-  function selectRow(id, reveal) {
+  function selectRow(id) {
     selected = id;
-    var p = findProc(id);
-    if (reveal && p) {
-      V.flat(snap.processes).forEach(function (g) { if (g.children && g.children.some(function (k) { return k.id === id; })) open[g.id] = true; });
-    }
     renderTable();
-    if (reveal) showRow(id, "center");
   }
   function showRow(id, how) {
     var i = visible.findIndex(function (p) { return p.id === id; }), sc = $("scroll");
@@ -471,8 +466,6 @@ table.pt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px
     else if (top + ROW_H > sc.scrollTop + view) sc.scrollTop = top + ROW_H - view;
     renderRows();
   }
-  // select a row from anywhere (search Enter, or Swift: Vitals.reveal("pid:123")), opening its group
-  V.reveal = function (id) { if (snap && findProc(id)) selectRow(id, true); };
 
   var sr = 0;
   $("scroll").addEventListener("scroll", function () { if (!sr) sr = requestAnimationFrame(function () { sr = 0; renderRows(); }); });

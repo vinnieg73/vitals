@@ -1,4 +1,8 @@
-# Vitals: Mac build brief
+# Vitals: Mac build brief (history: the original brief from 2026-10-17)
+
+> **Out of date, kept only as a record.** Much has changed since: the pages are edited in this repo like the Swift
+> code (there is no separate cloud thread), the menu bar icon is three dials, the hotkey is ⌃⌥⌘V, Open at Login turns
+> itself on, and the treemap is gone. For how things are now read README.md, HANDOFF.md and DATA.md.
 
 Vinnie asked for a Mac tool that shows what Activity Monitor shows, with every stat up front instead of behind
 tabs. He picked the "Plain English" mockup with the Memory Map's RAM picture inside it

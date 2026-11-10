@@ -3,7 +3,6 @@
 (function () {
   var G = 1073741824, M = 1048576;
   function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-  function series(n, seed, f) { var r = rng(seed), a = []; for (var i = 0; i < n; i++) a.push(f(i / (n - 1), r)); return a; }
   function sess(folder, model, mb, cpu, t) {
     return { id: "pid:" + folder, pid: 4000 + folder.length * 7, name: folder, kind: "session", user: "vinnie", model: model,
       memBytes: mb * M, cpuPct: cpu, cpuTimeSec: t, threads: 17, energy: cpu * 0.7,
@@ -26,26 +25,19 @@
     memory: {
       totalBytes: 18 * G, usedBytes: 16.62 * G, appBytes: 10.84 * G, wiredBytes: 2.71 * G, compressedBytes: 3.07 * G,
       cachedBytes: 1.21 * G, freeBytes: 0.17 * G, pressurePct: 78, level: "warn",
-      swapUsedBytes: 6.02 * G, swapTotalBytes: 7 * G, swapOutBytesSinceBoot: 230 * G,
-      history: {
-        pressurePct: series(120, 7, function (t, r) { return 63 + 15 * Math.pow(t, 1.3) + (r() - .5) * 3.2; }),
-        swapUsedBytes: series(120, 11, function (t, r) { return (5.05 + 0.97 * Math.min(1, Math.round(t * 7) / 6.2) + (r() - .5) * .04) * G; })
-      }
+      swapUsedBytes: 6.02 * G, swapTotalBytes: 7 * G, swapOutBytesSinceBoot: 230 * G
     },
     cpu: {
       totalPct: 34, userPct: 22.4, systemPct: 11.1, idlePct: 66.5,
       cores: [58, 41, 37, 22, 19].map(function (v) { return { kind: "P", pct: v }; }).concat(
         [64, 55, 49, 48, 40, 33].map(function (v) { return { kind: "E", pct: v }; })),
-      load: [5.2, 4.8, 4.6],
-      history: series(120, 3, function (t, r) { return 31 + Math.sin(t * 9) * 5 + (r() - .5) * 12; })
+      load: [5.2, 4.8, 4.6]
     },
-    gpu: { pct: 9, rendererPct: 8, tilerPct: 9, memBytes: 0.92 * G, history: series(120, 5, function (t, r) { return 8 + (r() - .5) * 6 + (t > .7 && t < .75 ? 7 : 0); }) },
-    energy: { watts: 14.2, chargerW: 61.8, batteryW: 47.6, batteryPct: 82, pluggedIn: true, charging: true, fullyCharged: false, adapterWatts: 96, cycles: 47, healthPct: 100,
-      minutesLeft: 380, thermal: "nominal", fanRPM: 0, impact: null },
+    gpu: { pct: 9, rendererPct: 8, tilerPct: 9, memBytes: 0.92 * G },
+    energy: { watts: 14.2, batteryW: 47.6, batteryPct: 82, pluggedIn: true, charging: true, fullyCharged: false, adapterWatts: 96, cycles: 47, healthPct: 100,
+      minutesLeft: null, thermal: "nominal", fanRPM: 0, impact: null },
     disk: { volume: "Macintosh HD", totalBytes: 494.4e9, usedBytes: 400.1e9, freeBytes: 94.3e9, readBps: 14.2e6, writeBps: 38.6e6,
-      readTodayBytes: 61.2e9, writtenTodayBytes: 97.4e9,
-      bigUsers: [{ name: "Xcode simulators", bytes: 58e9 }, { name: "Photos library", bytes: 41e9 }, { name: "Downloads", bytes: 22e9 },
-        { name: "Claude VM bundle", bytes: 18e9 }, { name: "NHL GM database", bytes: 1.5e9 }] },
+      readTodayBytes: 61.2e9, writtenTodayBytes: 97.4e9 },
     network: { iface: "Wi-Fi", inBps: 2.4e6, outBps: 310e3, packetsInPs: 1840, packetsOutPs: 920, inTodayBytes: 18.7e9, outTodayBytes: 3.2e9 },
     totals: { processes: 712, threads: 4812 },
     processes: [
@@ -173,9 +165,8 @@
       c.userPct = Math.round(Math.max(8, 22.4 + (r() - .5) * 9) * 10) / 10;
       c.systemPct = Math.round(Math.max(4, 11.1 + (r() - .5) * 4) * 10) / 10;
       c.totalPct = Math.round(c.userPct + c.systemPct); c.idlePct = Math.round((100 - c.userPct - c.systemPct) * 10) / 10;
-      c.history.shift(); c.history.push(c.totalPct);
       c.cores.forEach(function (k) { k.pct = Math.max(2, Math.min(98, k.pct + (r() - .5) * 10)); });
-      snap.gpu.pct = Math.round(Math.max(1, 9 + (r() - .5) * 4) * 10) / 10; snap.gpu.history.shift(); snap.gpu.history.push(snap.gpu.pct);
+      snap.gpu.pct = Math.round(Math.max(1, 9 + (r() - .5) * 4) * 10) / 10;
       d.readBps = (6 + r() * 9 + (r() < .08 ? 25 + r() * 35 : 0)) * 1e6;
       d.writeBps = (24 + r() * 16 + (r() < .12 ? 30 + r() * 45 : 0)) * 1e6;
       n.inBps = (1.4 + r() * 1.6 + (r() < .1 ? 2 + r() * 3.5 : 0)) * 1e6;

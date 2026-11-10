@@ -5,8 +5,8 @@ A menu bar app that shows what Activity Monitor shows, with every stat up front 
 - **Menu bar**: icon only, always the same width (58 pt). Three dials, CPU, GPU and RAM, each needle at how busy
   that part is (RAM = memory used %). A strained dial and its name turn amber, red when critical (RAM: memory
   pressure/swap; CPU or GPU: 85%+ for 30 s). Heat or low disk space take over from the dials with a thermometer or
-  drive and an amber or red dot. Battery is left to the system's own icon. Preview: `docs/shots/menubar-states-{light,dark}.png`
-  (`Vitals --render menubar <out.png> [light|dark]`).
+  drive and an amber or red dot. Battery is left to the system's own icon. Preview: `Resources/menubar-states-{light,dark}.png`
+  (the pictures Help shows; redraw with `Vitals --render menubar <out.png> [light|dark]`).
 - **Click it** to open a popover with the short version (Memory reads % used, RAM used / total and swap used / total, in GB of 1024³ like Activity Monitor;
   GPU reads % busy, the GPU's memory in use and its core count; the full window adds Pixels and Shapes, how busy
   its drawing and geometry halves are;
@@ -44,7 +44,8 @@ Vitals.app/Contents/MacOS/Vitals --render window out.png light --warm 40        
 Vitals.app/Contents/MacOS/Vitals --soak 6 window                                # live page off screen, memory every 30 s
 ```
 
-`--dump --bench` also prints what one sample costs.
+`--dump --bench` also prints what one sample costs. An option Vitals doesn't know (a typo, or one from a newer build)
+prints the known ones and exits, so it can't start a second copy in the menu bar.
 
 The pages can also be checked without the app, in headless Chromium with fake snapshots (needs Node and Playwright):
 
@@ -54,11 +55,13 @@ node scripts/test-pages.js     # charts and readouts after a gap, hover labels, 
 
 ## Layout
 
-- `Sources/Vitals/` — the Swift app: the sampler (System, Devices, Fan, Processes, Sampler),
-  the menu bar item, the popover and windows (AppDelegate, StatusIcon, Web, Hotkey), and Dump/Render/Soak/SelfTest.
-- `Resources/` — the pages (window, popover, help, app.css, app.js, sample.js). The Swift side feeds
-  them the snapshot described in `DATA.md`.
-- `Support/` — Info.plist and the placeholder page used when a page is missing.
+- `Sources/Vitals/` — the Swift app: the sampler (System, Devices, Fan, Processes, Sampler, LongHistory for the
+  12-hour charts), the menu bar item, the popover and windows (AppDelegate, StatusIcon, Web, Hotkey), and
+  Dump/Render/MenuBarPreview/Soak/SelfTest.
+- `Resources/` — the pages (window, popover, help, app.css, app.js; sample.js is the fake feed a browser gets) and the
+  two menu bar pictures Help shows. The Swift side feeds the pages the snapshot described in `DATA.md`.
+- `Support/Info.plist` — the app's Info.plist (build.sh stamps the build number).
+- `HANDOFF.md` — where things stand now. `docs/HISTORY.md` — the dated log of every change before 2026-11-10.
 - `icon/make-icon.swift` — draws `icon/icon-1024.png` (light), `icon/icon-1024-dark.png` (Dark mode, "Graphite") and the
   gauge layers in `icon/Vitals.icon/Assets/`. `build.sh` compiles `icon/Vitals.icon` (Icon Composer format) with actool,
   so on macOS 26+ Finder and the Dock show the Graphite icon in Dark mode. `scripts/icon-preview.sh [out-folder]` renders

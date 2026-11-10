@@ -34,13 +34,7 @@ final class Sampler: @unchecked Sendable {
     private var power: Power.Reading?
     private var fanRPM: Any = NSNull()
 
-    /// Latest snapshot, set on the sampler queue.
-    private var latest: [String: Any]? {
-        get { latestLock.lock(); defer { latestLock.unlock() }; return _latest }
-        set { latestLock.lock(); _latest = newValue; latestLock.unlock() }
-    }
-    private var _latest: [String: Any]?
-    private let latestLock = NSLock()
+    private var latest: [String: Any]?   // queue only: the last snapshot delivered
     var onSnapshot: (([String: Any]) -> Void)?
 
     /// A page is showing. Process rows (and battery / fan) are only sampled then; with just the menu bar, only
@@ -48,8 +42,6 @@ final class Sampler: @unchecked Sendable {
     private var wantProcesses = true
     private var lastProcs: ProcessSampler.Result?
     private var lastForPage = false   // queue only: the last sample was taken while a page showed (fresh rows)
-
-    func latestSnapshot() -> [String: Any]? { latest }
 
     func start() {
         // On the queue, so the timer and the settings it's scheduled from are only ever touched there.
@@ -111,7 +103,8 @@ final class Sampler: @unchecked Sendable {
     }
 
     /// The energy block. The battery's details and the fan are read when `fresh` (a page shows, or the first sample);
-    /// the watts (the Mac's and the charger's) every time (one property), so the Energy chart is full when a page opens, like the others.
+    /// the watts (the Mac's own, and what goes into the battery) every time (one property), so the Energy chart is full
+    /// when a page opens, like the others.
     private func energySection(fresh: Bool, impact: Any) -> [String: Any] {
         if fresh || power == nil {
             power = Power.read()
@@ -125,16 +118,15 @@ final class Sampler: @unchecked Sendable {
             "healthPct": p.healthPct ?? NSNull(), "minutesLeft": p.minutesLeft ?? NSNull(),
             "thermal": Power.thermal(), "fanRPM": fanRPM,
             "impact": impact, "watts": num(tele.load, 1),
-            "chargerW": p.pluggedIn == true ? num(tele.fromCharger, 1) : NSNull(),
             // plugged in: what goes into the battery (0 once it's full or held at a limit); null on battery
             "batteryW": p.pluggedIn == true && tele.load != nil ? num(tele.toBattery ?? 0, 1) : NSNull(),
         ]
     }
     func saveState() { queue.sync { daily.save() } }
 
-    /// Screens asleep, screen locked or another user's session: nobody can see the menu bar, so sample once a
-    /// minute (enough for the midnight baseline and the strain levels) instead of every 2 s. Waking takes a
-    /// fresh sample at once and goes back to every 2 s.
+    /// Resting: one sample a minute (enough for the midnight baseline and the strain levels) instead of every 2 s.
+    /// Only another user's session in front rests (`AppDelegate.slowsSampling`); screens asleep or locked keep 2 s
+    /// since 2026-10-31. Ending the rest takes a fresh sample at once and goes back to every 2 s.
     func setResting(_ on: Bool) {
         queue.async {
             guard on != self.resting else { return }

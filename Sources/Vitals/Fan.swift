@@ -19,10 +19,10 @@ enum Fan {
             }
         }
         guard conn != 0, let count = read("FNum").flatMap({ $0.bytes.first }), count > 0 else { return nil }
-        var fastest = 0.0
+        var fastest: Double?   // stays nil when no fan could be read: that's "unknown", not "off"
         for i in 0..<Int(count) {
             guard let v = read("F\(i)Ac"), let rpm = decode(v) else { continue }
-            fastest = max(fastest, rpm)
+            fastest = max(fastest ?? 0, rpm)
         }
         return fastest
     }

@@ -12,7 +12,7 @@ Pages talk back with `window.webkit.messageHandlers.vitals.postMessage({action, 
 | `openWindow`    |                     | show the main window, close the popover                           |
 | `openHelp`      | `section?` (string) | show the Help window (optionally `Vitals.scrollTo(section)`)      |
 | `quitApp`       |                     | quit Vitals                                                       |
-| `quitProcess`   | `pid`, `name`       | page already asked "Quit X?"; send SIGTERM (NSRunningApplication.terminate() for apps) |
+| `quitProcess`   | `pid`, `name`, `started` | page already asked "Quit X?"; send SIGTERM (NSRunningApplication.terminate() for apps), but only if `pid` still started at `started` (the row's own value, handed back) |
 | `ready`         |                     | page loaded; push the latest snapshot right away                  |
 
 Opened in a normal browser (no `webkit.messageHandlers`), each page loads `sample.js` and renders the sample snapshot,
@@ -21,9 +21,8 @@ so the design can be checked without the app.
 ## Snapshot
 
 All bytes are raw byte counts (numbers). Memory is shown binary (GiB, labelled "GB", like Activity Monitor);
-disk and network decimal (like Finder). Rates are per second. History arrays: oldest first, covering the last hour
-(Swift keeps one point every 30 s = 120 points; fewer is fine right after launch). Any field may be `null` when
-unknown; the page shows "–".
+disk and network decimal (like Finder). Rates are per second. Chart arrays (`live`, `long`) are oldest first.
+Any field may be `null` when unknown; the page shows "–".
 
 ```js
 {
@@ -53,16 +52,15 @@ unknown; the page shows "–".
   energy: {
     batteryPct, pluggedIn, charging, fullyCharged, adapterWatts,
     cycles, healthPct,                       // MaxCapacity / DesignCapacity
-    minutesLeft,                             // on battery: IOPS time to empty; plugged in: estimate at current draw, or null
+    minutesLeft,                             // on battery: IOPS time to empty; null while plugged in (the pages show batteryW then)
     thermal: "nominal" | "fair" | "serious" | "critical",   // ProcessInfo.thermalState
     fanRPM,                                  // null if unreadable (page then just omits the fan)
     impact,                                  // sum of the top-level processes' energy right now (unitless score; 100 ≈ one core busy)
-    watts                                    // the whole Mac's draw in W, one decimal: AppleSmartBattery PowerTelemetryData
+    watts,                                   // the whole Mac's draw in W, one decimal: AppleSmartBattery PowerTelemetryData
                                              // SystemLoad (mW), read every tick (one property). Null with no battery
     batteryW                                 // plugged in: what goes into the battery in W (PowerTelemetryData BatteryPower), 0
-                                             // when full / held at a limit; null on battery
-    chargerW                                 // what the charger puts in right now in W, one decimal: PowerTelemetryData
-                                             // SystemPowerIn (the Mac's draw + into the battery). Null unless plugged in
+                                             // when full / held at a limit; null on battery. (The charger's own
+                                             // output is watts + batteryW; it isn't sent.)
   },
 
   disk: {
@@ -78,7 +76,7 @@ unknown; the page shows "–".
 
   live: {                                    // the strip charts: last 5 minutes, one point every 2 s
     stepSec: 2,                              // up to 150 points each, oldest first; starts with 1 point at launch
-                                             // a null point in every series = a gap (Mac asleep, or resting while the screens sleep);
+                                             // a null point in every series = a gap (Mac asleep, or resting behind another user's session);
                                              // a gap is one null per 2 s away (at most 150), so index = time
     pressurePct: [..], swapUsedBytes: [..],
     memUsedPct: [..],                        // memory.usedBytes / totalBytes × 100, one decimal (Activity Monitor's Memory Used)
@@ -104,18 +102,20 @@ unknown; the page shows "–".
 }
 
 Proc = {
-  id,                  // stable string: "pid:123" or "group:claude" / "group:claude-code"
+  id,                  // stable string: "pid:123", or for an app with helpers "group:<name slug>" ("group:claude",
+                       // "group:safari"; a second copy gets "-2"), or "group:claude-code"
   pid,                 // null for a synthetic group
   name,
   kind: "app" | "process" | "group" | "session",
   user,                // "vinnie", "root", "_windowserver"
   memBytes,            // phys_footprint (what Activity Monitor's Memory column shows); groups = sum
   cpuPct, cpuTimeSec, threads,
-  energy,              // Activity Monitor-style energy impact (rough is fine; groups = sum)
-  idleWakeupsPs,       // Activity Monitor's "Idle Wake Ups", per second; groups = sum
+  energy,              // Activity Monitor-style energy impact: cpuPct + 0.02 × wakeups per second (groups = sum)
   diskReadBps, diskWriteBps, netInBps, netOutBps,
   model,               // sessions only: "Opus" | "Sonnet" | "Haiku" | "Fable" | null
   note,                // optional short gray words from Swift (e.g. "virtual machine", "runs on node"); the page also has its own table
+  started,             // when the process started (mach ticks, as a string so the page hands it back exactly with
+                       // quitProcess); null for a synthetic group and for root's / other users' processes
   startedBy,           // top-level loose processes only: "Claude Code · <session folder>" or the app that started it (parent
                        // chain, 12 hops), else null. A node / python3 / ruby / bun / deno row is named after its script.
   children: [ Proc ]   // helpers under their app; Claude Code sessions under group:claude-code

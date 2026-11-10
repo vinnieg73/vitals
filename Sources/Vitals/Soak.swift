@@ -38,7 +38,7 @@ final class Soak: NSObject, NSApplicationDelegate, PageActions, WKNavigationDele
         self.web = web
 
         sampler.setWantProcesses(true)
-        sampler.setWantNetwork(true)
+        if page == "window" { sampler.setWindowOpen(true) }   // as the app does: per-process network and the long charts
         sampler.onSnapshot = { [weak self] snap in
             let json = AppDelegate.encode(snap)
             DispatchQueue.main.async { MainActor.assumeIsolated {

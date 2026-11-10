@@ -63,8 +63,8 @@ enum StatusIcon {
     static let red = NSColor(srgbRed: 0xD0 / 255, green: 0x34 / 255, blue: 0x2C / 255, alpha: 1)
 
     /// Turns snapshots into a state. Remembers each area's last severity so a value hovering at a line
-    /// doesn't flicker (each line is lower on the way out than on the way in), and how long CPU has been
-    /// and GPU have been busy. Used only from the sampler's queue.
+    /// doesn't flicker (each line is lower on the way out than on the way in), and how long CPU and GPU
+    /// have been busy. Used only from the sampler's queue.
     final class Judge: @unchecked Sendable {
         private var last: [Area: Severity] = [:]
         private var busySince: [Area: Date] = [:]

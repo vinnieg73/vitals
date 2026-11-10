@@ -5,10 +5,9 @@
   --page:#ffffff; --side:#fbfbfa; --panel:#f5f5f4; --panel-2:#ececea;
   --line:rgba(0,0,0,.085); --line-2:rgba(0,0,0,.05);
   --ink:#1c1c1e; --ink-2:#55555b; --ink-3:#86868c; --ink-4:#b8b8bd;
-  --bar:#3a3a3d; --bar-1b:#4b4b4f; --bar-2:#8d8d93; --bar-3:#c9c9cd; --track:#e8e8e6;
-  --tile:#ececea; --tile-ink:#1c1c1e; --tile-big:#2c2c2e; --tile-big-ink:#ffffff;
-  --warn:#a2610a; --warn-fill:#e09a1d; --warn-soft:rgba(224,154,29,.16); --warn-bg:#fcf6ea; --warn-line:rgba(205,140,30,.30);
-  --crit:#c62f28; --crit-fill:#d0342c; --crit-soft:rgba(208,52,44,.14); --crit-bg:#fdf0ef; --crit-line:rgba(208,52,44,.30);
+  --track:#e8e8e6;
+  --warn:#a2610a; --warn-fill:#e09a1d; --warn-bg:#fcf6ea; --warn-line:rgba(205,140,30,.30);
+  --crit:#c62f28; --crit-fill:#d0342c; --crit-bg:#fdf0ef; --crit-line:rgba(208,52,44,.30);
   --sel:rgba(0,0,0,.045); --sel-strong:rgba(0,0,0,.075);
   --menu:#f6f5f3; --shadow:0 0 0 .5px rgba(0,0,0,.18),0 20px 50px -12px rgba(0,0,0,.3);
   --g1:#3c3c40; --g2:#a3a3a8; --g3:#d4d4d7; --scope:#fbfbfa; --grid:rgba(0,0,0,.07); --zebra:rgba(0,0,0,.022);
@@ -19,10 +18,9 @@
   --page:#1d1d1f; --side:#232325; --panel:#262628; --panel-2:#2f2f32;
   --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.055);
   --ink:#f3f3f5; --ink-2:#b0b0b6; --ink-3:#86868d; --ink-4:#55555b;
-  --bar:#e6e6ea; --bar-1b:#cfcfd4; --bar-2:#9a9aa0; --bar-3:#5a5a5f; --track:#333336;
-  --tile:#2f2f32; --tile-ink:#f3f3f5; --tile-big:#e9e9ec; --tile-big-ink:#1c1c1e;
-  --warn:#f2b445; --warn-fill:#eea929; --warn-soft:rgba(238,169,41,.18); --warn-bg:#2b261d; --warn-line:rgba(238,169,41,.28);
-  --crit:#ff6a5f; --crit-fill:#ff5a4f; --crit-soft:rgba(255,90,79,.18); --crit-bg:#2e1f1e; --crit-line:rgba(255,90,79,.32);
+  --track:#333336;
+  --warn:#f2b445; --warn-fill:#eea929; --warn-bg:#2b261d; --warn-line:rgba(238,169,41,.28);
+  --crit:#ff6a5f; --crit-fill:#ff5a4f; --crit-bg:#2e1f1e; --crit-line:rgba(255,90,79,.32);
   --sel:rgba(255,255,255,.05); --sel-strong:rgba(255,255,255,.09);
   --menu:#2a2a2d; --shadow:0 0 0 .5px rgba(255,255,255,.14),0 20px 50px -12px rgba(0,0,0,.7);
   --g1:#e4e4e8; --g2:#7f7f86; --g3:#47474c; --scope:#1a1a1c; --grid:rgba(255,255,255,.07); --zebra:rgba(255,255,255,.025);
@@ -31,18 +29,17 @@
   --page:#1d1d1f; --side:#232325; --panel:#262628; --panel-2:#2f2f32;
   --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.055);
   --ink:#f3f3f5; --ink-2:#b0b0b6; --ink-3:#86868d; --ink-4:#55555b;
-  --bar:#e6e6ea; --bar-1b:#cfcfd4; --bar-2:#9a9aa0; --bar-3:#5a5a5f; --track:#333336;
-  --tile:#2f2f32; --tile-ink:#f3f3f5; --tile-big:#e9e9ec; --tile-big-ink:#1c1c1e;
-  --warn:#f2b445; --warn-fill:#eea929; --warn-soft:rgba(238,169,41,.18); --warn-bg:#2b261d; --warn-line:rgba(238,169,41,.28);
-  --crit:#ff6a5f; --crit-fill:#ff5a4f; --crit-soft:rgba(255,90,79,.18); --crit-bg:#2e1f1e; --crit-line:rgba(255,90,79,.32);
+  --track:#333336;
+  --warn:#f2b445; --warn-fill:#eea929; --warn-bg:#2b261d; --warn-line:rgba(238,169,41,.28);
+  --crit:#ff6a5f; --crit-fill:#ff5a4f; --crit-bg:#2e1f1e; --crit-line:rgba(255,90,79,.32);
   --sel:rgba(255,255,255,.05); --sel-strong:rgba(255,255,255,.09);
   --menu:#2a2a2d; --shadow:0 0 0 .5px rgba(255,255,255,.14),0 20px 50px -12px rgba(0,0,0,.7);
   --g1:#e4e4e8; --g2:#7f7f86; --g3:#47474c; --scope:#1a1a1c; --grid:rgba(255,255,255,.07); --zebra:rgba(255,255,255,.025);
   color-scheme:dark}
 
-/* severity: set on any element; children read --sev / --sev-fill etc. */
-.sev-warn{--sev:var(--warn);--sev-fill:var(--warn-fill);--sev-soft:var(--warn-soft);--sev-bg:var(--warn-bg);--sev-line:var(--warn-line)}
-.sev-crit{--sev:var(--crit);--sev-fill:var(--crit-fill);--sev-soft:var(--crit-soft);--sev-bg:var(--crit-bg);--sev-line:var(--crit-line)}
+/* severity: set on any element; children read --sev, --sev-bg and --sev-line */
+.sev-warn{--sev:var(--warn);--sev-bg:var(--warn-bg);--sev-line:var(--warn-line)}
+.sev-crit{--sev:var(--crit);--sev-bg:var(--crit-bg);--sev-line:var(--crit-line)}
 
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -52,20 +49,10 @@ button{font:inherit;color:inherit}
 [hidden]{display:none!important}
 :focus-visible{outline:2px solid var(--ink-3);outline-offset:2px}
 
-.dot{width:10px;height:10px;border-radius:50%;background:var(--ink-4);flex:none}
-.sev-warn .dot,.sev-crit .dot{background:var(--sev-fill);box-shadow:0 0 0 4px var(--sev-soft)}
 .mdot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block;background:var(--ink-4)}
 .m-Opus{background:var(--opus)}.m-Sonnet{background:var(--sonnet)}.m-Haiku{background:var(--haiku)}.m-Fable{background:var(--fable)}
 .dots{display:inline-flex;gap:3px;flex:none;align-items:center}
 .dots .mdot{width:6px;height:6px}
-.sw{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
-.hatch{background:repeating-linear-gradient(135deg,var(--bar-2) 0 2px,var(--bar-3) 2px 4px)}
-.hatch-dark{background:repeating-linear-gradient(135deg,var(--bar) 0 2px,var(--bar-1b) 2px 4px)}
-.stack{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--track);gap:2px}
-.stack i{display:block;height:100%;transition:width .4s}
-.meter{height:6px;border-radius:3px;background:var(--track);overflow:hidden}
-.meter i{display:block;height:100%;border-radius:3px;background:var(--bar-2);transition:width .4s}
-.sev-warn .meter.s i,.sev-crit .meter.s i{background:var(--sev-fill)}
 kbd.k{font:inherit;font-size:12px;font-weight:500;min-width:22px;height:21px;padding:0 6px;border-radius:5px;background:var(--panel);
   box-shadow:inset 0 0 0 1px var(--line),0 1px 0 var(--line);display:inline-flex;align-items:center;justify-content:center;color:var(--ink)}
 /* live strip charts (Vitals.Strip) */

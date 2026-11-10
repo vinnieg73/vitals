@@ -10,8 +10,27 @@ import ServiceManagement
 //   Vitals --login-status                                   print whether Open at Login is on (read only) and exit
 //   Vitals --selftest                                       check the baseline, busy-clock and sampler rules, exit 1 on a failure
 //   Vitals --soak <minutes> [page]                          live page off screen; prints memory every 30 s
+//   Vitals --status-log [--status-test]                     the menu bar app, printing the icon's width on every change
+//                                                           (--status-test: cycle through every icon state)
+
+/// The options Vitals knows. Anything else starting with "--" is refused: before 2026-11-10 an option the build
+/// didn't know fell through and started a second menu bar copy (two icons, 2026-11-05).
+enum Flags {
+    static let known: Set<String> = ["--dump", "--bench", "--render", "--warm", "--login-status", "--selftest", "--soak",
+                                     "--status-log", "--status-test"]
+
+    /// The first option in `args` (after the program's own path) that Vitals doesn't know, if any. What macOS
+    /// itself may pass starts with one dash and is let through.
+    static func unknown(in args: [String]) -> String? {
+        args.dropFirst().first { $0.hasPrefix("--") && !known.contains($0) }
+    }
+}
 
 let args = CommandLine.arguments
+if let bad = Flags.unknown(in: args) {
+    FileHandle.standardError.write(Data("Vitals: unknown option \(bad). Known: \(Flags.known.sorted().joined(separator: " "))\n".utf8))
+    exit(2)
+}
 if args.contains("--dump") {
     Dump.run()
 }
