@@ -183,6 +183,17 @@ function gapSnapshot(base, real, gap) {
     check("window: the 12-hour chart is colored by the stored levels (one amber run, no stripes)", long12.runs.join(",") === "st-ok,st-warn", JSON.stringify(long12.runs));
     check("window: hovering a stored point shows its stored level", !/\bw\b/.test(long12.early) && /\bw\b/.test(long12.late), JSON.stringify([long12.early, long12.late]));
 
+    /* ---------- the 12-hour chart: hours nobody sampled (asleep, or Vitals not running) are a gap, not a line ---------- */
+    await page.goto(url("window.html"));
+    await page.waitForFunction(() => window.Vitals && window.Vitals.last);
+    const gap12 = await page.evaluate(() => {
+      window.Vitals.setRange("12h");
+      const long = window.Vitals.last.long.memUsedPct, d = document.querySelector("#ch-mem .plot path.ln").getAttribute("d");
+      window.Vitals.setRange("5m");
+      return { empty: long.filter((v) => v == null).length, lines: (d.match(/M/g) || []).length };
+    });
+    check("window: a stretch with no points in the 12-hour chart is a gap (two lines, not one)", gap12.empty > 100 && gap12.lines === 2, JSON.stringify(gap12));
+
     /* ---------- Quit is only offered for the current user's processes ---------- */
     await page.goto(url("window.html"));
     await page.waitForFunction(() => window.Vitals && window.Vitals.last);

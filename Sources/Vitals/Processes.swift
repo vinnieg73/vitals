@@ -122,6 +122,7 @@ final class ProcessSampler {
         var ppids: [pid_t: pid_t] = [:]
         var seen: [pid_t: Prev] = [:]
         var threads = 0
+        var owners: [pid_t: (uid: uid_t, ppid: pid_t)]?
 
         for pid in pids {
             var bsd = proc_bsdinfo()
@@ -130,7 +131,8 @@ final class ProcessSampler {
             if let path { paths[pid] = path }
             // Root's and other users' processes refuse proc_pidinfo, but the kernel's process table says who owns
             // every process (and its parent) without any special rights.
-            let owner = gotBSD ? nil : Self.owner(pid)
+            if !gotBSD, owners == nil { owners = Self.owners() }   // one call for all of them, only when needed
+            let owner = gotBSD ? nil : owners?[pid]
             if gotBSD { ppids[pid] = pid_t(bsd.pbi_ppid) } else if let owner { ppids[pid] = owner.ppid }
 
             var name: String
@@ -338,14 +340,21 @@ final class ProcessSampler {
         return ok ? ru.ri_proc_start_abstime : nil
     }
 
-    /// Who owns `pid` (effective user, as `ps` shows) and its parent, from the kernel's process table
-    /// (sysctl kern.proc.pid): readable for every process, root's included, with no special rights.
-    static func owner(_ pid: pid_t) -> (uid: uid_t, ppid: pid_t)? {
-        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
-        var info = kinfo_proc()
-        var size = MemoryLayout<kinfo_proc>.stride
-        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size >= MemoryLayout<kinfo_proc>.stride, info.kp_proc.p_pid == pid else { return nil }
-        return (info.kp_eproc.e_ucred.cr_uid, info.kp_eproc.e_ppid)
+    /// Who owns every process (effective user, as `ps` shows) and its parent, from the kernel's process table
+    /// (sysctl kern.proc.all): readable for all of them, root's included, with no special rights. One call for the
+    /// whole table (about 0.3 ms); asking per process cost 4 ms a sample.
+    static func owners() -> [pid_t: (uid: uid_t, ppid: pid_t)] {
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL]
+        var size = 0
+        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 0 else { return [:] }
+        let stride = MemoryLayout<kinfo_proc>.stride
+        var table = [kinfo_proc](repeating: kinfo_proc(), count: size / stride + 64)   // room for ones that start meanwhile
+        size = table.count * stride
+        guard sysctl(&mib, 3, &table, &size, nil, 0) == 0 else { return [:] }
+        var out: [pid_t: (uid: uid_t, ppid: pid_t)] = [:]
+        out.reserveCapacity(size / stride)
+        for p in table.prefix(size / stride) { out[p.kp_proc.p_pid] = (p.kp_eproc.e_ucred.cr_uid, p.kp_eproc.e_ppid) }
+        return out
     }
 
     /// A user id's name ("root", "_windowserver"), looked up once.

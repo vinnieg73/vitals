@@ -18,7 +18,9 @@ A menu bar app that shows what Activity Monitor shows, with every stat up front 
   Network say "read" / "write" and "in" / "out". In "Memory by app" (and the window's list) a loose process says in
   gray who started it ("Claude Code · folder", or an app), and `node` / `python3` are named after their script. Each Claude Code session's dot is its own model (from that session's own transcript; gray when not known). Macs without a battery show the
   energy impact score there instead: no unit, 100 ≈ one CPU core fully busy, the same score as the app list's Energy column). **⌃⌥⌘V** (or Open Vitals, ⌘O) opens the full window. Its charts switch between the last 5 minutes, the last hour and
-  the last 12 hours (a point a minute, gaps where the Mac slept); the history starts over when Vitals restarts.
+  the last 12 hours (a point a minute, gaps where the Mac slept). The installed app keeps that history across restarts in
+  `~/Library/Application Support/Vitals/history.json` (written at most every 5 minutes, on quit and before sleep); the
+  time Vitals wasn't running shows as a gap. Test builds and every command-line mode keep it in memory only.
 - **Right-click or ⌃-click** it for Open at Login (Vitals turns it on by itself the first time the installed copy in /Applications runs, unless you unticked it; if macOS wants your OK, it opens Login Items in System Settings),
   Help and Quit. If another app already holds ⌃⌥⌘V, that menu says so.
 - **Help** (⌘?) explains every number in plain English.

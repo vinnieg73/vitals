@@ -49,11 +49,21 @@ the folder, the last "model" text in it), so every session sharing a folder got 
   Selftest: 14 "strain:" checks, 2 sampler checks, 1 long-history check. Page tests: 8 new.
 
 - **User column filled for system processes.** Root's, _windowserver's and other users' processes now show their
-  owner (`ProcessSampler.owner`: sysctl kern.proc.pid, no admin rights, no helper; names cached). Their memory and
+  owner (`ProcessSampler.owners`: sysctl kern.proc.all, no admin rights, no helper; names cached). Their memory and
   CPU still read "–" (that needs a privileged helper, not built). Because "no user" used to be what kept those rows
   from being quit, the window's `quittable()` now needs the row's user to be the user Vitals runs as (`host.user`
   in the feed); root's, other users', an unknown user's, pid 1 and Vitals itself are never offered. Swift's
   `quitProcess` still checks the uid itself. Selftest: 7 "users:" checks and 1 sampler check. Page tests: 4 new.
+
+- **The 1-hour / 12-hour charts survive a restart.** `LongHistory` saves to
+  `~/Library/Application Support/Vitals/history.json` (versioned, written in one step; about 60 KB): at most every
+  5 minutes from the sampler, on quit and before sleep (`Sampler.saveState`). Loaded at launch; points 12 hours old
+  or more are dropped, and the time Vitals wasn't running is empty minutes, so the charts show a gap, not a line.
+  A missing, damaged or other-version file is ignored. The drop-down's 5 minutes stay in memory. Only the installed
+  copy started the normal way uses the file (`AppDelegate.historyFile`); test builds, `--selftest` and every other
+  option keep history in memory. `kill` / build.sh's pkill now quits Vitals the normal way (a SIGTERM handler calls
+  terminate), so an install saves the charts and the "today" baselines too. Selftest: 16 "history:" checks on temp
+  files. Page test: a gap in the 12-hour chart is two separate lines.
 
 ## 2026-11-10 review (shipped in 2204b93)
 Vinnie: "Read this entire project and find everything that's broken, inconsistent, inefficient, or no longer needed.

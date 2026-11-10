@@ -28,6 +28,7 @@ enum SelfTest {
         users()
         sessionModels()
         longHistory()
+        savedHistory()
         kicks()
         sampler()
         icon()   // last: it makes a real status bar button, and AppKit then naps the timers the checks above wait on
@@ -375,11 +376,12 @@ enum SelfTest {
     /// The User column: every process has its owner's name, root's and other users' too (their numbers stay
     /// unknown without admin rights). Only the name of the user Vitals runs as makes a row quittable on the page.
     private static func users() {
-        let own = ProcessSampler.owner(getpid()), launchd = ProcessSampler.owner(1)
+        let table = ProcessSampler.owners()
+        let own = table[getpid()], launchd = table[1]
         check("users: the kernel's table gives this process's owner and parent", own?.uid == getuid() && own?.ppid == getppid(),
               "\(String(describing: own))")
         check("users: ...and root's processes' owner too (launchd)", launchd?.uid == 0, "\(String(describing: launchd))")
-        check("users: a pid that doesn't exist has no owner", ProcessSampler.owner(99_999_999) == nil)
+        check("users: the table holds every process, and no pid that doesn't exist", table.count > 50 && table[99_999_999] == nil, "\(table.count)")
         var rows: [Row] = []
         func walk(_ list: [Row]) { for r in list { rows.append(r); walk(r.children) } }
         walk(ProcessSampler().sample().rows)
@@ -559,6 +561,99 @@ enum SelfTest {
         w.add(["memStrain": 2, "cpu": 20], at: t0 + 10)
         w.add(["memStrain": 1, "cpu": 30], at: t0 + 20)
         check("long: a minute's memory strain is its worst, not its average", val(arr(w, "memStrain"), 0) == 2 && val(arr(w, "cpu"), 0) == 20)
+    }
+
+    /// The long charts across a restart: what was saved comes back, the time Vitals wasn't running is a gap, and a
+    /// file that's missing, damaged, from another version or too old is ignored. On made-up data in a temporary
+    /// folder: the real file (~/Library/Application Support/Vitals/history.json) is the installed app's alone.
+    private static func savedHistory() {
+        func arr(_ h: LongHistory, _ k: String) -> [Any] { h.json()[k] as? [Any] ?? [] }
+        func val(_ a: [Any], _ i: Int) -> Double? { i >= 0 && i < a.count ? (a[i] as? NSNumber)?.doubleValue : nil }
+        func same(_ a: LongHistory, _ b: LongHistory) -> Bool {
+            (try? JSONSerialization.data(withJSONObject: a.json(), options: [.sortedKeys])) == (try? JSONSerialization.data(withJSONObject: b.json(), options: [.sortedKeys]))
+        }
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)   // on a minute boundary
+        var h = LongHistory()
+        h.add(["cpu": 10, "rate": NSNull(), "memStrain": 0], at: t0)
+        h.add(["cpu": 30, "rate": 4, "memStrain": 2], at: t0 + 60)
+        h.add(["cpu": 50, "rate": 8, "memStrain": 1], at: t0 + 5 * 60)        // 3 minutes nobody sampled
+        h.add(["cpu": 70, "rate": 8, "memStrain": 1], at: t0 + 5 * 60 + 20)   // the minute in progress: average 60
+        let data = h.saved() ?? Data()
+        check("history: there is something to save", !data.isEmpty && LongHistory().saved() == nil)
+
+        // Back in the same minute (a quick restart): every point as it was.
+        let back = LongHistory(saved: data, now: t0 + 5 * 60 + 40)
+        check("history: saved and loaded, the charts are the same", back.map { same($0, h) } == true && back?.count == 6,
+              "\(back?.count ?? -1) points")
+        check("history: gaps and levels survive", back.map { arr($0, "cpu")[2] is NSNull && val(arr($0, "memStrain"), 1) == 2 && val(arr($0, "rate"), 0) == nil } == true)
+        // The same minute goes on: its saved average counts as one sample.
+        if var again = back {
+            again.add(["cpu": 0, "rate": 8, "memStrain": 0], at: t0 + 5 * 60 + 50)
+            check("history: a restart inside a minute carries on in that minute", again.count == 6 && val(arr(again, "cpu"), 5) == 30
+                  && val(arr(again, "memStrain"), 5) == 1, "\(arr(again, "cpu"))")
+        }
+        // Vitals wasn't running for 40 minutes: a gap of empty minutes, not a line from the old point to the new.
+        if var later = LongHistory(saved: data, now: t0 + 45 * 60) {
+            later.add(["cpu": 5, "rate": 1, "memStrain": 0], at: t0 + 45 * 60 + 2)
+            let cpu = arr(later, "cpu")
+            check("history: the time Vitals wasn't running is a gap", later.count == 46 && val(cpu, 5) == 60 && (6..<45).allSatisfy { cpu[$0] is NSNull }
+                  && val(cpu, 45) == 5, "\(later.count) points")
+        } else { check("history: the time Vitals wasn't running is a gap", false, "didn't load") }
+        // 11 hours later the old points are still on the chart; 12 hours or more later they're gone.
+        if var late = LongHistory(saved: data, now: t0 + 11 * 3600) {
+            late.add(["cpu": 5], at: t0 + 11 * 3600)
+            check("history: points under 12 hours old are kept", late.count == 661 && val(arr(late, "cpu"), 0) == 10, "\(late.count)")
+        } else { check("history: points under 12 hours old are kept", false, "didn't load") }
+        check("history: a file 12 hours old or more is dropped", LongHistory(saved: data, now: t0 + 5 * 60 + 12 * 3600) == nil
+              && LongHistory(saved: data, now: t0 + 30 * 3600) == nil)
+        check("history: a file from the future is ignored", LongHistory(saved: data, now: t0 - 3600) == nil)
+
+        // Damaged, another version, or not this file at all.
+        func edited(_ change: (inout [String: Any]) -> Void) -> Data {
+            var o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+            change(&o)
+            return (try? JSONSerialization.data(withJSONObject: o)) ?? Data()
+        }
+        let now = t0 + 6 * 60
+        let bad: [(String, Data)] = [
+            ("cut short", data.prefix(data.count / 2)), ("empty", Data()), ("not JSON", Data("history".utf8)),
+            ("another version", edited { $0["version"] = 2 }), ("no version", edited { $0["version"] = nil }),
+            ("no rows", edited { $0["rows"] = [Any]() }), ("a row of the wrong width", edited { $0["rows"] = [[1.0]] }),
+            ("too many rows", edited { $0["rows"] = [Any](repeating: NSNull(), count: 721) }),
+            ("no keys", edited { $0["keys"] = [String]() }), ("words for numbers", edited { $0["rows"] = [["a", "b", "c"]] }),
+        ]
+        let loaded = bad.filter { LongHistory(saved: $0.1, now: now) != nil }.map(\.0)
+        check("history: a damaged or other-version file is ignored", loaded.isEmpty && LongHistory(saved: data, now: now) != nil, "loaded: \(loaded)")
+
+        // On disk, through the sampler, in a temporary folder.
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("vitals-selftest-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("Vitals/history.json")
+        check("history: no file is no history", LongHistory.load(from: file) == nil)
+        check("history: written in one step, folder made as needed", h.save(to: file) && (try? fm.contentsOfDirectory(atPath: file.deletingLastPathComponent().path)) == ["history.json"])
+        check("history: read back from disk", LongHistory.load(from: file, now: now).map { same($0, h) } == true)
+        try? Data("{\"version\":1,".utf8).write(to: file)
+        let s = Sampler(historyFile: file)   // starts over a damaged file without complaint
+        s.setWantProcesses(false)
+        _ = s.sampleNow()
+        s.saveState()
+        let kept = LongHistory.load(from: file)
+        check("history: the sampler replaces a damaged file with its own on quit", kept?.count == 1, "\(kept?.count ?? -1) points")
+        let s2 = Sampler(historyFile: file)
+        s2.setWantProcesses(false)
+        s2.setWindowOpen(true)
+        let long = s2.sampleNow()["long"] as? [String: Any] ?? [:]
+        check("history: the next launch starts from the saved charts", ((long["memUsedPct"] as? [Any])?.count ?? 0) >= 1 && (long["memUsedPct"] as? [Any])?.last is NSNumber)
+
+        // Only the installed app, started the normal way, uses the real file.
+        typealias A = AppDelegate
+        check("history: the installed app keeps its charts in Application Support",
+              A.historyFile(bundlePath: "/Applications/Vitals.app", args: ["Vitals"])?.path.hasSuffix("/Library/Application Support/Vitals/history.json") == true)
+        check("history: a test build, or any run with an option, never touches that file",
+              A.historyFile(bundlePath: "/Users/x/Library/Caches/VitalsBuild/Vitals.app", args: ["Vitals"]) == nil
+              && A.historyFile(bundlePath: "/Applications/Vitals.app", args: ["Vitals", "--status-log"]) == nil
+              && Sampler().historyFile == nil)
     }
 
     /// Time away becomes empty chart slots, one per 2 s, never more than the 5-minute chart.

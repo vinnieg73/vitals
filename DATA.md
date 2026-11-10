@@ -105,7 +105,9 @@ Any field may be `null` when unknown; the page shows "–".
                                              // each point = the average of that minute's non-null samples of that series;
                                              // null = no sample that minute (the Mac asleep). Same keys as live.
                                              // memStrain is the minute's worst level, not an average.
-                                             // Filled every tick, window or not; in memory only, starts over with Vitals.
+                                             // Filled every tick, window or not. The installed app keeps it across
+                                             // restarts (LongHistory: ~/Library/Application Support/Vitals/history.json,
+                                             // {version: 1, lastMinute, keys, rows}); the time it wasn't running is nulls.
     pressurePct: [..], memUsedPct: [..], memStrain: [..], swapUsedBytes: [..], cpuUserPct: [..], cpuSystemPct: [..], gpuPct: [..],
     diskReadBps: [..], diskWriteBps: [..], netInBps: [..], netOutBps: [..], energyImpact: [..], powerW: [..]
   },
@@ -122,7 +124,7 @@ Proc = {
   name,
   kind: "app" | "process" | "group" | "session",
   user,                // "vinnie", "root", "_windowserver": the effective user, for every process (root's and other
-                       // users' come from sysctl kern.proc.pid, which needs no rights; their numbers below stay null)
+                       // users' come from sysctl kern.proc.all, which needs no rights; their numbers below stay null)
   memBytes,            // phys_footprint (what Activity Monitor's Memory column shows); groups = sum
   cpuPct, cpuTimeSec, threads,
   energy,              // Activity Monitor-style energy impact: cpuPct + 0.02 × wakeups per second (groups = sum)

@@ -24,6 +24,10 @@ final class Sampler: @unchecked Sendable {
     // window shows, since the popover doesn't draw it.
     private var longHist = LongHistory()
     private var wantLong = false   // queue only
+    /// Where the long charts are kept across restarts, or nil (every test and command-line mode: in memory only).
+    let historyFile: URL?
+    static let historySaveEvery: TimeInterval = 300
+    private var historySavedAt = Date()   // queue only
 
     private var iface: (bsd: String, name: String)?
     private var ifaceCheckedAt = Date.distantPast
@@ -45,6 +49,13 @@ final class Sampler: @unchecked Sendable {
     private var wantProcesses = true
     private var lastProcs: ProcessSampler.Result?
     private var lastForPage = false   // queue only: the last sample was taken while a page showed (fresh rows)
+
+    /// `historyFile`: only the installed menu bar app passes one (`AppDelegate.historyFile`). What it holds is
+    /// loaded now; it's written back at most every 5 minutes and by `saveState()` (quit, before sleep).
+    init(historyFile: URL? = nil) {
+        self.historyFile = historyFile
+        if let historyFile, let kept = LongHistory.load(from: historyFile) { longHist = kept }
+    }
 
     func start() {
         // On the queue, so the timer and the settings it's scheduled from are only ever touched there.
@@ -125,7 +136,19 @@ final class Sampler: @unchecked Sendable {
             "batteryW": p.pluggedIn == true && tele.load != nil ? num(tele.toBattery ?? 0, 1) : NSNull(),
         ]
     }
-    func saveState() { queue.sync { daily.save() } }
+    /// Quit, or the Mac about to sleep: the "today" baselines and the long charts go to disk now.
+    func saveState() {
+        queue.sync {
+            daily.save()
+            saveHistory(at: Date())
+        }
+    }
+
+    private func saveHistory(at now: Date) {
+        guard let historyFile else { return }
+        historySavedAt = now
+        longHist.save(to: historyFile)
+    }
 
     /// Resting: one sample a minute (enough for the midnight baseline and the strain levels) instead of every 2 s.
     /// Only another user's session in front rests (`AppDelegate.slowsSampling`); screens asleep or locked keep 2 s
@@ -252,6 +275,8 @@ final class Sampler: @unchecked Sendable {
         var liveOut: [String: Any] = live
         liveOut["stepSec"] = 2
         longHist.add(point, at: now)
+        // To disk at most every 5 minutes (a clock set back counts as due), so a crash loses little of the charts.
+        if historyFile != nil, now.timeIntervalSince(historySavedAt) >= Self.historySaveEvery || now < historySavedAt { saveHistory(at: now) }
 
         let uptime = Sysctl.bootTime().map { Int(now.timeIntervalSince($0)) }
         let hostOut: [String: Any] = [

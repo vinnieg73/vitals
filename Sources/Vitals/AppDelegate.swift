@@ -6,7 +6,8 @@ import WebKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSWindowDelegate,
     NSPopoverDelegate, WKNavigationDelegate, PageActions {
-    private let sampler = Sampler()
+    private let sampler = Sampler(historyFile: AppDelegate.historyFile(bundlePath: Bundle.main.bundlePath, args: CommandLine.arguments))
+    private var termSource: DispatchSourceSignal?
     private lazy var bridge = PageBridge(target: self)
     private var statusItem: NSStatusItem!
     private var popover: NSPopover?
@@ -84,8 +85,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         }
         sampler.setWantProcesses(false)
         sampler.start()
+        // `kill` (and build.sh's pkill before an install) ends Vitals the same way Quit does, so what
+        // applicationWillTerminate saves (the "today" baselines, the long charts) is saved then too.
+        signal(SIGTERM, SIG_IGN)
+        let term = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        term.setEventHandler { MainActor.assumeIsolated { NSApp.terminate(nil) } }
+        term.resume()
+        termSource = term
         watchForRest()
         keepLoginItemOn()
+    }
+
+    /// Where the 1-hour / 12-hour charts are kept across restarts: only for the installed copy started the normal
+    /// way. A test build, or any run with an option (`--status-log` is the one that gets this far), keeps its charts
+    /// in memory and never reads or writes the real file.
+    nonisolated static func historyFile(bundlePath: String, args: [String]) -> URL? {
+        guard bundlePath == "/Applications/Vitals.app", !args.dropFirst().contains(where: { $0.hasPrefix("--") }) else { return nil }
+        return LongHistory.defaultFile
     }
 
     /// Vitals always opens at login (Vinnie, 2026-11-05) unless he turned it off from the menu. Only the installed
@@ -118,6 +134,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             ws.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.setRest(reason, on) }
             }
+        }
+        // About to sleep: a Mac that never wakes this boot (battery ran out) still keeps its charts.
+        ws.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.sampler.saveState() }
         }
         // Lock and unlock are distributed notifications, which AppKit holds back while an app isn't the active one,
         // and Vitals almost never is: ask for them right away.

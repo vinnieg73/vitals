@@ -143,7 +143,7 @@ p.body b{color:var(--ink);font-weight:600}
         "Highest: <b>" + (topEnergy ? F.esc(V.friendly(topEnergy)) + ", " + F.pct(topEnergy.energy, 1) : "–") + "</b>"),
       term("Load average", "How many jobs are waiting for the CPU, averaged over 1, 5 and 15 minutes. Under " + (cores || "your core count") + " (your core count) is fine.",
         "Yours: <b>" + (c.load || []).map(function (x) { return F.pct(x, 1); }).join(" · ") + "</b>"),
-      term("Chart range", "The full window's charts show the last 5 minutes, the last hour or the last 12 hours: pick at its top right. The longer ones show a point a minute, with gaps where the Mac slept. Vitals keeps reading with the lid shut, as long as the Mac is awake. The history starts over when Vitals restarts; the menu always shows 5 minutes.",
+      term("Chart range", "The full window's charts show the last 5 minutes, the last hour or the last 12 hours: pick at its top right. The longer ones show a point a minute, with gaps where the Mac slept. Vitals keeps reading with the lid shut, as long as the Mac is awake. The hour and 12-hour history is kept when Vitals or the Mac restarts; the time Vitals wasn't running shows as a gap. The menu always shows 5 minutes.",
         "Switch: <b>5 min · 1 hour · 12 hours</b>"),
       term("SSD written today", "Data written to your drive since midnight. Lots of swap makes this climb, and SSDs have a lifetime limit.",
         "Yours: <b>" + F.bytes(d.writtenTodayBytes) + "</b>")
