@@ -1,7 +1,7 @@
 # Vitals — handoff
 
-_Last updated 2026-11-10 by Claude: the Claude Code model dots are now each session's own model (shipped, below).
-The review items Vinnie approved ("go ahead with all changes and follow your recommendations") are being built next._
+_Last updated 2026-11-10 by Claude: version 1.0 is shipped and installed. It holds the accurate Claude Code model
+dots and the six review items Vinnie approved ("go ahead with all changes and follow your recommendations")._
 
 ## What it is
 A menu bar app for Vinnie's Mac that shows what Activity Monitor shows with every stat up front: three dials in the menu
@@ -11,9 +11,33 @@ the data the Swift side sends the pages; CLAUDE.md holds the lessons learned; do
 every change before today.
 
 ## Where things stand
-- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main`, pushed.
-- Installed: /Applications/Vitals.app, built from the model-dots commit. Opens at login by itself (Login Items shows it enabled).
+- Repo: PRIVATE github.com/vinnieg73/vitals, branch `main` only, pushed. Tag `v1.0`.
+- Installed: /Applications/Vitals.app, version 1.0, built from `main` at the tag. Opens at login by itself (Login
+  Items shows it enabled).
 - Everything Vinnie has asked for is shipped. Nothing is half done.
+- Checks on the final tree (2026-11-10, cache build): build 0 warnings, `--selftest` 176 pass, page tests 34 pass,
+  window / popover / help / menubar rendered light and dark with no page errors, an unknown option (`--scan`) exits 2.
+
+## Shipped 2026-11-10 (commits, oldest first)
+- 15147ad the model dots are each session's own model
+- 475e953 heat / low-disk icon with no dot
+- b281598 one amber / red verdict for the icon and the pages
+- 8a3aaa5 User column for system processes; Quit only for your own
+- bca07f7 the 1-hour and 12-hour charts survive a restart
+- d271be2 mockups, the original brief and the merged branches removed
+- 0a063de version 1.0
+Details of each are in the two sections below.
+
+## Vinnie still owes a look (only he can see these on his real screen)
+1. The model dots: each Claude Code session's dot should be the model that session is really on (Fable sessions
+   pink, not Sonnet's orange; gray = Vitals can't tell yet).
+2. The new heat / low-disk icon: it only shows when the Mac is hot or the disk is nearly full, so it may be a while.
+   It should be an amber (red when critical) thermometer or drive with no dot. Help's picture shows what to expect.
+3. The charts after a restart: quit Vitals and open it again (or restart the Mac), then open the window on 1 hour
+   or 12 hours. The old history should still be there, with a gap for the time Vitals wasn't running. (The install
+   of 1.0 itself started with empty charts: the build before it didn't save any.)
+4. The drop-down after the lid has been shut a while: the charts should have no gap.
+5. A screenshot of the Energy row while plugged in.
 
 ## 2026-11-10 model dots (shipped)
 Vinnie: "the dots that show what model is running need to be accurate. they are currently wrongly showing sonnet when
@@ -112,24 +136,10 @@ Checked:
   are pixel-identical before and after; every CSS color still used is defined and none is left unused.
 - Mac (2026-11-10, cache build; committed 2204b93, pushed, installed to /Applications): build 0 warnings, --selftest 108/108 pass, page tests 17/17, renders OK light and dark, unknown flag exits 2.
 
-## Waiting on Vinnie
-1. (Done 2026-11-10: he typed OK to commit, push and install.)
-2. The review's list of things that were his call; on 2026-11-10 he said "go ahead with all changes and follow your
-   recommendations", so these are being built:
-   - The heat / low-disk icon uses a colored dot. His later rule (2026-10-28) is no dots or badges for warnings.
-   - The menu bar dial and the drop-down can disagree for a moment about "strained": the icon lets go of amber at
-     pressure 65% (so it doesn't flicker), the pages at 70%. On the 12-hour chart this shows as stripes when pressure
-     hovers at the line.
-   - System processes (root's, WindowServer) show "–" for User, memory and CPU. The User column can be filled without
-     an admin prompt; the numbers need a privileged helper (one admin prompt).
-   - The version has said 0.1.0 since day one (About shows "0.1.0 (build)").
-   - Old files: design/ and docs/mockups/ (3.4 MB of first-round mockups), BRIEF-mac.md, the stale renders/ folder
-     on the Mac (8 MB, not in the repo), and 10 merged branches (4 local, 6 on GitHub).
-3. Still offered: keep the 1-hour / 12-hour chart history across restarts (today it starts over with Vitals).
-4. Two checks only he can do: open the drop-down after the lid has been shut a while (charts should have no gap),
-   and a screenshot of the Energy row while plugged in.
-
 ## Never checked on his real screen
+The colored heat / low-disk icon in the real menu bar, in a light and a dark bar (it is drawn the same way as the
+strained dials and is only set when its state changes, but the 2026-10-19 redraw loop only showed in the real bar;
+the off-screen checks and the idle CPU after the install were normal).
 From older work (details in docs/HISTORY.md): a real light/dark switch with a strained icon showing; the drop-down's
 page being released a minute after it closes; a real midnight rollover of the "today" totals; lock/unlock with the
 window open (charts show the gap at its real length); the window page's memory after hours open (it crept ~1 MB/min
@@ -147,8 +157,10 @@ in a 6 minute off-screen soak).
 ## Working rules
 - Everything on his Mac runs hidden: no windows, no focus, `open -g`. Test with `--dump`, `--selftest`, `--render`,
   `--soak` and `node scripts/test-pages.js`; ask him for screenshots.
-- Commit, push and install need his own typed words. Update README, this file and Help (Resources/help.html) with
-  every change, before the commit. All checks green first.
+- Commit, push and install need his own typed words. Update README, this file, DATA.md and Help
+  (Resources/help.html) with every change, before the commit. All checks green first.
+- Versions: two numbers, build = major x 100 + minor (1.1 = 101). Bump `Support/Info.plist` for each release and
+  tag it `v1.1`; build.sh refuses a pair that doesn't fit.
 - Test a new option on the cache build (`~/Library/Caches/VitalsBuild/Vitals.app`), never on the installed app.
 - After any change to the menu bar icon, measure CPU again in both a light and a dark menu bar (the 2026-10-19 redraw
   loop only showed in the real menu bar).
